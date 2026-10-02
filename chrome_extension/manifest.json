@@ -1,0 +1,60 @@
+{
+  "manifest_version": 3,
+  "name": "Zain Account and Wallet Checker",
+  "version": "1.6.0",
+  "description": "Checks Zain account and wallet amounts in an Incognito Chrome tab with Ultra Bandwidth Saver.",
+  "incognito": "spanning",
+  "permissions": [
+    "activeTab",
+    "tabs",
+    "scripting",
+    "storage",
+    "webNavigation",
+    "declarativeNetRequest",
+    "cookies",
+    "browsingData"
+  ],
+  "host_permissions": [
+    "https://business.zain.sa/*",
+    "*://*.zain.sa/*",
+    "https://app.sa.zain.com/*",
+    "https://sa.zain.com/*",
+    "*://*.zain.com/*",
+    "http://127.0.0.1:8766/*",
+    "*://*.googletagmanager.com/*",
+    "*://*.google-analytics.com/*",
+    "*://*.doubleclick.net/*",
+    "*://*.fonts.gstatic.com/*",
+    "*://*.fonts.googleapis.com/*",
+    "*://*.facebook.net/*",
+    "*://*.hotjar.com/*"
+  ],
+  "declarative_net_request": {
+    "rule_resources": [
+      {
+        "id": "bandwidth_saver",
+        "enabled": true,
+        "path": "bandwidth_rules.json"
+      }
+    ]
+  },
+  "background": {
+    "service_worker": "service-worker.js"
+  },
+  "action": {
+    "default_title": "Zain Account and Wallet Checker",
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://business.zain.sa/*",
+        "*://*.zain.sa/*",
+        "https://app.sa.zain.com/*",
+        "https://sa.zain.com/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_start"
+    }
+  ]
+}

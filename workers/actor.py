@@ -1,0 +1,207 @@
+"""Worker Actor Implementation for Smart Zain Checker.
+Each worker is an independent Actor with its own Chrome process, proxy configuration,
+error cooldown state machine, and statistics.
+"""
+from __future__ import annotations
+
+import time
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any, Optional
+
+from workers.launcher import launch_worker_chrome, terminate_worker_process
+from workers.proxy import verify_proxy_connectivity
+
+
+@dataclass
+class WorkerActor:
+    worker_id: str
+    name: str
+    profile_dir: Path
+    extension_dir: Path
+    use_proxy: bool = False
+    proxy_url: Optional[str] = None
+    target_url: str = "https://business.zain.sa/dashboard/quick-pay"
+    use_direct_api: bool = True  # Headless Direct REST API mode (No Chrome browser)
+
+    status: str = "idle"  # 'idle', 'launching', 'ready', 'processing', 'cooldown', 'stopped', 'error'
+    status_reason: str = ""
+    pid: Optional[int] = None
+    cooldown_until: float = 0.0
+    last_active_time: float = field(default_factory=time.time)
+    current_task: Optional[dict[str, Any]] = None
+
+    completed_count: int = 0
+    match_count: int = 0
+    mismatch_count: int = 0
+    error_count: int = 0
+
+    @property
+    def ip_group(self) -> str:
+        """Returns a string identifier for the worker's outbound IP network."""
+        if self.use_proxy and self.proxy_url and str(self.proxy_url).strip():
+            from urllib.parse import urlparse
+            try:
+                parsed = urlparse(str(self.proxy_url).strip())
+                return f"proxy_{parsed.hostname}:{parsed.port}"
+            except Exception:
+                return f"proxy_{str(self.proxy_url).strip()}"
+        return "local_direct"
+
+    def launch(self) -> bool:
+        """Initializes the worker (Direct API or dedicated Chrome browser)."""
+        if self.is_alive():
+            return True
+
+        if self.use_direct_api:
+            try:
+                if self.use_proxy and self.proxy_url:
+                    is_healthy, msg = verify_proxy_connectivity(self.proxy_url)
+                    if not is_healthy:
+                        self.status = "error"
+                        self.status_reason = f"Proxy failed health check: {msg}"
+                        return False
+
+                self.status = "ready"
+                self.status_reason = f"Direct Zain REST API Worker Ready ({'Proxy' if self.use_proxy else 'Direct'})."
+                self.last_active_time = time.time()
+                return True
+            except Exception as exc:
+                self.status = "error"
+                self.status_reason = f"API Worker Init Failed: {exc}"
+                return False
+
+        self.status = "launching"
+        self.status_reason = "Launching dedicated Chrome browser..."
+
+        try:
+            # If worker is configured to use proxy, check proxy health first
+            effective_proxy = self.proxy_url if self.use_proxy else None
+            if self.use_proxy and self.proxy_url:
+                is_healthy, msg = verify_proxy_connectivity(self.proxy_url)
+                if not is_healthy:
+                    self.status = "error"
+                    self.status_reason = f"Proxy failed health check: {msg}"
+                    return False
+
+            pid = launch_worker_chrome(
+                worker_id=self.worker_id,
+                profile_dir=self.profile_dir,
+                extension_dir=self.extension_dir,
+                target_url=self.target_url,
+                proxy_server=effective_proxy,
+            )
+            self.pid = pid
+            self.status = "ready"
+            self.status_reason = "Chrome ready and connected to extension."
+            self.last_active_time = time.time()
+            return True
+        except Exception as exc:
+            self.status = "error"
+            self.status_reason = f"Launch failed: {exc}"
+            return False
+
+    def terminate(self) -> bool:
+        """Terminates ONLY this worker's process without affecting any other worker."""
+        self.status = "stopped"
+        self.status_reason = "Terminated by supervisor."
+        if self.use_direct_api:
+            self.current_task = None
+            return True
+        success = terminate_worker_process(self.pid, self.profile_dir)
+        self.pid = None
+        self.current_task = None
+        return success
+
+    def execute_task_api(self, contract_number: str) -> tuple[str, Optional[float], str]:
+        """Queries the Zain Business REST API directly."""
+        from workers.zain_api import query_contract_due_amount
+        effective_proxy = self.proxy_url if self.use_proxy else None
+        return query_contract_due_amount(contract_number, proxy_url=effective_proxy)
+
+    def restart(self) -> bool:
+        """Safely restarts this worker independently."""
+        self.terminate()
+        time.sleep(0.5)
+        return self.launch()
+
+    def set_cooldown(self, seconds: float, reason: str = "") -> None:
+        """Puts ONLY this worker into cooldown (e.g. router IP block or rate-limit)."""
+        self.cooldown_until = time.time() + seconds
+        self.status = "cooldown"
+        self.status_reason = reason or f"Cooldown for {int(seconds)}s"
+
+    def is_in_cooldown(self) -> bool:
+        """Checks if this worker is currently in cooldown."""
+        if self.cooldown_until > time.time():
+            return True
+        if self.status == "cooldown":
+            self.status = "ready"
+            self.status_reason = "Cooldown expired, ready for tasks."
+        return False
+
+    def is_ready_for_work(self) -> bool:
+        """Checks if this worker is ready to receive verification tasks."""
+        return not self.is_in_cooldown() and self.status != "stopped" and self.status != "error"
+
+    def is_alive(self) -> bool:
+        """Checks if this worker is currently active."""
+        if self.use_direct_api:
+            return self.status in ("ready", "processing")
+        if not self.pid:
+            return False
+        import subprocess
+        try:
+            res = subprocess.run(
+                ["tasklist", "/FI", f"PID eq {self.pid}", "/NH"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                text=True,
+                check=False,
+            )
+            return str(self.pid) in res.stdout
+        except Exception:
+            return False
+
+    def assign_task(self, task: dict[str, Any]) -> None:
+        """Assigns an account verification task to this worker."""
+        self.current_task = task
+        self.status = "processing"
+        self.status_reason = f"Checking row {task.get('row')}: {task.get('search_number')}"
+        self.last_active_time = time.time()
+
+    def record_outcome(self, outcome: str) -> None:
+        """Records result metrics for this worker."""
+        self.completed_count += 1
+        self.last_active_time = time.time()
+        self.current_task = None
+        if outcome == "match":
+            self.match_count += 1
+            self.status = "ready"
+        elif outcome == "mismatch":
+            self.mismatch_count += 1
+            self.status = "ready"
+        elif outcome == "error":
+            self.error_count += 1
+            self.status = "ready"
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.worker_id,
+            "worker_id": self.worker_id,
+            "name": self.name,
+            "status": self.status,
+            "status_reason": self.status_reason,
+            "use_proxy": self.use_proxy,
+            "proxy_configured": bool(self.proxy_url),
+            "ip_group": self.ip_group,
+            "pid": self.pid,
+            "in_cooldown": self.is_in_cooldown(),
+            "cooldown_remaining_seconds": max(0, int(self.cooldown_until - time.time())),
+            "current_task": self.current_task,
+            "completed": self.completed_count,
+            "matches": self.match_count,
+            "mismatches": self.mismatch_count,
+            "errors": self.error_count,
+            "last_active": time.strftime("%H:%M:%S", time.localtime(self.last_active_time)),
+        }

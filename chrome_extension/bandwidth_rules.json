@@ -1,0 +1,95 @@
+[
+  {
+    "id": 1,
+    "priority": 1,
+    "action": { "type": "block" },
+    "condition": {
+      "urlFilter": "*",
+      "resourceTypes": ["image", "media", "font"]
+    }
+  },
+  {
+    "id": 2,
+    "priority": 1,
+    "action": { "type": "block" },
+    "condition": {
+      "urlFilter": "*tessdata*"
+    }
+  },
+  {
+    "id": 3,
+    "priority": 1,
+    "action": { "type": "block" },
+    "condition": {
+      "urlFilter": "*tesseract*"
+    }
+  },
+  {
+    "id": 4,
+    "priority": 1,
+    "action": { "type": "block" },
+    "condition": {
+      "urlFilter": "*unpkg.com*"
+    }
+  },
+  {
+    "id": 5,
+    "priority": 1,
+    "action": { "type": "block" },
+    "condition": {
+      "urlFilter": "*processing.json*"
+    }
+  },
+  {
+    "id": 6,
+    "priority": 1,
+    "action": { "type": "block" },
+    "condition": {
+      "urlFilter": "*loader.json*"
+    }
+  },
+  {
+    "id": 7,
+    "priority": 1,
+    "action": { "type": "block" },
+    "condition": {
+      "urlFilter": "*lottie*"
+    }
+  },
+  {
+    "id": 8,
+    "priority": 1,
+    "action": { "type": "block" },
+    "condition": {
+      "urlFilter": "*",
+      "requestDomains": [
+        "google-analytics.com",
+        "googletagmanager.com",
+        "doubleclick.net",
+        "facebook.net",
+        "connect.facebook.net",
+        "hotjar.com",
+        "clarity.ms",
+        "snapchat.com",
+        "tiktok.com",
+        "twitter.com",
+        "analytics.twitter.com",
+        "insarget.com",
+        "useinsider.com",
+        "dynect.net",
+        "criteo.com",
+        "appsflyer.com",
+        "adjust.com",
+        "cdn.adjust.com",
+        "app.adjust.com",
+        "bam.eu01.nr-data.net",
+        "nr-data.net",
+        "js-agent.newrelic.com",
+        "newrelic.com",
+        "risk.checkout.com",
+        "firebaseinstallations.googleapis.com",
+        "firebaseremoteconfig.googleapis.com"
+      ]
+    }
+  }
+]

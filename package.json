@@ -1,0 +1,18 @@
+{
+  "name": "zain-account-checker",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Checks Zain contract amounts against column M in the first Excel worksheet.",
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "exceljs": "^4.4.0",
+    "playwright": "^1.62.0"
+  }
+}

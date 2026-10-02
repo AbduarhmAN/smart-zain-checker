@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" role="img" aria-label="شعار شغلك أوتوماتيك">
+  <rect width="800" height="800" rx="140" fill="#102b3d"/>
+  <g transform="translate(230 110) scale(2.65)">
+    <path d="M29 83V49c0-11 8-19 19-19h17c10 0 17 7 17 17v33c0 10 7 17 17 17" fill="none" stroke="#f4f2e9" stroke-width="10" stroke-linecap="round"/>
+    <path d="M85 80h18" fill="none" stroke="#21c4ac" stroke-width="10" stroke-linecap="round"/>
+    <circle cx="29" cy="83" r="12" fill="#21c4ac"/>
+    <circle cx="82" cy="47" r="11" fill="#21c4ac"/>
+    <path d="m95 87 10 10-10 10" fill="none" stroke="#21c4ac" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <text x="400" y="560" text-anchor="middle" direction="rtl" font-family="Dubai, Tahoma, sans-serif" font-size="70" font-weight="700" fill="#f4f2e9">شغلك أوتوماتيك</text>
+  <text x="400" y="630" text-anchor="middle" direction="rtl" font-family="Dubai, Tahoma, sans-serif" font-size="32" fill="#9ac5ba">نختصر المهام المتكررة</text>
+  <path d="M310 674h180" stroke="#21c4ac" stroke-width="7" stroke-linecap="round"/>
+</svg>

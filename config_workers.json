@@ -1,0 +1,22 @@
+{
+  "workers": [
+    {
+      "worker_id": "worker_1",
+      "name": "Worker 1 (مباشر Business API)",
+      "use_proxy": false,
+      "proxy": null
+    },
+    {
+      "worker_id": "worker_2",
+      "name": "Worker 2 (مباشر Business API 2)",
+      "use_proxy": false,
+      "proxy": null
+    },
+    {
+      "worker_id": "worker_3",
+      "name": "Worker 3 (بروكسي بريطاني صارم)",
+      "use_proxy": true,
+      "proxy": "socks5://195.40.62.31:7252"
+    }
+  ]
+}

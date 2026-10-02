@@ -1,0 +1,52 @@
+:root {
+  color-scheme: light;
+  font-family: "Segoe UI", Arial, sans-serif;
+}
+
+body {
+  margin: 0;
+  background: #f7f8fa;
+  color: #18212b;
+}
+
+main {
+  width: 280px;
+  padding: 18px;
+}
+
+h1 {
+  margin: 0 0 12px;
+  font-size: 19px;
+}
+
+#status {
+  min-height: 42px;
+  margin: 0 0 14px;
+  line-height: 1.4;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+button {
+  flex: 1;
+  border: 0;
+  border-radius: 6px;
+  padding: 9px 12px;
+  background: #6d2677;
+  color: white;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+button.secondary {
+  background: #69727d;
+}
+
+.hint {
+  margin: 13px 0 0;
+  color: #5f6974;
+  font-size: 12px;
+}

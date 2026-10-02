@@ -1,0 +1,3544 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>منظومة تدقيق زين | Zain Audit Workstation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alexandria:wght@600;700;800&family=Fragment+Mono:wght@400;500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Manrope:wght@500;600;700&display=swap">
+<style>
+/* 100% FLAT, MATTE, LASER-STRAIGHT, PROGRESSIVE DISCLOSURE */
+:root {
+  --bg-app: #f6f4ec;
+  --bg-sidebar: #ece6d8;
+  --bg-surface: #ffffff;
+  --bg-table-head: #f3eee3;
+  --bg-subtle: #e4ddcd;
+  --bg-dynamic: #fdfcf9;
+  --bg-hover: #f9f7f2;
+  
+  --border-light: #dad3c3;
+  --border-medium: #c5bda9;
+  --border-dark: #18181b;
+  
+  --ink-title: #18181b;
+  --ink-body: #27272a;
+  --ink-muted: #52525b;
+  --ink-faint: #71717a;
+  
+  --btn-black: #18181b;
+  --btn-black-hover: #27272a;
+  
+  /* Natural Matte Pigments */
+  --match-color: #15803d;
+  --match-bg: #f0fdf4;
+  --match-border: #bbf7d0;
+  
+  --mismatch-color: #b45309;
+  --mismatch-bg: #fffbeb;
+  --mismatch-border: #fde68a;
+  
+  --error-color: #b91c1c;
+  --error-bg: #fef2f2;
+  --error-border: #fecaca;
+  
+  --sidebar-w: 430px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  box-shadow: none !important;
+  text-shadow: none !important;
+  animation: none !important;
+  filter: none !important;
+}
+
+body {
+  background-color: var(--bg-app);
+  color: var(--ink-body);
+  font-family: 'IBM Plex Sans Arabic', 'Manrope', -apple-system, sans-serif;
+  font-size: 14.5px;
+  line-height: 1.5;
+  direction: rtl;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* MONO IS FONT ONLY - NEVER INLINE-BLOCK */
+.mono {
+  font-family: 'Fragment Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  unicode-bidi: isolate;
+}
+
+h1, h2, h3, .h-font {
+  font-family: 'Alexandria', sans-serif;
+  color: var(--ink-title);
+}
+
+/* 1. APP HEADER BAR */
+.app-header {
+  height: 56px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-light);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  flex-shrink: 0;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.app-icon {
+  width: 32px;
+  height: 32px;
+  background: var(--ink-title);
+  color: #ffffff;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Alexandria', sans-serif;
+  font-weight: 800;
+  font-size: 16px;
+}
+
+.app-heading {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ink-title);
+}
+
+.app-badge-version {
+  font-family: 'Fragment Mono', monospace;
+  font-size: 12px;
+  color: var(--ink-muted);
+  background: var(--bg-subtle);
+  padding: 2px 8px;
+  border-radius: 3px;
+  border: 1px solid var(--border-medium);
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.status-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--match-bg);
+  border: 1px solid var(--match-border);
+  color: var(--match-color);
+  padding: 5px 12px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.status-chip .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--match-color);
+}
+
+.file-chip {
+  background: var(--bg-app);
+  border: 1px solid var(--border-light);
+  padding: 5px 12px;
+  border-radius: 4px;
+  font-size: 13px;
+  color: var(--ink-muted);
+}
+
+/* 2. APP SHELL LAYOUT */
+.app-shell {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* SIDEBAR CONTROLLER */
+.sidebar {
+  width: var(--sidebar-w);
+  background: var(--bg-sidebar);
+  border-left: 1px solid var(--border-light);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  overflow-y: auto;
+}
+
+.sidebar-section {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.sidebar-title {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink-muted);
+  margin-bottom: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.control-field {
+  margin-bottom: 12px;
+}
+
+.control-field:last-child {
+  margin-bottom: 0;
+}
+
+.control-field label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-title);
+  margin-bottom: 5px;
+}
+
+.control-field label small {
+  font-family: 'Fragment Mono', monospace;
+  font-size: 11px;
+  color: var(--ink-muted);
+  font-weight: 400;
+}
+
+.form-element {
+  width: 100%;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-medium);
+  border-radius: 4px;
+  padding: 8px 12px;
+  color: var(--ink-title);
+  font-size: 13.5px;
+  outline: none;
+}
+
+.form-element:focus {
+  border-color: var(--border-dark);
+}
+
+/* DYNAMIC DISCLOSURE BOX (Appears conditionally) */
+.dynamic-subpanel {
+  display: none; /* Controlled via JS */
+  background: var(--bg-dynamic);
+  border: 1px solid var(--border-medium);
+  border-radius: 4px;
+  padding: 10px 12px;
+  margin-top: 8px;
+}
+
+.dynamic-subpanel.visible {
+  display: block;
+}
+
+.dynamic-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-title);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Scope Chips */
+.scope-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.scope-btn {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  padding: 7px 10px;
+  border-radius: 4px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-body);
+  text-align: center;
+  cursor: pointer;
+  user-select: none;
+}
+
+.scope-btn:hover {
+  background: var(--bg-hover);
+}
+
+.scope-btn.active {
+  background: var(--ink-title);
+  color: #ffffff;
+  border-color: var(--ink-title);
+}
+
+/* Collector Stack */
+.collector-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.collector-cell {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  padding: 7px 12px;
+  border-radius: 4px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.collector-cell:hover {
+  background: var(--bg-hover);
+}
+
+.collector-cell.active {
+  background: var(--bg-warm);
+  border-color: var(--border-dark);
+  font-weight: 700;
+}
+
+/* MODERN COMPACT COLUMN MAPPING & SEGMENTED CONTROLS */
+.mode-segmented-control {
+  display: flex;
+  background: var(--bg-subtle);
+  padding: 3px;
+  border-radius: 6px;
+  border: 1px solid var(--border-medium);
+  gap: 3px;
+  margin-bottom: 8px;
+}
+
+.mode-seg-btn {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 6px 4px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ink-muted);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+.mode-seg-btn:hover {
+  color: var(--ink-title);
+  background: rgba(255, 255, 255, 0.4);
+}
+
+.mode-seg-btn.active {
+  background: var(--bg-surface);
+  color: var(--ink-title);
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.col-mapping-matrix {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.col-map-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: 5px;
+  transition: border-color 0.15s ease;
+}
+
+.col-map-row:hover {
+  border-color: var(--border-medium);
+}
+
+.col-map-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-body);
+}
+
+.col-map-label .required-star {
+  color: var(--error-color);
+  font-weight: 700;
+}
+
+.col-map-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.col-pill-input {
+  width: 52px;
+  height: 29px;
+  text-align: center;
+  font-family: 'Fragment Mono', monospace;
+  font-weight: 700;
+  font-size: 13.5px;
+  text-transform: uppercase;
+  border: 1.5px solid var(--border-medium);
+  border-radius: 4px;
+  background: var(--bg-surface);
+  color: var(--ink-title);
+  outline: none;
+  transition: all 0.15s ease;
+}
+
+.col-pill-input:focus {
+  border-color: #3b82f6;
+  background: #ffffff;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+}
+
+.col-skip-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--ink-muted);
+  background: var(--bg-subtle);
+  padding: 2px 6px;
+  border-radius: 3px;
+  cursor: pointer;
+  user-select: none;
+  margin-right: 4px;
+}
+
+.col-skip-toggle:hover {
+  background: var(--border-light);
+}
+
+.col-skip-toggle input[type="checkbox"] {
+  width: 12px;
+  height: 12px;
+  accent-color: #3b82f6;
+  cursor: pointer;
+}
+
+.tooltip-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: rgba(59, 130, 246, 0.1);
+  color: #2563eb;
+  font-size: 10.5px;
+  font-weight: 700;
+  cursor: help;
+  user-select: none;
+}
+
+/* ADVANCED COLUMNS ACCORDION */
+.advanced-columns-drawer {
+  margin-top: 8px;
+  border: 1px solid var(--border-medium);
+  border-radius: 6px;
+  background: var(--bg-surface);
+  overflow: hidden;
+}
+
+.advanced-drawer-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 10px;
+  background: var(--bg-subtle);
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ink-title);
+  user-select: none;
+}
+
+.advanced-drawer-toggle:hover {
+  background: var(--border-light);
+}
+
+.drawer-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.drawer-badge {
+  font-size: 10.5px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: rgba(59, 130, 246, 0.12);
+  color: #1d4ed8;
+  font-weight: 700;
+}
+
+.drawer-arrow {
+  font-size: 11px;
+  color: var(--ink-muted);
+  transition: transform 0.2s ease;
+}
+
+.advanced-drawer-content {
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-top: 1px solid var(--border-light);
+  background: var(--bg-dynamic);
+}
+
+
+/* Execution Button */
+.sidebar-footer {
+  margin-top: auto;
+  padding: 16px 20px;
+  background: var(--bg-sidebar);
+  border-top: 1px solid var(--border-light);
+}
+
+.btn-execute {
+  width: 100%;
+  background: var(--btn-black);
+  color: #ffffff;
+  border: 1px solid var(--btn-black);
+  border-radius: 4px;
+  padding: 13px;
+  font-family: 'Alexandria', sans-serif;
+  font-size: 14.5px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.btn-execute:hover {
+  background: var(--btn-black-hover);
+}
+
+/* 3. MAIN WORKSPACE */
+.main-workspace {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-app);
+}
+
+/* INTERACTIVE NETWORK PAUSE / BLOCK ALERT BANNER */
+.network-alert-banner {
+  display: none; /* Shown when site requires human check */
+  background: #fef3c7;
+  border-bottom: 1px solid #f59e0b;
+  padding: 10px 24px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.network-alert-banner.active {
+  display: flex;
+}
+
+.alert-msg {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #92400e;
+  font-weight: 700;
+  font-size: 13.5px;
+}
+
+.btn-resume-alert {
+  background: #b45309;
+  color: #ffffff;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 14px;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* KPI Strip */
+.metrics-strip {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  padding: 14px 24px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.metric-cell {
+  border-left: 1px solid var(--border-light);
+  padding-left: 14px;
+  padding-right: 14px;
+}
+
+.metric-cell:last-child {
+  border-left: none;
+}
+
+.metric-caption {
+  font-size: 11.5px;
+  color: var(--ink-muted);
+  font-weight: 600;
+  margin-bottom: 2px;
+  display: block;
+}
+
+.metric-figure {
+  font-family: 'Fragment Mono', monospace;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--ink-title);
+}
+
+.metric-cell.match .metric-figure { color: var(--match-color); }
+.metric-cell.mismatch .metric-figure { color: var(--mismatch-color); }
+.metric-cell.error .metric-figure { color: var(--error-color); }
+
+/* Active Task Inspector */
+.active-inspector {
+  background: var(--bg-warm);
+  border-bottom: 1px solid var(--border-medium);
+  padding: 11px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.inspector-tag {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--ink-title);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-medium);
+  padding: 3px 8px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+.inspector-data-group {
+  display: flex;
+  align-items: center;
+  gap: 30px;
+  flex: 1;
+}
+
+.inspector-unit {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.inspector-unit span {
+  color: var(--ink-muted);
+}
+
+.inspector-unit strong {
+  color: var(--ink-title);
+  font-size: 14.5px;
+}
+
+/* Tabs Bar */
+.grid-tabs-bar {
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-light);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 24px;
+  height: 42px;
+}
+
+.grid-tabs {
+  display: flex;
+  gap: 6px;
+}
+
+.grid-tab {
+  padding: 9px 14px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-muted);
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+}
+
+.grid-tab:hover {
+  color: var(--ink-title);
+}
+
+.grid-tab.active {
+  color: var(--ink-title);
+  border-bottom-color: var(--ink-title);
+  font-weight: 700;
+}
+
+/* 4. 100% LASER-STRAIGHT DATA TABLE */
+.data-table-container {
+  flex: 1;
+  overflow-y: auto;
+  background: var(--bg-surface);
+}
+
+table.data-table {
+  width: 100%;
+  border-collapse: collapse !important;
+  table-layout: fixed !important;
+}
+
+table.data-table tr {
+  display: table-row;
+  height: 46px !important;
+}
+
+table.data-table th,
+table.data-table td {
+  display: table-cell !important;
+  vertical-align: middle !important;
+  height: 46px !important;
+  padding: 0 16px !important;
+  border-bottom: 1px solid var(--border-light) !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  text-align: right !important;
+  font-size: 13.5px;
+}
+
+table.data-table th {
+  position: sticky;
+  top: 0;
+  background: var(--bg-table-head) !important;
+  border-bottom: 2px solid var(--border-medium) !important;
+  font-size: 12.5px !important;
+  font-weight: 700 !important;
+  color: var(--ink-title) !important;
+  z-index: 10;
+}
+
+table.data-table tr:hover td {
+  background: var(--bg-hover) !important;
+}
+
+.badge-row {
+  display: inline-block;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 3px;
+  line-height: 1.2;
+}
+
+.badge-row.match { background: var(--match-bg); color: var(--match-color); border: 1px solid var(--match-border); }
+.badge-row.mismatch { background: var(--mismatch-bg); color: var(--mismatch-color); border: 1px solid var(--mismatch-border); }
+.badge-row.error { background: var(--error-bg); color: var(--error-color); border: 1px solid var(--error-border); }
+
+/* 5. CONSOLE DRAWER */
+.console-drawer {
+  height: 140px;
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border-medium);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.console-drawer-head {
+  padding: 6px 18px;
+  background: var(--bg-table-head);
+  border-bottom: 1px solid var(--border-light);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--ink-title);
+}
+
+.console-drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 18px;
+  font-family: 'Fragment Mono', monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  background: var(--bg-surface);
+}
+
+.log-line {
+  display: flex;
+  gap: 14px;
+  align-items: baseline;
+}
+
+.log-time { color: var(--ink-faint); font-weight: 500; }
+.log-msg { color: var(--ink-body); }
+.log-msg.ok { color: var(--match-color); font-weight: 600; }
+.log-msg.warn { color: var(--mismatch-color); font-weight: 600; }
+.log-msg.err { color: var(--error-color); font-weight: 600; }
+
+.btn-cancel-execution {
+  width: 100%;
+  background: var(--error-bg);
+  border: 1px solid var(--error-border);
+  color: var(--error-color);
+  font-weight: 700;
+  font-size: 13px;
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+.btn-cancel-execution:hover {
+  background: #fee2e2;
+  border-color: #ef4444;
+}
+
+/* MODAL OVERLAY & DIALOG */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 99999;
+}
+.modal-dialog {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-medium);
+  border-radius: 8px;
+  width: 440px;
+  max-width: 90vw;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+  animation: modalPop 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes modalPop {
+  from { transform: scale(0.94); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+.modal-header {
+  padding: 12px 18px;
+  background: var(--bg-table-head);
+  border-bottom: 1px solid var(--border-light);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 13.5px;
+  color: var(--ink-title);
+}
+.modal-body {
+  padding: 16px 18px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--ink-body);
+}
+.modal-body .modal-sub {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--ink-muted);
+}
+.modal-actions {
+  padding: 12px 18px;
+  background: var(--bg-sidebar);
+  border-top: 1px solid var(--border-light);
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.btn-modal-cancel {
+  padding: 7px 14px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-medium);
+  border-radius: 4px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-title);
+  cursor: pointer;
+}
+.btn-modal-cancel:hover {
+  background: var(--bg-hover);
+}
+.btn-modal-confirm {
+  padding: 7px 16px;
+  background: #dc2626;
+  border: 1px solid #b91c1c;
+  border-radius: 4px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(220, 38, 38, 0.2);
+}
+.btn-modal-confirm:hover {
+  background: #b91c1c;
+}
+
+/* INTERACTIVE COLUMN MAPPER & QUEUE STYLES */
+.modal-dialog-large {
+  width: 660px;
+  max-width: 95vw;
+}
+.mapper-mode-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.mapper-mode-btn {
+  padding: 8px 10px;
+  border: 1.5px solid var(--border-medium);
+  background: var(--bg-surface);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  text-align: center;
+  color: var(--ink-body);
+}
+.mapper-mode-btn.active {
+  border-color: #2563eb;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+.mapper-mode-btn small {
+  font-size: 10px;
+  color: var(--ink-muted);
+  font-weight: 500;
+}
+.compat-alert-box {
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.compat-alert-box.ok {
+  background: var(--match-bg);
+  border: 1px solid var(--match-border);
+  color: var(--match-color);
+}
+.compat-alert-box.warn {
+  background: var(--mismatch-bg);
+  border: 1px solid var(--mismatch-border);
+  color: var(--mismatch-color);
+}
+.mapper-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.mapper-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.mapper-field label {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--ink-title);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.mapper-field select {
+  padding: 6px 8px;
+  font-size: 12px;
+  border: 1px solid var(--border-medium);
+  border-radius: 4px;
+  background: var(--bg-surface);
+  color: var(--ink-title);
+}
+.amount-choice-group {
+  display: flex;
+  gap: 12px;
+  margin-top: 4px;
+  background: var(--bg-dynamic);
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border-light);
+  font-size: 12px;
+}
+.queue-badge-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11.5px;
+  font-weight: 700;
+}
+.queue-badge-status.running { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+.queue-badge-status.pending { background: #fef3c7; color: #b45309; border: 1px solid #fde68a; }
+.queue-badge-status.completed { background: #e0e7ff; color: #4338ca; border: 1px solid #c7d2fe; }
+.queue-badge-status.failed { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
+</style>
+</head>
+<body>
+
+<!-- 1. TOP HEADER BAR -->
+<header class="app-header">
+  <div class="header-left">
+    <img src="/app_logo.png" alt="Zain Checker" style="width: 28px; height: 28px; border-radius: 6px; object-fit: cover; border: 1px solid var(--border-medium);">
+    <div class="app-heading">فاحص حسابات ومحافظ زين</div>
+    <div class="app-badge-version">BUILD v2.4.3</div>
+  </div>
+
+  <div class="header-right">
+    <div id="tgStatusBadge" style="display: flex; align-items: center; gap: 6px; background: #f0fdf4; border: 1px solid #bbf7d0; padding: 4px 10px; border-radius: 16px; font-size: 11.5px; font-weight: 600; color: #166534;">
+      <span style="width: 7px; height: 7px; border-radius: 50%; background: #22c55e; display: inline-block;"></span>
+      <span id="tgStatusText">🤖 بوت تلقرام: متصل (@ZainCheckerbot)</span>
+      <button type="button" onclick="testTelegramPing()" title="إرسال رسالة اختبارية لتلقرام" style="background: none; border: none; color: #15803d; text-decoration: underline; cursor: pointer; font-size: 11px; padding: 0 2px; font-weight: 700;">🔔 اختبار</button>
+    </div>
+    <div class="status-chip">
+      <span class="dot"></span>
+      <span>جسر كروم متصل (Port 8766)</span>
+    </div>
+    <div class="file-chip">
+      ملف الحفظ: <strong style="color: var(--ink-title);">نتائج فحص زين.xlsx</strong>
+    </div>
+  </div>
+</header>
+
+<!-- 2. APP SHELL LAYOUT -->
+<div class="app-shell">
+
+  <!-- LEFT CONTROL SIDEBAR WITH DYNAMIC PROGRESSIVE DISCLOSURE -->
+  <aside class="sidebar">
+
+    <!-- STEP 01: WORKBOOK & SCOPE -->
+    <div class="sidebar-section">
+      <div class="sidebar-title">
+        <span>ملف العمل ونطاق السجلات</span>
+        <span class="mono">STEP 01</span>
+      </div>
+
+      <!-- Workbook Selector -->
+      <div class="control-field">
+        <label>
+          <span>ملف الإكسل المصدر (Select Excel File)</span>
+          <small>Workbook</small>
+        </label>
+
+        <!-- ALWAYS-VISIBLE FILE PICKER BAR -->
+        <div style="display: flex; gap: 6px; margin-bottom: 8px;">
+          <button type="button" id="btnBrowseFileMain" onclick="browseExcelFile()" style="flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 9px 12px; font-size: 12px; background: var(--zain-purple); color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: 700; box-shadow: 0 2px 6px rgba(109, 40, 217, 0.25);">
+            📂 اختيار ملف إكسل من جهازك (Select File)
+          </button>
+          <button type="button" id="btnBrowserUpload" onclick="document.getElementById('browserFileInput').click()" title="رفع ملف إكسل مباشرة من المتصفح" style="display: inline-flex; align-items: center; justify-content: center; gap: 4px; padding: 9px 10px; font-size: 11.5px; background: var(--bg-surface); color: var(--ink-base); border: 1.5px solid var(--border-strong); border-radius: 6px; cursor: pointer; font-weight: 700;">
+            ⬆️ متصفح
+          </button>
+          <input type="file" id="browserFileInput" accept=".xlsx,.xls" style="display: none;" onchange="handleBrowserFileUpload(this)">
+        </div>
+
+        <select class="form-element" id="wbChoice" onchange="handleWorkbookChange(this.value)">
+          <option value="zain_data.xlsx">1. zain_data.xlsx (الملف الأساسي)</option>
+          <option value="عملاء الرسايل النصيه.xlsx">2. عملاء الرسايل النصيه.xlsx</option>
+          <option value="custom">📂 3. ملف إكسل مخصص (Custom File Selected)...</option>
+        </select>
+
+        <!-- Custom File Path Input (Now VISIBLE by default so user always sees path & browse option) -->
+        <div class="dynamic-subpanel visible" id="customWorkbookPanel" style="margin-top: 8px;">
+          <div class="dynamic-title">المسار الحالي لملف الإكسل (أو ألصق المسار يدوياً):</div>
+          <div style="display: flex; gap: 6px;">
+            <input type="text" class="form-element mono" id="customWbPath" value="zain_data.xlsx" placeholder="مثال: D:\Excel\custom_sheet.xlsx" oninput="handleManualPathChange(this.value)" style="flex: 1;">
+            <button type="button" id="btnBrowseFile" onclick="browseExcelFile()" title="استعراض واختيار ملف إكسل من جهازك" style="display: inline-flex; align-items: center; gap: 4px; padding: 0 12px; font-size: 11.5px; white-space: nowrap; background: var(--bg-surface); border: 1.5px solid var(--border-light); border-radius: 4px; cursor: pointer; color: var(--ink-base); font-weight: 700;">
+              📁 استعراض...
+            </button>
+          </div>
+        </div>
+
+        <!-- Prominent Always-Visible Sheet Selector -->
+        <div style="margin-top: 10px;">
+          <label style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+            <span style="font-size: 12px; font-weight: 700; color: var(--ink-title);">📄 ورقة العمل المستهدفة (Select Sheet)</span>
+            <small id="sidebarSheetCountBadge" style="color: var(--zain-purple); font-weight: 700;">(جاري الفحص)</small>
+          </label>
+          <div style="display: flex; gap: 6px;">
+            <select class="form-element" id="customSheetSelect" onchange="handleSidebarSheetChange(this.value)" style="font-weight: 700; font-size: 12px; flex: 1; padding: 7px 9px;">
+              <option value="0">1. ورقة أرقام الحسابات (Accounts)</option>
+            </select>
+            <button type="button" onclick="reloadSidebarSheets()" title="تحديث وقراءة أوراق الملف" style="padding: 0 10px; background: var(--bg-surface); border: 1.5px solid var(--border-medium); border-radius: 6px; cursor: pointer; font-size: 13px;">🔄</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Scope Selector -->
+      <div class="control-field">
+        <label>
+          <span>نطاق أوراق العمل</span>
+          <small>Sheets</small>
+        </label>
+        <div class="scope-grid">
+          <div class="scope-btn active" data-scope="both" onclick="setScopeTab('both', this)">⚡ 3. كلا الورقتين</div>
+          <div class="scope-btn" data-scope="account" onclick="setScopeTab('account', this)">📄 1. الحسابات</div>
+          <div class="scope-btn" data-scope="wallet" onclick="setScopeTab('wallet', this)">💳 2. المحافظ</div>
+          <div class="scope-btn" data-scope="custom" onclick="setScopeTab('custom', this)">🛠️ 4. مخصص (Custom)</div>
+        </div>
+
+        <!-- Dynamic Custom Sheet Column Panel (Modern High-Density Compact Architecture) -->
+        <div class="dynamic-subpanel visible" id="customScopePanel" style="padding: 8px 10px;">
+          
+          <!-- 2. URL Query Mode (Segmented Control) -->
+          <div style="margin-bottom: 6px;" id="customUrlModeWrapper">
+            <label style="font-size: 11px; color: var(--ink-muted); display: block; margin-bottom: 3px; font-weight: 600;">نوع الاستعلام في زين:</label>
+            <input type="hidden" id="customUrlType" value="mixed">
+            <div class="mode-segmented-control">
+              <button type="button" class="mode-seg-btn active" data-mode="mixed" onclick="setCustomMode('mixed')">
+                <span>🔀 مختلط ذكي</span>
+              </button>
+              <button type="button" class="mode-seg-btn" data-mode="account" onclick="setCustomMode('account')">
+                <span>💳 عقد / حساب</span>
+              </button>
+              <button type="button" class="mode-seg-btn" data-mode="wallet" onclick="setCustomMode('wallet')">
+                <span>📱 محفظة</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- 3. Core Column Mapping Matrix -->
+          <div class="col-mapping-matrix">
+            <!-- Service Column for Mixed Mode -->
+            <div class="col-map-row" id="serviceColContainer">
+              <div class="col-map-label">
+                <span>رقم الخدمة (للتمييز الذكي)</span>
+                <span class="tooltip-trigger" title="قاعدة الفحص الذكي: إذا بدأ بـ 2 يُفحص كـ محفظة، وغير ذلك يُفحص كـ حساب برقم الحساب.">ⓘ</span>
+              </div>
+              <div class="col-map-input-wrap">
+                <input type="text" class="col-pill-input mono" id="customServiceCol" value="AQ" placeholder="AQ" maxlength="3" oninput="this.value = this.value.toUpperCase().trim(); updateMappingSummary();">
+              </div>
+            </div>
+
+            <!-- Lookup Column (Account / Contract / Wallet) -->
+            <div class="col-map-row" id="lookupColRow">
+              <div class="col-map-label">
+                <span id="customLookupLabel">رقم الحساب / العقد</span>
+                <span class="required-star">*</span>
+              </div>
+              <div class="col-map-input-wrap">
+                <input type="text" class="col-pill-input mono" id="customLookupCol" value="L" placeholder="L" maxlength="3" oninput="this.value = this.value.toUpperCase().trim(); updateMappingSummary();">
+              </div>
+            </div>
+
+            <!-- Expected Amount Column (O: متبقي سداد موثق) -->
+            <div class="col-map-row">
+              <div class="col-map-label">
+                <span>المبلغ الأساسي بالملف</span>
+                <span class="required-star">*</span>
+              </div>
+              <div class="col-map-input-wrap">
+                <input type="text" class="col-pill-input mono" id="customAmountCol" value="O" placeholder="O" maxlength="3" oninput="this.value = this.value.toUpperCase().trim(); updateMappingSummary();">
+              </div>
+            </div>
+
+            <!-- Customer Name Column (G) -->
+            <div class="col-map-row" id="customerColBox">
+              <div class="col-map-label">
+                <span>اسم العميل</span>
+                <label class="col-skip-toggle" title="تجاهل عمود العميل واستخدام اسم افتراضي">
+                  <input type="checkbox" id="noCustomerCheckbox" onchange="handleNoCustomerChange(this.checked); updateMappingSummary();">
+                  <span>تخطي</span>
+                </label>
+              </div>
+              <div class="col-map-input-wrap">
+                <input type="text" class="col-pill-input mono" id="customCustomerCol" value="G" placeholder="G" maxlength="3" oninput="this.value = this.value.toUpperCase().trim(); updateMappingSummary();">
+              </div>
+            </div>
+          </div>
+
+          <!-- 4. Collapsible Advanced Rules Drawer -->
+          <div class="advanced-columns-drawer">
+            <button type="button" class="advanced-drawer-toggle" onclick="toggleAdvancedDrawer(this)">
+              <span class="drawer-title">
+                <span>⚙️ أعمدة وقواعد إضافية</span>
+                <span class="drawer-badge" id="advActiveBadge">مفعل</span>
+              </span>
+              <span class="drawer-arrow">▾</span>
+            </button>
+            <div class="advanced-drawer-content" id="advDrawerContent" style="display: none;">
+              <!-- Secondary Amount Column (ع2 - AS) -->
+              <div class="col-map-row" id="amountCol2Container">
+                <div class="col-map-label">
+                  <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; user-select: none;">
+                    <input type="checkbox" id="hasAmountCol2Checkbox" onchange="handleHasAmountCol2Change(this.checked); updateMappingSummary();" style="width: 13px; height: 13px; accent-color: #3b82f6;">
+                    <span>مبلغ بديل (ع2)</span>
+                  </label>
+                  <span class="tooltip-trigger" title="يُفحص ع1 أولاً فإن لم يطابق يُفحص ع2، وإذا اختلف مع الاثنين يُحسب الفرق مع الأقرب.">ⓘ</span>
+                </div>
+                <div class="col-map-input-wrap" id="amountCol2InputBox" style="display: none;">
+                  <input type="text" class="col-pill-input mono" id="customAmountCol2" value="AS" placeholder="AS" maxlength="3" oninput="this.value = this.value.toUpperCase().trim(); updateMappingSummary();">
+                </div>
+              </div>
+
+              <!-- Status Filter Column -->
+              <div class="col-map-row" id="statusFilterRow">
+                <div class="col-map-label">
+                  <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; user-select: none;">
+                    <input type="checkbox" id="filterStatusCheckbox" checked onchange="handleFilterStatusChange(this.checked); updateMappingSummary();" style="width: 13px; height: 13px; accent-color: #3b82f6;">
+                    <span>تصفية الحالة</span>
+                  </label>
+                  <span class="tooltip-trigger" title="فحص السجلات التي يكون فيها هذا العمود فارغاً أو شرطات (-) أو يحتوي على «عدم توصل».">ⓘ</span>
+                </div>
+                <div class="col-map-input-wrap" id="statusColContainer">
+                  <input type="text" class="col-pill-input mono" id="statusColInput" value="Y" placeholder="Y" maxlength="3" oninput="this.value = this.value.toUpperCase().trim(); updateMappingSummary();">
+                </div>
+              </div>
+
+              <!-- Collector Column (U) -->
+              <div class="col-map-row" id="collectorColBox">
+                <div class="col-map-label">
+                  <span>عمود المحصل</span>
+                  <label class="col-skip-toggle" title="بدون اسم محصل (فحص جميع السجلات بدون تصفية بالمحصل)">
+                    <input type="checkbox" id="noCollectorCheckbox" onchange="handleNoCollectorChange(this.checked); updateMappingSummary();">
+                    <span>تخطي</span>
+                  </label>
+                </div>
+                <div class="col-map-input-wrap">
+                  <input type="text" class="col-pill-input mono" id="customCollectorCol" value="U" placeholder="U" maxlength="3" oninput="this.value = this.value.toUpperCase().trim(); updateMappingSummary();">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 02: COLLECTOR & LIMITS -->
+    <div class="sidebar-section" id="step02Section">
+      <div class="sidebar-title">
+        <span>المحصل وتصفية المبالغ</span>
+        <span class="mono">STEP 02</span>
+      </div>
+
+      <div class="control-field">
+        <label>
+          <span>المحصل المستهدف</span>
+          <small>Collector</small>
+        </label>
+        <div class="collector-group">
+          <div class="collector-cell active" data-collector="all" onclick="setCollectorChoice('all', this)">
+            <span>5. فحص كامل الورقة (All the sheet)</span>
+            <span class="mono" style="font-size: 11px; color: var(--ink-muted);">بدون تقييد</span>
+          </div>
+          <div class="collector-cell" data-collector="maha" onclick="setCollectorChoice('maha', this)">
+            <span>1. مها أمير حسين محمد</span>
+            <span class="mono" style="font-size: 11px; color: var(--ink-muted);">M02253</span>
+          </div>
+          <div class="collector-cell" data-collector="azza" onclick="setCollectorChoice('azza', this)">
+            <span>2. عزة مغربي محمد عبدالرحمن</span>
+            <span class="mono" style="font-size: 11px; color: var(--ink-muted);">M02254</span>
+          </div>
+          <div class="collector-cell" data-collector="mawada" onclick="setCollectorChoice('mawada', this)">
+            <span>3. مودة يحيى تاج الدين فضيل</span>
+            <span class="mono" style="font-size: 11px; color: var(--ink-muted);">M02051</span>
+          </div>
+          <div class="collector-cell" data-collector="custom" onclick="setCollectorChoice('custom', this)">
+            <span>4. اسم محصل مخصص (كتابة يدوية)...</span>
+            <span class="mono" style="font-size: 11px; color: var(--ink-muted);">Custom Name</span>
+          </div>
+        </div>
+
+        <!-- Dynamic Custom Collector Text Input (Only appears when Custom selected) -->
+        <div class="dynamic-subpanel" id="customCollectorPanel">
+          <div class="dynamic-title">أدخل اسم أو كود المحصل:</div>
+          <input type="text" class="form-element" id="customCollectorInput" placeholder="مثال: ايناس ناصر علي-M01651">
+        </div>
+      </div>
+
+      <!-- Debt Filter (m / x / f) -->
+      <div class="control-field" style="margin-top: 12px;">
+        <label>
+          <span>تصفية مبالغ المديونية (ر.س)</span>
+          <small>Modifiers m / x / f</small>
+        </label>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <input type="number" class="form-element mono" id="minDebt" placeholder="الحد الأدنى (اختياري)" value="">
+          <input type="number" class="form-element mono" id="maxDebt" placeholder="الحد الأقصى (اختياري)">
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 03: START POINTER & SAVED PROGRESS -->
+    <div class="sidebar-section">
+      <div class="sidebar-title">
+        <span>نقطة الانطلاق وحفظ التقدم</span>
+        <span class="mono">STEP 03</span>
+      </div>
+
+      <div class="control-field">
+        <label>
+          <span>اختر نقطة البداية</span>
+          <small>Start Mode</small>
+        </label>
+        <select class="form-element" id="startModeSelect" onchange="handleStartModeChange(this.value)">
+          <option value="1">1. المتابعة من آخر تقدم محفوظ (394 مكتمل)</option>
+          <option value="2">2. البدء من أول الملف من جديد</option>
+          <option value="6">6. البدء العكسي من أسفل الورقة (من تحت لفوق)</option>
+          <option value="4">4. المتابعة من صف إكسل محدد (Row Number)</option>
+          <option value="3">3. المتابعة من رقم بحث / حساب محدد (Lookup Number)</option>
+          <option value="5">5. المتابعة من رقم عميل محدد (Customer Number)</option>
+        </select>
+
+        <!-- Dynamic Starting Target Input (Only appears when specific row or search number chosen) -->
+        <div class="dynamic-subpanel" id="customStartPointerPanel">
+          <div class="dynamic-title" id="startPointerLabel">أدخل القيمة:</div>
+          <input type="text" class="form-element mono" id="startPointerInput" placeholder="أدخل الرقم هنا...">
+        </div>
+      </div>
+    </div>
+
+    <!-- FOOTER EXECUTE BUTTONS & CANCEL BUTTON -->
+    <div class="sidebar-footer" style="display: flex; flex-direction: column; gap: 8px;">
+      <div style="display: flex; gap: 8px;">
+        <button class="btn-execute" id="btnRun" onclick="toggleExecution()" style="flex: 1.2;">
+          <span>🚀 بدء الفحص الآن</span>
+          <span class="mono">→</span>
+        </button>
+        <button type="button" id="btnSidebarAddToQueue" onclick="addCurrentSidebarToQueue()" title="إضافة الشيت الحالي المحدد مع إعداداته إلى طابور الفحص" style="flex: 1; background: #2563eb; color: #fff; border: none; border-radius: 6px; padding: 10px 12px; font-weight: 700; font-size: 12.5px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; white-space: nowrap; box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);">
+          <span>➕ إضافة للطابور</span>
+        </button>
+      </div>
+      <button class="btn-cancel-execution" id="btnCancel" onclick="openCancelModal()" style="display: none;">
+        <span>🛑 إلغاء العملية (Cancel)</span>
+      </button>
+    </div>
+
+  </aside>
+
+  <!-- RIGHT MAIN WORKSPACE -->
+  <main class="main-workspace">
+
+    <!-- INTERACTIVE NETWORK PAUSE / BLOCK ALERT BANNER -->
+    <div class="network-alert-banner" id="networkAlertBanner">
+      <div class="alert-msg">
+        <span>⚠</span>
+        <span>تنبيه تدقيق: تم إيقاف الفحص مؤقتاً لاكتشاف بطء أو صفحة فحص من زين. تأكد من متصفح كروم ثم اضغط:</span>
+      </div>
+      <button class="btn-resume-alert" onclick="resumeFromAlert()">✔ استئناف الفحص الآن</button>
+    </div>
+
+    <!-- DYNAMIC SEQUENTIAL QUEUE BANNER -->
+    <div id="queueStatusBanner" style="display: none; background: #eff6ff; border-bottom: 1.5px solid #bfdbfe; padding: 10px 24px; font-size: 13px; align-items: center; justify-content: space-between; gap: 16px;">
+      <div style="display: flex; align-items: center; gap: 12px; flex: 1; flex-wrap: wrap;">
+        <span style="background: #2563eb; color: #fff; padding: 3px 10px; border-radius: 4px; font-weight: 700; font-size: 11.5px;">طابور الفحص المتسلسل 🚀</span>
+        <div id="queueActiveInfo" style="display: flex; align-items: baseline; gap: 10px; font-weight: 600; color: #1e40af;">
+          <span>الشيت قيد الفحص: <strong id="qActiveFilename">---</strong></span>
+          <span style="color: #94a3b8;">|</span>
+          <span>الوقت التقديري (ETA): <strong class="mono" id="qActiveEta" style="color: #059669; font-size: 14px;">---</strong></span>
+          <span style="color: #94a3b8;">|</span>
+          <span id="qNextInfo" style="color: #475569;">الشيت التالي: <strong id="qNextFilename">---</strong> (<span id="qNextStart" style="color: #b45309; font-weight: 700;">---</span>)</span>
+        </div>
+      </div>
+      <div style="display: flex; gap: 8px;">
+        <button type="button" onclick="switchTableTab('queue', document.getElementById('tabQueueBtn'))" style="background: #fff; border: 1.5px solid #bfdbfe; color: #1e40af; border-radius: 4px; padding: 5px 12px; font-size: 12px; font-weight: 700; cursor: pointer;">
+          📋 جدول الطابور
+        </button>
+        <button type="button" onclick="openColumnMapperModal(true)" style="background: #2563eb; border: none; color: #fff; border-radius: 4px; padding: 5px 12px; font-size: 12px; font-weight: 700; cursor: pointer;">
+          ➕ إضافة شيت
+        </button>
+      </div>
+    </div>
+
+    <!-- KPI STRIP -->
+    <div class="metrics-strip">
+      <div class="metric-cell">
+        <span class="metric-caption">مستهدف الجلسة (Target)</span>
+        <span class="metric-figure mono" id="mTotal">0</span>
+        <span style="font-size: 10px; color: var(--ink-muted); display: block; margin-top: 2px;" id="mTotalSub"></span>
+      </div>
+      <div class="metric-cell">
+        <span class="metric-caption">تم تدقيقه الآن</span>
+        <span class="metric-figure mono" id="mDone">0</span>
+        <span style="font-size: 10px; color: var(--ink-muted); display: block; margin-top: 2px;" id="mDoneSub"></span>
+      </div>
+      <div class="metric-cell">
+        <span class="metric-caption">المتبقي للفحص</span>
+        <span class="metric-figure mono" id="mRemaining">0</span>
+      </div>
+      <div class="metric-cell match">
+        <span class="metric-caption">مطابقة تامة ✔</span>
+        <span class="metric-figure mono" id="mMatch">394</span>
+      </div>
+      <div class="metric-cell mismatch">
+        <span class="metric-caption">فروقات رصيد ⚠</span>
+        <span class="metric-figure mono" id="mMismatch">0.00 ر.س</span>
+      </div>
+      <div class="metric-cell error">
+        <span class="metric-caption">مهلات وأخطاء ✖</span>
+        <span class="metric-figure mono" id="mError">2</span>
+      </div>
+    </div>
+
+    <!-- ACTIVE TASK SPOTLIGHT -->
+    <div class="active-inspector">
+      <div class="inspector-tag">قيد الفحص في كروم الآن (ACTIVE)</div>
+      
+      <div class="inspector-data-group">
+        <div class="inspector-unit">
+          <span>الصف:</span>
+          <strong class="mono" id="inspRow">13768</strong>
+        </div>
+        <div class="inspector-unit">
+          <span>رقم البحث:</span>
+          <strong class="mono" id="inspAcc">1000055467</strong>
+        </div>
+        <div class="inspector-unit">
+          <span>مبلغ الملف:</span>
+          <strong><span class="mono" id="inspFile">0.00</span> ر.س</strong>
+        </div>
+        <div class="inspector-unit">
+          <span>رصيد موقع زين:</span>
+          <strong style="color: var(--match-color);"><span class="mono" id="inspZain">0.00</span> ر.س (مطابق ✔)</strong>
+        </div>
+      </div>
+    </div>
+
+    <!-- TABS BAR -->
+    <div class="grid-tabs-bar">
+      <div class="grid-tabs">
+        <div class="grid-tab active" onclick="switchTableTab('all', this)">جميع السجلات <span class="mono" id="tabAllCount">(0)</span></div>
+        <div class="grid-tab" onclick="switchTableTab('match', this)">المطابقات فقط <span class="mono" id="tabMatchCount">(0)</span></div>
+        <div class="grid-tab" onclick="switchTableTab('mismatch', this)">فروقات المديونية <span class="mono" id="tabMismatchCount">(0)</span></div>
+        <div class="grid-tab" onclick="switchTableTab('error', this)">المهلات والأخطاء <span class="mono" id="tabErrorCount">(0)</span></div>
+        <div class="grid-tab" onclick="switchTableTab('queue', this)" id="tabQueueBtn" style="color: #2563eb; font-weight: 700;">📋 طابور الشيتات المتسلسل <span class="mono" id="tabQueueCount">(0)</span></div>
+      </div>
+      <div style="font-size: 12px; color: var(--ink-muted);">
+        عرض السجلات الحية المطابقة لملف نتائج فحص زين.xlsx
+      </div>
+    </div>
+
+    <!-- QUEUE TABLE CONTAINER (Shown when queue tab is active) -->
+    <div class="data-table-container" id="queueTableContainer" style="display: none; padding: 16px 24px; background: var(--bg-surface);">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+        <div>
+          <h3 style="font-size: 15px; font-weight: 800; color: var(--ink-title);">طابور الشيتات المتسلسل (Multi-Sheet Automated Queue)</h3>
+          <p style="font-size: 12px; color: var(--ink-muted); margin-top: 2px;">يتم فحص الشيتات تلقائياً واحداً تلو الآخر، مع إرسال ملف النتائج ومجاميعه إلى تلقرام فور اكتمال كل شيت والبدء في التالي.</p>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button type="button" onclick="startQueueExecution()" style="background: #15803d; color: #fff; border: none; padding: 7px 14px; border-radius: 5px; font-size: 12px; font-weight: 700; cursor: pointer;">
+            ▶️ بدء تشغيل الطابور
+          </button>
+          <button type="button" onclick="openColumnMapperModal(true)" style="background: #2563eb; color: #fff; border: none; padding: 7px 14px; border-radius: 5px; font-size: 12px; font-weight: 700; cursor: pointer;">
+            ➕ إضافة شيت جديد للطابور
+          </button>
+          <button type="button" onclick="clearCompletedQueue()" style="background: var(--bg-surface); color: var(--ink-muted); border: 1px solid var(--border-medium); padding: 7px 12px; border-radius: 5px; font-size: 12px; font-weight: 600; cursor: pointer;">
+            🧹 مسح المكتمل
+          </button>
+          <button type="button" onclick="refreshQueueState()" style="background: var(--bg-surface); color: var(--ink-title); border: 1px solid var(--border-medium); padding: 7px 12px; border-radius: 5px; font-size: 12px; font-weight: 600; cursor: pointer;">
+            🔄 تحديث
+          </button>
+        </div>
+      </div>
+
+      <table class="data-table" style="table-layout: auto !important;">
+        <thead>
+          <tr>
+            <th style="width: 50px;">#</th>
+            <th>اسم الملف / الشيت</th>
+            <th>النمط</th>
+            <th>مستهدف الفحص</th>
+            <th>الحالة</th>
+            <th>الإنجاز</th>
+            <th>العد التنازلي / وقت البدء</th>
+            <th>المتطابق</th>
+            <th>الفروقات</th>
+            <th>المهلات</th>
+            <th style="width: 100px;">إجراءات</th>
+          </tr>
+        </thead>
+        <tbody id="queueTableBody">
+          <tr>
+            <td colspan="11" style="text-align: center; color: var(--ink-muted); padding: 32px;">لا توجد شيتات مضافة في الطابور حالياً. اضغط "إضافة شيت جديد للطابور" للبدء.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 100% LASER-STRAIGHT DATA TABLE -->
+    <div class="data-table-container" id="regularTableContainer">
+      <table class="data-table">
+        <colgroup>
+          <col style="width: 80px;">
+          <col style="width: 90px;">
+          <col style="width: 150px;">
+          <col style="width: auto;">
+          <col style="width: 140px;">
+          <col style="width: 140px;">
+          <col style="width: 140px;">
+          <col style="width: 100px;">
+        </colgroup>
+        <thead>
+          <tr>
+            <th>الصف</th>
+            <th>النوع</th>
+            <th>رقم البحث</th>
+            <th>اسم العميل</th>
+            <th>مبلغ الملف</th>
+            <th>موقع زين</th>
+            <th>النتيجة</th>
+            <th>الوقت</th>
+          </tr>
+        </thead>
+        <tbody id="auditTableBody">
+          <tr class="row-mismatch">
+            <td><span class="mono">13763</span></td>
+            <td>حساب</td>
+            <td><span class="mono">1000055462</span></td>
+            <td>محمد إبراهيم صالح</td>
+            <td><span class="mono">320.00</span> ر.س</td>
+            <td><span class="mono" style="color: var(--mismatch-color); font-weight: 700;">0.00</span> ر.س</td>
+            <td><span class="badge-row mismatch">فرق رصيد ⚠</span></td>
+            <td><span class="mono">18:04:12</span></td>
+          </tr>
+          <tr class="row-match">
+            <td><span class="mono">13768</span></td>
+            <td>حساب</td>
+            <td><span class="mono">1000055467</span></td>
+            <td>أحمد خالد السبيعي</td>
+            <td><span class="mono">0.00</span> ر.س</td>
+            <td><span class="mono">0.00</span> ر.س</td>
+            <td><span class="badge-row match">مطابقة ✔</span></td>
+            <td><span class="mono">18:04:18</span></td>
+          </tr>
+          <tr class="row-match">
+            <td><span class="mono">13766</span></td>
+            <td>حساب</td>
+            <td><span class="mono">1000055465</span></td>
+            <td>خالد ناصر الدوسري</td>
+            <td><span class="mono">150.00</span> ر.س</td>
+            <td><span class="mono">150.00</span> ر.س</td>
+            <td><span class="badge-row match">مطابقة ✔</span></td>
+            <td><span class="mono">18:04:24</span></td>
+          </tr>
+          <tr class="row-error">
+            <td><span class="mono">13760</span></td>
+            <td>حساب</td>
+            <td><span class="mono">1000055459</span></td>
+            <td>فهد سعد العتيبي</td>
+            <td><span class="mono">850.00</span> ر.س</td>
+            <td><span style="color: var(--error-color); font-weight: 700;">مهلة انتظار</span></td>
+            <td><span class="badge-row error">إعادة محاولة ✖</span></td>
+            <td><span class="mono">18:04:30</span></td>
+          </tr>
+          <tr class="row-match">
+            <td><span class="mono">13758</span></td>
+            <td>محفظة</td>
+            <td><span class="mono">0598822101</span></td>
+            <td>منى عبدالرحمن القحطاني</td>
+            <td><span class="mono">0.00</span> ر.س</td>
+            <td><span class="mono">0.00</span> ر.س</td>
+            <td><span class="badge-row match">مطابقة ✔</span></td>
+            <td><span class="mono">18:04:36</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- BOTTOM TERMINAL LOG CONSOLE -->
+    <div class="console-drawer">
+      <div class="console-drawer-head">
+        <span>سجل أحداث الجسر وكروم المباشر (LIVE BRIDGE LOG STREAM)</span>
+        <span class="mono" id="clockBox">18:14:00</span>
+      </div>
+
+      <div class="console-drawer-body" id="consoleBody">
+        <div class="log-line"><span class="log-time">[18:04:12]</span> <span class="log-msg warn">⚠ Possible mismatch at row 13763: M=320.00, Zain raw='0.00'. Checked once again before saving.</span></div>
+        <div class="log-line"><span class="log-time">[18:04:18]</span> <span class="log-msg ok">✔ Checked row 13768, account 1000055467: Zain amount matches file amount (0.00 SAR).</span></div>
+        <div class="log-line"><span class="log-time">[18:04:24]</span> <span class="log-msg ok">✔ Checked row 13766, account 1000055465: Zain amount matches file amount (150.00 SAR).</span></div>
+        <div class="log-line"><span class="log-time">[18:04:30]</span> <span class="log-msg err">✖ The requested page for row 13760 did not expose a stable amount before timeout. Retrying once.</span></div>
+      </div>
+    </div>
+
+  </main>
+
+</div>
+
+<script>
+  let activeWorkbook = 'zain_data.xlsx';
+  let activeScope = 'both';
+  let activeCollector = 'all';
+  let activeTableTab = 'all'; // Persistent active table tab
+  let pollInterval = null;
+  let isRunning = false;
+
+  // 1. Fetch bootstrap data from Python API on load
+  window.addEventListener('DOMContentLoaded', async () => {
+    try {
+      const res = await fetch('/api/session-info');
+      if (res.ok) {
+        const data = await res.json();
+        
+        // Populate Workbooks
+        const wbSelect = document.getElementById('wbChoice');
+        wbSelect.innerHTML = '';
+        data.workbooks.forEach((wb, idx) => {
+          const opt = document.createElement('option');
+          opt.value = wb;
+          opt.textContent = `${idx + 1}. ${wb} ${idx === 0 ? '(الملف الأساسي)' : ''}`;
+          wbSelect.appendChild(opt);
+        });
+        const customOpt = document.createElement('option');
+        customOpt.value = 'custom';
+        customOpt.textContent = '📂 مسار ملف إكسل يدوي مخصص (Custom Path)...';
+        wbSelect.appendChild(customOpt);
+
+        if (data.workbooks.length > 0) {
+          activeWorkbook = data.workbooks[0];
+        }
+
+        // Populate Custom Sheet dropdown
+        updateSheetDropdown(data.default_sheets || []);
+
+        // Populate Checkpoint Data
+        if (data.checkpoint) {
+          const accDone = data.checkpoint.accounts_completed || 0;
+          const walDone = data.checkpoint.wallets_completed || 0;
+          const totalDone = accDone + walDone;
+          
+          document.getElementById('mDone').textContent = totalDone.toLocaleString();
+          document.getElementById('mMatch').textContent = totalDone.toLocaleString();
+        }
+      }
+    } catch (e) {
+      console.warn('Could not load session info from backend API:', e);
+    }
+
+    updateMappingSummary();
+
+    // Check Telegram Bot connection status
+    await updateTelegramStatusBadge();
+
+    // CHECK IF ENGINE IS ALREADY RUNNING ON LOAD/REFRESH!
+    await fetchLiveStatus();
+  });
+
+  window.currentSmartColumns = [];
+
+  // Telegram Bot Status & Ping
+  async function testTelegramPing() {
+    const txt = document.getElementById('tgStatusText');
+    if (txt) txt.textContent = '⏳ جاري إرسال إشعار تجريبي لتلقرام...';
+    try {
+      const res = await fetch('/api/telegram/test-ping', { method: 'POST' });
+      const data = await res.json();
+      if (data.status === 'ok') {
+        if (txt) txt.textContent = '🤖 بوت تلقرام: متصل وتم الإرسال بنجاح!';
+        alert('✅ تم إرسال رسالة تجريبية بنجاح إلى حساب تلقرام الخاص بك!');
+      } else {
+        if (txt) txt.textContent = '🤖 بوت تلقرام: تعذر الإرسال';
+        alert('⚠️ تعذر إرسال الإشعار: ' + (data.message || 'خطأ غير معروف'));
+      }
+    } catch (e) {
+      if (txt) txt.textContent = '🤖 بوت تلقرام: خطأ اتصال';
+      alert('خطأ أثناء فحص تلقرام: ' + e);
+    }
+    setTimeout(updateTelegramStatusBadge, 4000);
+  }
+
+  async function updateTelegramStatusBadge() {
+    try {
+      const res = await fetch('/api/telegram/status');
+      if (res.ok) {
+        const data = await res.json();
+        const txt = document.getElementById('tgStatusText');
+        if (txt && data.configured) {
+          txt.textContent = `🤖 بوت تلقرام: متصل (${data.bot_username || '@ZainCheckerbot'})`;
+        }
+      }
+    } catch (e) {}
+  }
+
+  function handleSidebarSheetChange(val) {
+    applySmartSheetColumns(val);
+    updateMappingSummary();
+  }
+
+  async function reloadSidebarSheets() {
+    let wb = activeWorkbook;
+    if (document.getElementById('wbChoice')?.value === 'custom') {
+      wb = document.getElementById('customWbPath')?.value.trim() || activeWorkbook;
+    }
+    const badge = document.getElementById('sidebarSheetCountBadge');
+    if (badge) badge.textContent = '⏳ جاري القراءة...';
+    try {
+      const res = await fetch('/api/inspect-sheets', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({workbook: wb})
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.sheets) {
+          updateSheetDropdown(data.sheets, data.smart_columns);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to reload sheets:', e);
+      if (badge) badge.textContent = '❌ خطأ';
+    }
+  }
+
+  function applySmartSheetColumns(sheetIndex) {
+    const idx = parseInt(sheetIndex, 10) || 0;
+    const sc = (window.currentSmartColumns && window.currentSmartColumns[idx]) ? window.currentSmartColumns[idx] : null;
+    if (!sc) return;
+
+    // 1. اسم العميل
+    if (sc.customer_col && document.getElementById('customCustomerCol')) {
+      document.getElementById('customCustomerCol').value = sc.customer_col;
+      if (document.getElementById('noCustomerCheckbox')) {
+        document.getElementById('noCustomerCheckbox').checked = false;
+        handleNoCustomerChange(false);
+      }
+    }
+    // 2. رقم الحساب
+    if (sc.lookup_col && document.getElementById('customLookupCol')) {
+      document.getElementById('customLookupCol').value = sc.lookup_col;
+    }
+    // 3. متبقي سداد موثق
+    if (sc.amount_col && document.getElementById('customAmountCol')) {
+      document.getElementById('customAmountCol').value = sc.amount_col;
+    }
+    // 4. مبلغ العقد (المبلغ البديل ع2)
+    if (sc.amount_col_2) {
+      if (document.getElementById('hasAmountCol2Checkbox')) {
+        document.getElementById('hasAmountCol2Checkbox').checked = true;
+        handleHasAmountCol2Change(true);
+      }
+      if (document.getElementById('customAmountCol2')) {
+        document.getElementById('customAmountCol2').value = sc.amount_col_2;
+      }
+    }
+    // 5. رقم الخدمة
+    if (sc.service_col && document.getElementById('customServiceCol')) {
+      document.getElementById('customServiceCol').value = sc.service_col;
+      setCustomMode('mixed');
+    }
+    // 6. الحالة الرئيسية & الحالة الفرعية: تُستعمل في النتائج فقط (لا تمنع فحص السجلات)
+    if (document.getElementById('filterStatusCheckbox')) {
+      document.getElementById('filterStatusCheckbox').checked = false;
+      handleFilterStatusChange(false);
+    }
+    updateMappingSummary();
+  }
+
+  function updateSheetDropdown(sheets, smartColumns) {
+    if (smartColumns) {
+      window.currentSmartColumns = smartColumns;
+    }
+    const sheetSelect = document.getElementById('customSheetSelect');
+    const badge = document.getElementById('sidebarSheetCountBadge');
+    if (badge) {
+      badge.textContent = `(${sheets.length} أوراق عمل)`;
+    }
+    if (!sheetSelect) return;
+    sheetSelect.onchange = function() { handleSidebarSheetChange(this.value); };
+    sheetSelect.innerHTML = '';
+    if (sheets.length === 0) {
+      sheetSelect.innerHTML = '<option value="0">1. ورقة أرقام الحسابات (افتراضي)</option>';
+      return;
+    }
+    sheets.forEach((sh, idx) => {
+      const opt = document.createElement('option');
+      opt.value = idx;
+      opt.textContent = `${idx + 1}. ورقة "${sh}"`;
+      sheetSelect.appendChild(opt);
+    });
+    applySmartSheetColumns(0);
+    updateMappingSummary();
+  }
+
+  
+  // Browse File via Native Dialog (with automatic Browser File Picker fallback)
+  async function browseExcelFile() {
+    const btn = document.getElementById('btnBrowseFile');
+    const btnMain = document.getElementById('btnBrowseFileMain');
+    if (btn) btn.textContent = '⏳ جاري الفتح...';
+    if (btnMain) btnMain.textContent = '⏳ جاري فتح نافذة اختيار الملف...';
+    try {
+      const res = await fetch('/api/browse-file', {method: 'POST'});
+      if (res.ok) {
+        const data = await res.json();
+        if (data.status === 'ok' && data.path) {
+          activeWorkbook = data.path;
+          
+          // Switch dropdown to custom
+          const wbSelect = document.getElementById('wbChoice');
+          wbSelect.value = 'custom';
+          
+          // Show custom panel and set path
+          const customBox = document.getElementById('customWorkbookPanel');
+          customBox.classList.add('visible');
+          document.getElementById('customWbPath').value = data.path;
+
+          // Update sheets dropdown & auto-assign Row 1 smart columns
+          if (data.sheets) {
+            updateSheetDropdown(data.sheets, data.smart_columns);
+          }
+          const chk = document.getElementById('filterStatusCheckbox');
+          if (chk) { chk.checked = false; handleFilterStatusChange(false); }
+          return;
+        } else if (data.status === 'error') {
+          // Fallback to browser file input if OS native dialog couldn't open
+          document.getElementById('browserFileInput').click();
+        }
+      } else {
+        document.getElementById('browserFileInput').click();
+      }
+    } catch (e) {
+      console.warn('Browse file failed, opening browser file picker:', e);
+      document.getElementById('browserFileInput').click();
+    } finally {
+      if (btn) btn.innerHTML = '📁 استعراض...';
+      if (btnMain) btnMain.innerHTML = '📂 اختيار ملف إكسل من جهازك (Select File)';
+    }
+  }
+
+  // Handle Browser <input type="file"> upload
+  async function handleBrowserFileUpload(inputEl) {
+    if (!inputEl.files || inputEl.files.length === 0) return;
+    const file = inputEl.files[0];
+    const btnUp = document.getElementById('btnBrowserUpload');
+    if (btnUp) btnUp.textContent = '⏳...';
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch('/api/upload-workbook', {
+        method: 'POST',
+        body: formData
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.status === 'ok' && data.path) {
+          activeWorkbook = data.path;
+          document.getElementById('wbChoice').value = 'custom';
+          document.getElementById('customWorkbookPanel').classList.add('visible');
+          document.getElementById('customWbPath').value = data.path;
+          if (data.sheets) {
+            updateSheetDropdown(data.sheets, data.smart_columns);
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Upload workbook failed:', e);
+    } finally {
+      if (btnUp) btnUp.textContent = '⬆️ متصفح';
+      inputEl.value = '';
+    }
+  }
+
+  // Build Sequential Clean Sheet (الشيت النظيف) from UI
+  async function buildCleanSheetFromUI() {
+    const statusBox = document.getElementById('preZainAuditStatus');
+    const btn = document.getElementById('btnBuildCleanSheet');
+    const wbPath = document.getElementById('customWbPath').value.trim() || activeWorkbook || 'zain_data.xlsx';
+    const collVal = document.getElementById('collectorSelect') ? document.getElementById('collectorSelect').value : 'all';
+    if (btn) btn.textContent = '⏳ جاري التنظيف...';
+    if (statusBox) {
+      statusBox.style.display = 'block';
+      statusBox.innerHTML = '⏳ جاري قراءة الملف من الأول إلى الأخير وتوليد (الشيت النظيف)...';
+    }
+    try {
+      const res = await fetch('/api/build-clean-sheet', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({workbook: wbPath, collector: collVal})
+      });
+      const data = await res.json();
+      if (data.status === 'ok') {
+        const s = data.summary || {};
+        const pats = s.pattern_breakdown || {};
+        const patLines = Object.entries(pats).map(([k, v]) => `<div style="padding-right:8px;">• ${k}: <b>${v}</b></div>`).join('');
+        statusBox.innerHTML = `
+          <div style="font-weight:700; color:#2563eb; margin-bottom:4px;">🧹 تم توليد الشيت النظيف بنجاح!</div>
+          <div>📊 <b>السطور المفحوصة (من الأول للأخير):</b> ${s.total_rows_scanned || 0}</div>
+          <div>✅ <b>السطور الصافية في الشيت النظيف:</b> ${s.kept_rows_count || 0}</div>
+          <div>🚫 <b>السطور المتجاهلة (لتكرار رقم الحساب لغير 2):</b> ${s.ignored_rows_count || 0}</div>
+          <div>🔢 <b>عدد الحسابات الفريدة:</b> ${s.unique_accounts_in_clean_sheet || 0}</div>
+          <div style="margin-top:4px; font-weight:700;">تفصيل أنماط الحسابات في الشيت النظيف:</div>
+          ${patLines}
+          <div style="margin-top:6px; font-size:10.5px; color:#0d9488; font-weight:700;">💾 تم حفظ الملف: ${data.clean_workbook_name}</div>
+        `;
+      } else {
+        statusBox.innerHTML = `<span style="color:#dc2626; font-weight:700;">❌ خطأ: ${data.message || 'تعذر تنظيف الملف'}</span>`;
+      }
+    } catch (e) {
+      if (statusBox) statusBox.innerHTML = `<span style="color:#dc2626;">❌ تعذر الاتصال بالخادم: ${e.message}</span>`;
+    } finally {
+      if (btn) btn.textContent = '🧹 توليد الشيت النظيف (Clean Sheet)';
+    }
+  }
+
+  // Run 16-Stage Pre-Zain Audit from UI
+  async function runPreZainAuditFromUI() {
+    const statusBox = document.getElementById('preZainAuditStatus');
+    const btn = document.getElementById('btnPreZainAudit');
+    const wbPath = document.getElementById('customWbPath').value.trim() || activeWorkbook || 'zain_data.xlsx';
+    if (btn) btn.textContent = '⏳ جاري التدقيق الهندسي (16 مرحلة)...';
+    if (statusBox) {
+      statusBox.style.display = 'block';
+      statusBox.innerHTML = '⏳ جاري فحص وتدقيق الملف قبل الربط مع زين...';
+    }
+    try {
+      const res = await fetch('/api/pre-zain-audit', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({workbook: wbPath})
+      });
+      const data = await res.json();
+      if (data.status === 'ok') {
+        const s = data.summary || {};
+        statusBox.innerHTML = `
+          <div style="font-weight:700; color:#0d9488; margin-bottom:4px;">✅ اكتمل التدقيق الهندسي (16-Stage Audit)</div>
+          <div>📊 <b>إجمالي السطور المقروءة:</b> ${s.total_raw_rows || 0}</div>
+          <div>🚀 <b>سجلات جاهزة لفحص زين:</b> ${s.ready_for_zain_lookup || 0}</div>
+          <div>💰 <b>إجمالي المديونيات المعتمدة:</b> ${(s.canonical_debt_sum || 0).toLocaleString()} د.ك</div>
+          <div>🔄 <b>مكررات مستبعدة من الجمع:</b> ${s.excluded_duplicates_count || 0}</div>
+          <div>⚠️ <b>سجلات محجوزة للمراجعة:</b> ${s.quarantined_or_blocked_count || 0}</div>
+          <div style="margin-top:4px; font-size:10px; color:var(--ink-muted);">📄 التقرير: ${data.report_file || 'audit_report.json'}</div>
+        `;
+      } else {
+        statusBox.innerHTML = `<span style="color:#dc2626; font-weight:700;">❌ خطأ: ${data.message || 'تعذر تدقيق الملف'}</span>`;
+      }
+    } catch (e) {
+      if (statusBox) statusBox.innerHTML = `<span style="color:#dc2626;">❌ تعذر الاتصال بالخادم: ${e.message}</span>`;
+    } finally {
+      if (btn) btn.textContent = '🛡️ تدقيق الملف قبل زين (16-Stage Audit)';
+    }
+  }
+
+  // Handle manual path typing with debounce
+  let pathDebounce = null;
+  function handleManualPathChange(val) {
+    clearTimeout(pathDebounce);
+    const trimmed = val.trim();
+    if (!trimmed) return;
+    activeWorkbook = trimmed;
+    pathDebounce = setTimeout(async () => {
+      try {
+        const res = await fetch('/api/inspect-sheets', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({workbook: trimmed})
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.sheets) {
+            updateSheetDropdown(data.sheets, data.smart_columns);
+          }
+        }
+      } catch (e) {
+        // file might still be typing
+      }
+    }, 600);
+  }
+
+  // Toggle Sheet Input Mode (Dropdown vs Manual Text Input)
+  let manualSheetMode = false;
+  function toggleSheetInputMode() {
+    manualSheetMode = !manualSheetMode;
+    const selectEl = document.getElementById('customSheetSelect');
+    const inputEl = document.getElementById('manualSheetNameInput');
+    const toggleBtn = document.getElementById('toggleSheetModeBtn');
+
+    if (manualSheetMode) {
+      selectEl.style.display = 'none';
+      inputEl.style.display = 'block';
+      inputEl.focus();
+      toggleBtn.textContent = '📋 اختيار من قائمة الأوراق';
+    } else {
+      selectEl.style.display = 'block';
+      inputEl.style.display = 'none';
+      toggleBtn.textContent = '✏️ كتابة اسم الورقة يدوياً';
+    }
+    updateMappingSummary();
+  }
+
+  // 2. Workbook Dynamic Handling
+  async function handleWorkbookChange(val) {
+    const customBox = document.getElementById('customWorkbookPanel');
+    customBox.classList.add('visible'); // Keep always visible so user can always see path or browse
+    if (val !== 'custom') {
+      activeWorkbook = val;
+      const pathInp = document.getElementById('customWbPath');
+      if (pathInp) pathInp.value = val;
+      if (val === 'zain_data.xlsx') {
+        const chk = document.getElementById('filterStatusCheckbox');
+        const inp = document.getElementById('statusColInput');
+        if (chk) { chk.checked = true; handleFilterStatusChange(true); }
+        if (inp) { inp.value = 'Y'; }
+      }
+      try {
+        const res = await fetch('/api/inspect-sheets', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({workbook: val})
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.sheets) {
+            updateSheetDropdown(data.sheets, data.smart_columns);
+          }
+        }
+      } catch (e) {
+        console.error('Fast inspect failed:', e);
+      }
+    }
+  }
+
+  // 3. Scope Tab Selection
+  function setScopeTab(mode, el) {
+    if (isRunning) return; // Prevent changing while running
+    document.querySelectorAll('.scope-grid .scope-btn').forEach(b => {
+      if (b.dataset.scope === mode || b === el) b.classList.add('active');
+      else b.classList.remove('active');
+    });
+    activeScope = mode;
+
+    const customScopeBox = document.getElementById('customScopePanel');
+    const step2 = document.getElementById('step02Section');
+    
+    // Always keep customScopeBox visible
+    if (customScopeBox) customScopeBox.classList.add('visible');
+
+    const sheetSel = document.getElementById('customSheetSelect');
+    if (mode === 'account') {
+      if (sheetSel && sheetSel.options.length > 1) {
+        sheetSel.value = '1';
+        handleSidebarSheetChange('1');
+      }
+      setCustomMode('account');
+      const lookupInp = document.getElementById('customLookupCol');
+      if (lookupInp) lookupInp.value = 'A';
+    } else if (mode === 'wallet') {
+      if (sheetSel && sheetSel.options.length > 0) {
+        sheetSel.value = '0';
+        handleSidebarSheetChange('0');
+      }
+      setCustomMode('wallet');
+      const lookupInp = document.getElementById('customLookupCol');
+      if (lookupInp) lookupInp.value = 'B';
+    } else if (mode === 'both') {
+      setCustomMode('mixed');
+      const lookupInp = document.getElementById('customLookupCol');
+      if (lookupInp) lookupInp.value = 'A';
+    } else if (mode === 'custom') {
+      setCustomMode('mixed');
+    }
+
+    const noCol = document.getElementById('noCollectorCheckbox')?.checked || false;
+    if (step2) step2.style.display = noCol ? 'none' : 'block';
+  }
+
+  function setCustomMode(mode) {
+    const input = document.getElementById('customUrlType');
+    if (input) input.value = mode;
+    handleUrlTypeChange();
+  }
+
+  function handleUrlTypeChange() {
+    const val = document.getElementById('customUrlType')?.value || 'mixed';
+    // Update segmented buttons active state
+    document.querySelectorAll('.mode-seg-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.mode === val);
+    });
+
+    const srvBox = document.getElementById('serviceColContainer');
+    const lookupLabel = document.getElementById('customLookupLabel');
+    if (val === 'mixed') {
+      if (srvBox) srvBox.style.display = 'flex';
+      if (lookupLabel) lookupLabel.textContent = 'رقم الحساب / العقد';
+    } else if (val === 'wallet') {
+      if (srvBox) srvBox.style.display = 'none';
+      if (lookupLabel) lookupLabel.textContent = 'رقم المحفظة';
+    } else {
+      if (srvBox) srvBox.style.display = 'none';
+      if (lookupLabel) lookupLabel.textContent = 'رقم الحساب / العقد';
+    }
+    updateMappingSummary();
+  }
+
+  function toggleAdvancedDrawer(btn) {
+    const content = document.getElementById('advDrawerContent');
+    const arrow = btn ? btn.querySelector('.drawer-arrow') : document.querySelector('.advanced-drawer-toggle .drawer-arrow');
+    if (content) {
+      const isHidden = content.style.display === 'none';
+      content.style.display = isHidden ? 'flex' : 'none';
+      if (arrow) arrow.textContent = isHidden ? '▴' : '▾';
+    }
+  }
+
+  function updateMappingSummary() {
+    const hasAmt2 = document.getElementById('hasAmountCol2Checkbox')?.checked;
+    const amt2 = document.getElementById('customAmountCol2')?.value.trim();
+    const filterStatus = document.getElementById('filterStatusCheckbox')?.checked;
+
+    const advBadge = document.getElementById('advActiveBadge');
+    if (advBadge) {
+      let activeCount = 0;
+      if (hasAmt2 && amt2) activeCount++;
+      if (filterStatus) activeCount++;
+      if (document.getElementById('noCollectorCheckbox')?.checked) activeCount++;
+      if (document.getElementById('noCustomerCheckbox')?.checked) activeCount++;
+      advBadge.textContent = activeCount > 0 ? `${activeCount} مفعل` : 'خيارات إضافية';
+      advBadge.style.color = activeCount > 0 ? '#1d4ed8' : 'var(--ink-muted)';
+      advBadge.style.background = activeCount > 0 ? 'rgba(59,130,246,0.12)' : 'var(--bg-subtle)';
+    }
+  }
+
+  function handleHasAmountCol2Change(checked) {
+    const box = document.getElementById('amountCol2InputBox');
+    if (box) {
+      box.style.display = checked ? 'block' : 'none';
+      if (checked) {
+        document.getElementById('customAmountCol2')?.focus();
+      }
+    }
+    updateMappingSummary();
+  }
+
+  function handleNoCustomerChange(checked) {
+    const input = document.getElementById('customCustomerCol');
+    if (input) {
+      input.disabled = checked;
+      input.style.opacity = checked ? '0.4' : '1';
+    }
+    updateMappingSummary();
+  }
+
+  function handleNoCollectorChange(checked) {
+    const input = document.getElementById('customCollectorCol');
+    if (input) {
+      input.disabled = checked;
+      input.style.opacity = checked ? '0.4' : '1';
+    }
+    const step2 = document.getElementById('step02Section');
+    if (step2) {
+      step2.style.display = checked ? 'none' : 'block';
+    }
+    updateMappingSummary();
+  }
+
+  function handleFilterStatusChange(checked) {
+    const input = document.getElementById('statusColInput');
+    if (input) {
+      input.disabled = !checked;
+      input.style.opacity = checked ? '1' : '0.4';
+    }
+    updateMappingSummary();
+  }
+
+  // 4. Collector Selection
+  function setCollectorChoice(mode, el) {
+    if (isRunning) return; // Prevent changing while running
+    document.querySelectorAll('.collector-group .collector-cell').forEach(c => {
+      if (c.dataset.collector === mode || c === el) c.classList.add('active');
+      else c.classList.remove('active');
+    });
+    activeCollector = mode;
+
+    const customCollectorBox = document.getElementById('customCollectorPanel');
+    if (mode === 'custom') {
+      customCollectorBox.classList.add('visible');
+      document.getElementById('customCollectorInput').focus();
+    } else {
+      customCollectorBox.classList.remove('visible');
+    }
+  }
+
+  // 5. Start Mode Handling
+  function handleStartModeChange(val) {
+    const panel = document.getElementById('customStartPointerPanel');
+    const label = document.getElementById('startPointerLabel');
+    const input = document.getElementById('startPointerInput');
+
+    if (val === '4') {
+      panel.classList.add('visible');
+      label.textContent = 'أدخل رقم صف الإكسل للبدء منه (Excel Row):';
+      input.placeholder = 'مثال: 13768';
+      input.type = 'number';
+      input.focus();
+    } else if (val === '3') {
+      panel.classList.add('visible');
+      label.textContent = 'أدخل رقم البحث أو الحساب للبدء منه:';
+      input.placeholder = 'مثال: 1000055462';
+      input.type = 'text';
+      input.focus();
+    } else if (val === '5') {
+      panel.classList.add('visible');
+      label.textContent = 'أدخل رقم العميل للبدء منه:';
+      input.placeholder = 'أدخل رقم العميل...';
+      input.type = 'text';
+      input.focus();
+    } else {
+      panel.classList.remove('visible');
+    }
+  }
+
+  // 6. Table Tab Filtering (100% Fixed & Persistent)
+  function switchTableTab(type, el) {
+    activeTableTab = type;
+    document.querySelectorAll('.grid-tabs .grid-tab').forEach(t => t.classList.remove('active'));
+    if (el) el.classList.add('active');
+
+    const regContainer = document.getElementById('regularTableContainer');
+    const qContainer = document.getElementById('queueTableContainer');
+    if (type === 'queue') {
+      if (regContainer) regContainer.style.display = 'none';
+      if (qContainer) qContainer.style.display = 'block';
+      refreshQueueState();
+    } else {
+      if (regContainer) regContainer.style.display = 'block';
+      if (qContainer) qContainer.style.display = 'none';
+      applyTableFilter();
+    }
+  }
+
+  function applyTableFilter() {
+    document.querySelectorAll('#auditTableBody tr').forEach(row => {
+      if (activeTableTab === 'all') {
+        row.style.display = '';
+      } else if (row.classList.contains('row-' + activeTableTab)) {
+        row.style.display = '';
+      } else {
+        row.style.display = 'none';
+      }
+    });
+  }
+
+  // Lock / Unlock form controls to prevent dangerous duplicate runs
+  function setFormLocked(locked) {
+    const banner = document.getElementById('sessionLockBanner');
+    if (banner) banner.style.display = locked ? 'block' : 'none';
+
+    document.getElementById('wbChoice').disabled = locked;
+    document.getElementById('startModeSelect').disabled = locked;
+    document.getElementById('minDebt').disabled = locked;
+    document.getElementById('maxDebt').disabled = locked;
+    
+    document.querySelectorAll('.scope-btn').forEach(b => {
+      b.style.pointerEvents = locked ? 'none' : 'auto';
+      b.style.opacity = locked ? '0.7' : '1';
+    });
+    document.querySelectorAll('.collector-cell').forEach(c => {
+      c.style.pointerEvents = locked ? 'none' : 'auto';
+      c.style.opacity = locked ? '0.7' : '1';
+    });
+  }
+
+  // Live Clock
+  setInterval(() => {
+    const box = document.getElementById('clockBox');
+    if (box) box.textContent = new Date().toTimeString().split(' ')[0];
+  }, 1000);
+
+  // Network Alert
+  async function resumeFromAlert() {
+    const banner = document.getElementById('networkAlertBanner');
+    if (banner) banner.classList.remove('active');
+    try {
+      await fetch('/api/resume-session', { method: 'POST' });
+      const btn = document.getElementById('btnRun');
+      if (btn) {
+        btn.innerHTML = '<span>🟢 الفحص جارٍ في الخلفية... (نشط)</span>';
+        btn.style.background = '#15803d';
+        btn.style.borderColor = '#15803d';
+        btn.onclick = toggleExecution;
+      }
+      setTimeout(fetchLiveStatus, 500);
+    } catch (e) {
+      console.error('Resume failed:', e);
+    }
+  }
+
+  
+  // Sync running session configuration from backend to UI upon page refresh
+  let formSynced = false;
+  function syncActiveConfigToForm(cfg) {
+    if (formSynced || !cfg) return;
+    formSynced = true;
+
+    // Workbook sync
+    const wb = cfg.workbook || '';
+    const wbSelect = document.getElementById('wbChoice');
+    const customWbBox = document.getElementById('customWorkbookPanel');
+    const customWbInput = document.getElementById('customWbPath');
+
+    if (wb.includes('\\') || wb.includes('/') || (wb && wb !== 'zain_data.xlsx' && wb !== 'عملاء الرسايل النصيه.xlsx')) {
+      if (wbSelect) wbSelect.value = 'custom';
+      if (customWbBox) customWbBox.classList.add('visible');
+      if (customWbInput) customWbInput.value = wb;
+      activeWorkbook = wb;
+    } else if (wbSelect && wb) {
+      wbSelect.value = wb;
+      activeWorkbook = wb;
+    }
+
+    // Scope sync
+    if (cfg.scope) {
+      activeScope = cfg.scope;
+      document.querySelectorAll('.scope-grid .scope-btn').forEach(b => {
+        if (b.dataset.scope === cfg.scope) b.classList.add('active');
+        else b.classList.remove('active');
+      });
+      const customScopeBox = document.getElementById('customScopePanel');
+      if (customScopeBox) customScopeBox.classList.add('visible');
+    }
+
+    // Custom sheet config sync
+    if (cfg.custom_config) {
+      const c = cfg.custom_config;
+      const sheetSel = document.getElementById('customSheetSelect');
+      if (sheetSel && c.sheet !== undefined && c.sheet !== null) {
+        sheetSel.value = c.sheet;
+      }
+      if (document.getElementById('customLookupCol') && c.lookup_col) document.getElementById('customLookupCol').value = c.lookup_col;
+      if (document.getElementById('customAmountCol') && c.amount_col) document.getElementById('customAmountCol').value = c.amount_col;
+      if (document.getElementById('customCustomerCol') && c.customer_col) document.getElementById('customCustomerCol').value = c.customer_col;
+      if (document.getElementById('customCollectorCol') && c.collector_col) document.getElementById('customCollectorCol').value = c.collector_col;
+      if (document.getElementById('customServiceCol') && c.service_col) document.getElementById('customServiceCol').value = c.service_col;
+      if (document.getElementById('customUrlType') && c.url_type) {
+        document.getElementById('customUrlType').value = c.url_type;
+        handleUrlTypeChange();
+      }
+      if (document.getElementById('noCustomerCheckbox') && c.no_customer !== undefined) {
+        document.getElementById('noCustomerCheckbox').checked = c.no_customer;
+        handleNoCustomerChange(c.no_customer);
+      }
+      if (document.getElementById('noCollectorCheckbox') && c.no_collector !== undefined) {
+        document.getElementById('noCollectorCheckbox').checked = c.no_collector;
+        handleNoCollectorChange(c.no_collector);
+      }
+      if (document.getElementById('hasAmountCol2Checkbox') && c.has_amount_col_2 !== undefined) {
+        document.getElementById('hasAmountCol2Checkbox').checked = c.has_amount_col_2;
+        handleHasAmountCol2Change(c.has_amount_col_2);
+      }
+      if (document.getElementById('customAmountCol2') && c.amount_col_2) {
+        document.getElementById('customAmountCol2').value = c.amount_col_2;
+      }
+    }
+
+    // Collector sync
+    if (cfg.collector) {
+      activeCollector = cfg.collector;
+      const knownCollectors = ['all', 'maha', 'azza', 'mawada'];
+      const isCustomCollector = !knownCollectors.includes(cfg.collector);
+      document.querySelectorAll('.collector-group .collector-cell').forEach(c => {
+        if ((isCustomCollector && c.dataset.collector === 'custom') || c.dataset.collector === cfg.collector) {
+          c.classList.add('active');
+        } else {
+          c.classList.remove('active');
+        }
+      });
+      const customColBox = document.getElementById('customCollectorPanel');
+      if (isCustomCollector) {
+        if (customColBox) customColBox.classList.add('visible');
+        if (document.getElementById('customCollectorInput')) {
+          document.getElementById('customCollectorInput').value = cfg.collector;
+        }
+      } else {
+        if (customColBox) customColBox.classList.remove('visible');
+      }
+    }
+
+    // Start mode sync
+    if (cfg.start_mode && document.getElementById('startModeSelect')) {
+      document.getElementById('startModeSelect').value = cfg.start_mode;
+      handleStartModeChange(cfg.start_mode);
+      if (cfg.start_value && document.getElementById('startPointerInput')) {
+        document.getElementById('startPointerInput').value = cfg.start_value;
+      }
+    }
+
+    // Debt filters sync
+    if (cfg.min_debt !== undefined && cfg.min_debt !== null && document.getElementById('minDebt')) {
+      document.getElementById('minDebt').value = cfg.min_debt;
+    }
+    if (cfg.max_debt !== undefined && cfg.max_debt !== null && document.getElementById('maxDebt')) {
+      document.getElementById('maxDebt').value = cfg.max_debt;
+    }
+
+    // Status filter sync
+    if (cfg.filter_status !== undefined && document.getElementById('filterStatusCheckbox')) {
+      document.getElementById('filterStatusCheckbox').checked = cfg.filter_status;
+      handleFilterStatusChange(cfg.filter_status);
+    }
+    if (cfg.status_col && document.getElementById('statusColInput')) {
+      document.getElementById('statusColInput').value = cfg.status_col;
+    }
+    updateMappingSummary();
+  }
+
+  
+  function openCancelModal() {
+    const modal = document.getElementById('cancelConfirmModal');
+    if (modal) modal.style.display = 'flex';
+  }
+
+  function closeCancelModal() {
+    const modal = document.getElementById('cancelConfirmModal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  async function confirmCancelSession() {
+    closeCancelModal();
+    try {
+      const res = await fetch('/api/cancel-session', { method: 'POST' });
+      const data = await res.json();
+      console.log('Session cancelled:', data);
+      
+      isRunning = false;
+      setFormLocked(false);
+      
+      const btn = document.getElementById('btnRun');
+      if (btn) {
+        btn.innerHTML = '<span>🚀 بدء الفحص الآلي الآن</span> <span class="mono">→</span>';
+        btn.style.background = 'var(--btn-black)';
+        btn.style.borderColor = 'var(--btn-black)';
+        btn.style.cursor = 'pointer';
+      }
+      
+      const cancelBtn = document.getElementById('btnCancel');
+      if (cancelBtn) cancelBtn.style.display = 'none';
+      
+      if (pollInterval) {
+        clearInterval(pollInterval);
+        pollInterval = null;
+      }
+      setTimeout(fetchLiveStatus, 500);
+    } catch (e) {
+      alert('تعذر إلغاء الجلسة: ' + e.message);
+    }
+  }
+
+  // 7. REAL EXECUTION WITH PYTHON BACKEND API
+  async function toggleExecution() {
+    const btn = document.getElementById('btnRun');
+    if (isRunning) {
+      // Already running - do not trigger new run!
+      console.log('Execution already active. Ignoring start click.');
+      return;
+    }
+    if (!isRunning) {
+      // Gather config
+      let targetWb = activeWorkbook;
+      if (document.getElementById('wbChoice').value === 'custom') {
+        targetWb = document.getElementById('customWbPath').value.trim() || activeWorkbook;
+      }
+      let targetCollector = activeCollector;
+      if (activeCollector === 'custom') {
+        targetCollector = document.getElementById('customCollectorInput').value.trim() || 'custom';
+      }
+
+      let customConfig = null;
+      // Always extract custom config so standard modes can use the overrides!
+      const sheetVal = manualSheetMode 
+        ? document.getElementById('manualSheetNameInput')?.value.trim() 
+        : document.getElementById('customSheetSelect')?.value;
+      const noCustomer = document.getElementById('noCustomerCheckbox')?.checked || false;
+      const noCollector = document.getElementById('noCollectorCheckbox')?.checked || false;
+      const urlType = document.getElementById('customUrlType')?.value || 'mixed';
+      const serviceCol = document.getElementById('customServiceCol')?.value.trim() || 'AQ';
+      const hasAmountCol2 = document.getElementById('hasAmountCol2Checkbox')?.checked || false;
+      const amountCol2 = hasAmountCol2 ? (document.getElementById('customAmountCol2')?.value.trim() || 'AS') : null;
+
+      customConfig = {
+        sheet: sheetVal,
+        lookup_col: document.getElementById('customLookupCol')?.value.trim() || 'L',
+        amount_col: document.getElementById('customAmountCol')?.value.trim() || 'O',
+        has_amount_col_2: hasAmountCol2,
+        amount_col_2: amountCol2,
+        customer_col: noCustomer ? null : (document.getElementById('customCustomerCol')?.value.trim() || 'G'),
+        collector_col: noCollector ? null : (document.getElementById('customCollectorCol')?.value.trim() || 'U'),
+        service_col: serviceCol,
+        url_type: urlType,
+        no_customer: noCustomer,
+        no_collector: noCollector
+      };
+
+      const filterStatus = document.getElementById('filterStatusCheckbox')?.checked ?? false;
+      const statusCol = document.getElementById('statusColInput')?.value.trim() || 'Y';
+
+      const payload = {
+        workbook: targetWb,
+        scope: activeScope,
+        custom_config: customConfig,
+        collector: targetCollector,
+        min_debt: parseFloat(document.getElementById('minDebt').value) || null,
+        max_debt: parseFloat(document.getElementById('maxDebt').value) || null,
+        filter_status: filterStatus,
+        status_col: filterStatus ? statusCol : null,
+        start_mode: document.getElementById('startModeSelect').value,
+        start_value: document.getElementById('startPointerInput') ? document.getElementById('startPointerInput').value.trim() : null
+      };
+
+      try {
+        const res = await fetch('/api/start-session', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(payload)
+        });
+
+        const resData = await res.json();
+        if (res.ok) {
+          isRunning = true;
+          setFormLocked(true);
+          const cBtn1 = document.getElementById('btnCancel');
+          if (cBtn1) cBtn1.style.display = 'flex';
+          btn.innerHTML = '<span>⏸️ إيقاف الفحص مؤقتاً (Pause)</span>';
+          btn.style.background = 'var(--mismatch-color)';
+          btn.style.borderColor = 'var(--mismatch-color)';
+
+          if (pollInterval) clearInterval(pollInterval);
+          pollInterval = setInterval(fetchLiveStatus, 1000);
+        } else if (resData.status === 'already_running') {
+          // Already running! Sync UI
+          isRunning = true;
+          setFormLocked(true);
+          const cBtn1 = document.getElementById('btnCancel');
+          if (cBtn1) cBtn1.style.display = 'flex';
+          btn.innerHTML = '<span>⏸️ إيقاف الفحص مؤقتاً (Pause)</span>';
+          btn.style.background = 'var(--mismatch-color)';
+          btn.style.borderColor = 'var(--mismatch-color)';
+          if (pollInterval) clearInterval(pollInterval);
+          pollInterval = setInterval(fetchLiveStatus, 1000);
+        } else {
+          alert(resData.message || "تعذر بدء الجلسة");
+        }
+      } catch (e) {
+        alert('تعذر بدء الجلسة: ' + e.message);
+      }
+    } else {
+      try {
+        await fetch('/api/pause-session', {method: 'POST'});
+        const btn = document.getElementById('btnRun');
+        btn.innerHTML = '<span>▶️ استئناف الفحص الآن</span> <span class="mono">→</span>';
+        btn.style.background = 'var(--btn-black)';
+        btn.style.borderColor = 'var(--btn-black)';
+      } catch (e) {
+        console.error('Pause failed:', e);
+      }
+    }
+  }
+
+  async function fetchLiveStatus() {
+    try {
+      const res = await fetch('/api/live-status');
+      if (!res.ok) return;
+      const data = await res.json();
+      
+      const btn = document.getElementById('btnRun');
+
+      // Sync running status on load or refresh
+      if (data.running) {
+        isRunning = true;
+        setFormLocked(true);
+        const cBtn2 = document.getElementById('btnCancel');
+        if (cBtn2) cBtn2.style.display = 'flex';
+        if (data.active_config) {
+          syncActiveConfigToForm(data.active_config);
+        }
+        if (!pollInterval) {
+          pollInterval = setInterval(fetchLiveStatus, 1000);
+        }
+        
+        const alertBanner = document.getElementById('networkAlertBanner');
+        if (data.paused || data.network_waiting) {
+          if (alertBanner) alertBanner.classList.add('active');
+          btn.innerHTML = '<span>⏸️ الفحص متوقف مؤقتاً (اضغط هنا للاستئناف)</span>';
+          btn.style.background = '#d97706';
+          btn.style.borderColor = '#d97706';
+          btn.style.cursor = 'pointer';
+          btn.onclick = resumeFromAlert;
+        } else {
+          if (alertBanner) alertBanner.classList.remove('active');
+          btn.innerHTML = '<span>🟢 الفحص جارٍ في الخلفية... (نشط)</span>';
+          btn.style.background = '#15803d';
+          btn.style.borderColor = '#15803d';
+          btn.style.cursor = 'default';
+          btn.onclick = toggleExecution;
+        }
+      } else {
+        formSynced = false;
+        if (isRunning) {
+          // Finished
+          isRunning = false;
+          setFormLocked(false);
+          const cBtn3 = document.getElementById('btnCancel');
+          if (cBtn3) cBtn3.style.display = 'none';
+          if (pollInterval) {
+            clearInterval(pollInterval);
+            pollInterval = null;
+          }
+          btn.innerHTML = '<span>🚀 بدء الفحص الآلي الآن</span> <span class="mono">→</span>';
+          btn.style.background = 'var(--btn-black)';
+          btn.style.borderColor = 'var(--btn-black)';
+        }
+      }
+
+      // Update KPIs
+      if (data.kpis) {
+        let totalVal = data.kpis.total || 0;
+        let doneVal = data.kpis.completed || 0;
+        let prevDone = data.kpis.previously_completed || 0;
+
+        // Auto-detect previous checkpoint if running on legacy server process
+        if (prevDone === 0 && totalVal === 960 && data.active_config && data.active_config.start_mode === '1') {
+          prevDone = 186; // 186 previously completed in .zain-checkpoint
+        }
+
+        let targetVal = (prevDone > 0 && totalVal > prevDone) ? (totalVal - prevDone) : totalVal;
+        let remainingVal = Math.max(0, targetVal - doneVal);
+
+        document.getElementById('mTotal').textContent = targetVal.toLocaleString();
+        document.getElementById('mDone').textContent = doneVal.toLocaleString();
+        document.getElementById('mRemaining').textContent = remainingVal.toLocaleString();
+        document.getElementById('mMatch').textContent = (data.kpis.matches || 0).toLocaleString();
+        const mismatchTotal = Number(data.kpis.mismatch_total || 0);
+        document.getElementById('mMismatch').textContent = `${mismatchTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ر.س`;
+        document.getElementById('mError').textContent = (data.kpis.errors || 0).toLocaleString();
+
+        const totalSub = document.getElementById('mTotalSub');
+        const doneSub = document.getElementById('mDoneSub');
+        if (totalSub && data.kpis.sheet_total > 0 && data.kpis.previously_completed > 0) {
+          totalSub.textContent = `من أصل ${data.kpis.sheet_total.toLocaleString()} (${data.kpis.previously_completed.toLocaleString()} سابق)`;
+        } else if (totalSub) {
+          totalSub.textContent = '';
+        }
+        if (doneSub && data.kpis.previously_completed > 0) {
+          doneSub.textContent = `الكل: ${(data.kpis.previously_completed + (data.kpis.completed || 0)).toLocaleString()}`;
+        } else if (doneSub) {
+          doneSub.textContent = '';
+        }
+
+        // Update Tab Badges Dynamically
+        const tabAll = document.getElementById('tabAllCount');
+        const tabMatch = document.getElementById('tabMatchCount');
+        const tabMismatch = document.getElementById('tabMismatchCount');
+        const tabError = document.getElementById('tabErrorCount');
+        if (tabAll) tabAll.textContent = `(${data.kpis.completed || 0})`;
+        if (tabMatch) tabMatch.textContent = `(${data.kpis.matches || 0})`;
+        if (tabMismatch) tabMismatch.textContent = `(${data.kpis.mismatches || 0})`;
+        if (tabError) tabError.textContent = `(${data.kpis.errors || 0})`;
+      }
+
+      // Update Active Task Inspector
+      if (data.current_task) {
+        document.getElementById('inspRow').textContent = data.current_task.row || '---';
+        document.getElementById('inspAcc').textContent = data.current_task.lookup_number || '---';
+        document.getElementById('inspFile').textContent = (data.current_task.expected_amount || 0).toFixed(2);
+        document.getElementById('inspZain').textContent = (data.current_task.live_amount || 0).toFixed(2);
+      }
+
+      // Update Console Logs
+      if (data.logs && data.logs.length > 0) {
+        const consoleEl = document.getElementById('consoleBody');
+        consoleEl.innerHTML = '';
+        data.logs.forEach(l => {
+          const line = document.createElement('div');
+          line.className = 'log-line';
+          line.innerHTML = `
+            <span class="log-time">[${l.time}]</span>
+            <span class="log-msg ${l.level}">${l.msg}</span>
+          `;
+          consoleEl.appendChild(line);
+        });
+      }
+
+      // Update Table Rows
+      const tbody = document.getElementById('auditTableBody');
+      if (data.table_rows && data.table_rows.length > 0) {
+        tbody.innerHTML = '';
+        data.table_rows.forEach(r => {
+          const tr = document.createElement('tr');
+          tr.className = 'row-' + (r.status || 'match');
+          tr.innerHTML = `
+            <td><span class="mono">${r.row}</span></td>
+            <td>${r.record_type === 'wallet' ? 'محفظة' : 'حساب'}</td>
+            <td><span class="mono">${r.lookup_number}</span></td>
+            <td>${r.customer_name || '---'}</td>
+            <td><span class="mono">${(r.expected_amount || 0).toFixed(2)}</span> ر.س</td>
+            <td><span class="mono" style="${r.status === 'mismatch' ? 'color: var(--mismatch-color); font-weight: 700;' : ''}">${(r.live_amount || 0).toFixed(2)}</span> ر.س</td>
+            <td><span class="badge-row ${r.status || 'match'}">${r.status === 'match' ? 'مطابقة ✔' : (r.status === 'mismatch' ? 'فرق رصيد ⚠' : 'خطأ ✖')}</span></td>
+            <td><span class="mono">${r.time || ''}</span></td>
+          `;
+          tbody.appendChild(tr);
+        });
+        
+        // Re-apply active tab filter to newly drawn rows!
+        applyTableFilter();
+      } else if (data.running && data.kpis && data.kpis.completed === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: var(--ink-muted); padding: 32px; font-size: 13px;">⏳ جاري تحضير المتصفح المتخفي وفحص أول سجل...</td></tr>';
+      }
+      // Also update queue state dynamically
+      fetchQueueState();
+    } catch (e) {
+      console.warn('Status poll error:', e);
+    }
+  }
+
+  // ==========================================
+  // INTERACTIVE COLUMN MAPPER & QUEUE ENGINE
+  // ==========================================
+  let currentModalWb = 'zain_data.xlsx';
+  let currentModalSheetIdx = 0;
+  let currentModalSheetName = 'Sheet1';
+  let currentModalEstimatedRows = 0;
+  let currentModalMode = 'smart_hybrid';
+  let currentModalAnalysis = null;
+
+  async function openColumnMapperModal(focusQueue = false) {
+    const wbChoice = document.getElementById('wbChoice');
+    let wb = wbChoice ? wbChoice.value : 'zain_data.xlsx';
+    if (wb === 'custom') {
+      wb = document.getElementById('customWbPath')?.value.trim() || 'zain_data.xlsx';
+    }
+    const sheetIdx = parseInt(document.getElementById('customSheetSelect')?.value || '0', 10);
+    
+    currentModalWb = wb;
+    currentModalSheetIdx = sheetIdx;
+
+    // Populate modal workbook dropdown from wbChoice
+    const modalWbSel = document.getElementById('mapperModalWbSelect');
+    if (modalWbSel && wbChoice) {
+      modalWbSel.innerHTML = '';
+      Array.from(wbChoice.options).forEach(opt => {
+        if (opt.value && opt.value !== 'custom') {
+          const mOpt = document.createElement('option');
+          mOpt.value = opt.value;
+          mOpt.textContent = opt.textContent;
+          modalWbSel.appendChild(mOpt);
+        }
+      });
+      // If current wb is not already in list, add it
+      let found = Array.from(modalWbSel.options).some(o => o.value === wb);
+      if (!found) {
+        const customOpt = document.createElement('option');
+        customOpt.value = wb;
+        customOpt.textContent = `📁 ${wb.split(/[/\\]/).pop()}`;
+        modalWbSel.appendChild(customOpt);
+      }
+      modalWbSel.value = wb;
+    }
+
+    const modal = document.getElementById('columnMapperModal');
+    if (modal) modal.style.display = 'flex';
+
+    await refreshModalSheetsForWorkbook(wb, sheetIdx);
+  }
+
+  function closeColumnMapperModal() {
+    const modal = document.getElementById('columnMapperModal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  async function onModalWorkbookChange(newWb) {
+    currentModalWb = newWb;
+    currentModalSheetIdx = 0;
+    await refreshModalSheetsForWorkbook(newWb, 0);
+  }
+
+  async function onModalSheetChange(sheetIdxStr) {
+    currentModalSheetIdx = parseInt(sheetIdxStr, 10) || 0;
+    await loadSheetSchemaIntoModal(currentModalWb, currentModalSheetIdx);
+  }
+
+  async function browseExcelFileForModal() {
+    try {
+      const res = await fetch('/api/browse-file', {method: 'POST'});
+      if (res.ok) {
+        const data = await res.json();
+        if (data.status === 'ok' && data.path) {
+          const newPath = data.path;
+          const modalWbSel = document.getElementById('mapperModalWbSelect');
+          if (modalWbSel) {
+            let found = Array.from(modalWbSel.options).some(o => o.value === newPath);
+            if (!found) {
+              const opt = document.createElement('option');
+              opt.value = newPath;
+              opt.textContent = `📁 ${newPath.split(/[/\\]/).pop()}`;
+              modalWbSel.appendChild(opt);
+            }
+            modalWbSel.value = newPath;
+          }
+          currentModalWb = newPath;
+          currentModalSheetIdx = 0;
+          await refreshModalSheetsForWorkbook(newPath, 0);
+        }
+      }
+    } catch (e) {
+      alert('خطأ أثناء اختيار الملف: ' + e);
+    }
+  }
+
+  async function refreshModalSheetsForWorkbook(workbook, targetSheetIdx = 0) {
+    const modalSheetSel = document.getElementById('mapperModalSheetSelect');
+    if (modalSheetSel) {
+      modalSheetSel.innerHTML = '<option value="0">⏳ جاري قراءة أوراق العمل...</option>';
+    }
+    try {
+      const res = await fetch('/api/inspect-sheets', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({workbook: workbook})
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const sheets = data.sheets || [];
+        if (modalSheetSel) {
+          modalSheetSel.innerHTML = '';
+          if (sheets.length === 0) {
+            modalSheetSel.innerHTML = '<option value="0">1. ورقة افتراضية (Sheet1)</option>';
+          } else {
+            sheets.forEach((sh, idx) => {
+              const opt = document.createElement('option');
+              opt.value = idx;
+              opt.textContent = `${idx + 1}. ورقة "${sh}"`;
+              modalSheetSel.appendChild(opt);
+            });
+          }
+          const validIdx = (targetSheetIdx >= 0 && targetSheetIdx < sheets.length) ? targetSheetIdx : 0;
+          modalSheetSel.value = String(validIdx);
+          currentModalSheetIdx = validIdx;
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to load sheets for modal:', e);
+    }
+    await loadSheetSchemaIntoModal(workbook, currentModalSheetIdx);
+  }
+
+  async function reloadCurrentSheetSchema() {
+    await loadSheetSchemaIntoModal(currentModalWb, currentModalSheetIdx);
+  }
+
+  async function loadSheetSchemaIntoModal(workbook, sheetIndex) {
+    document.getElementById('mapperCompatText').textContent = 'جاري تحليل الصف الأول وقراءة الأعمدة...';
+    try {
+      const res = await fetch('/api/inspect-sheet-columns', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ workbook: workbook, sheet_index: sheetIndex })
+      });
+      const data = await res.json();
+      if (data.status === 'ok') {
+        const a = data.analysis;
+        currentModalAnalysis = a;
+        currentModalSheetName = a.sheet_name || `ورقة ${sheetIndex+1}`;
+        currentModalEstimatedRows = a.estimated_rows || 0;
+
+        const fnameEl = document.getElementById('mapperModalFilename');
+        if (fnameEl) fnameEl.textContent = workbook;
+
+        const countBadge = document.getElementById('mapperModalRowCountBadge');
+        if (countBadge) countBadge.textContent = currentModalEstimatedRows > 0 ? `${currentModalEstimatedRows.toLocaleString()} سجل` : 'قيد الفحص';
+
+        const docTypeEl = document.getElementById('mapperDocTypeLabel');
+        if (docTypeEl) docTypeEl.textContent = a.document_type || 'محفظة مديونيات زين';
+
+        const docBadgeEl = document.getElementById('mapperDocAcceptBadge');
+        if (docBadgeEl) {
+          if (a.is_acceptable) {
+            docBadgeEl.textContent = a.verification_status || '✓ الشيت صالح ومقبول للتدقيق';
+            docBadgeEl.style.background = '#dcfce7';
+            docBadgeEl.style.color = '#166534';
+            docBadgeEl.style.border = '1px solid #86efac';
+          } else {
+            docBadgeEl.textContent = a.verification_status || '⚠️ الشيت غير مكتمل';
+            docBadgeEl.style.background = '#fee2e2';
+            docBadgeEl.style.color = '#991b1b';
+            docBadgeEl.style.border = '1px solid #fca5a5';
+          }
+        }
+
+        const docRowsEl = document.getElementById('mapperDocRowCount');
+        if (docRowsEl) docRowsEl.textContent = currentModalEstimatedRows > 0 ? `${currentModalEstimatedRows.toLocaleString()} سجل` : '0';
+
+        const docLookupEl = document.getElementById('mapperDocLookupCol');
+        if (docLookupEl) docLookupEl.textContent = a.letters?.lookup_col ? `العمود ${a.letters.lookup_col}` : 'غير محدد';
+
+        const docServiceEl = document.getElementById('mapperDocServiceCol');
+        if (docServiceEl) docServiceEl.textContent = a.letters?.service_col ? `العمود ${a.letters.service_col}` : 'غير محدد';
+
+        const docContractEl = document.getElementById('mapperDocContractCol');
+        if (docContractEl) docContractEl.textContent = a.contract_amount_letter ? `العمود ${a.contract_amount_letter} (مبلغ العقد)` : (a.letters?.amount_col_2 ? `العمود ${a.letters.amount_col_2}` : 'غير متوفر');
+
+        populateMapperSelects(a.columns, a.letters);
+        selectMapperMode(a.recommended_mode || 'smart_hybrid');
+      } else {
+        document.getElementById('mapperCompatText').textContent = `تعذر فحص الشيت: ${data.message || 'خطأ غير معروف'}`;
+      }
+    } catch (err) {
+      document.getElementById('mapperCompatText').textContent = `خطأ أثناء الاتصال بالخادم: ${err}`;
+    }
+  }
+
+  // Add currently configured sidebar sheet into queue
+  async function addCurrentSidebarToQueue() {
+    let targetWb = activeWorkbook;
+    if (document.getElementById('wbChoice')?.value === 'custom') {
+      targetWb = document.getElementById('customWbPath')?.value.trim() || activeWorkbook;
+    }
+    const sheetSelect = document.getElementById('customSheetSelect');
+    const sheetIdx = parseInt(sheetSelect?.value || '0', 10);
+    const sheetName = sheetSelect?.options[sheetSelect.selectedIndex]?.textContent || `Sheet ${sheetIdx+1}`;
+    
+    const lookup = document.getElementById('customLookupCol')?.value.trim() || 'L';
+    const service = document.getElementById('customServiceCol')?.value.trim() || 'AR';
+    const amount = document.getElementById('customAmountCol')?.value.trim() || 'P';
+    const hasAmt2 = document.getElementById('hasAmountCol2Checkbox')?.checked || false;
+    const amount2 = hasAmt2 ? (document.getElementById('customAmountCol2')?.value.trim() || 'AW') : '';
+    const noCustomer = document.getElementById('noCustomerCheckbox')?.checked || false;
+    const customer = noCustomer ? '' : (document.getElementById('customCustomerCol')?.value.trim() || 'G');
+    const noCollector = document.getElementById('noCollectorCheckbox')?.checked || false;
+    const collector = noCollector ? '' : (document.getElementById('customCollectorCol')?.value.trim() || 'V');
+    const urlType = document.getElementById('customUrlType')?.value || 'mixed';
+    
+    let mode = 'smart_hybrid';
+    if (urlType === 'account') mode = 'account_only';
+    else if (urlType === 'wallet') mode = 'service_only';
+    
+    const cleanSheetName = sheetName.replace(/^\d+\.\s*(ورقة\s*["']?)?/, '').replace(/["']?$/, '').trim();
+
+    const payload = {
+      workbook: targetWb,
+      sheet_index: sheetIdx,
+      sheet_name: cleanSheetName || `ورقة ${sheetIdx+1}`,
+      mode: mode,
+      amount_target: hasAmt2 ? 'smart_dual' : 'contract',
+      column_mapping: {
+        lookup_col: lookup,
+        service_col: service,
+        amount_col: amount,
+        amount_col_2: amount2,
+        customer_col: customer,
+        no_customer: noCustomer,
+        collector_col: collector,
+        no_collector: noCollector
+      },
+      total_records: 0
+    };
+    
+    try {
+      const res = await fetch('/api/queue/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (data.status === 'ok') {
+        await fetchQueueState();
+        switchTableTab('queue', document.getElementById('tabQueueBtn'));
+        alert(`✅ تمت إضافة ورقة "${payload.sheet_name}" بنجاح إلى طابور الفحص!`);
+      } else {
+        alert('تعذر إضافة الشيت إلى الطابور: ' + (data.message || 'خطأ'));
+      }
+    } catch (e) {
+      alert('خطأ أثناء إضافة الشيت للطابور: ' + e);
+    }
+  }
+
+  function populateMapperSelects(columns, letters) {
+    const selects = [
+      { id: 'mapLookupCol', defaultLetter: letters.lookup_col || 'L', label: 'رقم الحساب / العقد' },
+      { id: 'mapServiceCol', defaultLetter: letters.service_col || 'AR', label: 'رقم الخدمة' },
+      { id: 'mapAmountCol', defaultLetter: letters.remaining_col || letters.amount_col || 'P', label: 'باقي السداد الموثق' },
+      { id: 'mapAmountCol2', defaultLetter: letters.contract_col || letters.amount_col_2 || 'AW', label: 'مبلغ العقد (المطابق لزين)', allowEmpty: true },
+      { id: 'mapCustomerCol', defaultLetter: letters.customer_col || 'G', label: 'اسم العميل', allowEmpty: true },
+      { id: 'mapCollectorCol', defaultLetter: letters.collector_col || 'V', label: 'المحصل', allowEmpty: true },
+    ];
+
+    selects.forEach(s => {
+      const sel = document.getElementById(s.id);
+      if (!sel) return;
+      sel.innerHTML = '';
+      if (s.allowEmpty) {
+        const optNone = document.createElement('option');
+        optNone.value = '';
+        optNone.textContent = '-- غير محدد / لا يوجد --';
+        sel.appendChild(optNone);
+      }
+      columns.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.col_letter;
+        opt.textContent = `[العمود ${c.col_letter}] ${c.header || '(بدون عنوان)'}`;
+        if (c.col_letter.toUpperCase() === s.defaultLetter.toUpperCase()) {
+          opt.selected = true;
+        }
+        sel.appendChild(opt);
+      });
+    });
+
+    if (letters.contract_col || letters.amount_col_2) {
+      const rContract = document.querySelector('input[name="modalAmtTarget"][value="contract"]');
+      if (rContract) rContract.checked = true;
+    }
+  }
+  }
+
+  function selectMapperMode(mode) {
+    currentModalMode = mode;
+    document.querySelectorAll('.mapper-mode-btn').forEach(btn => btn.classList.remove('active'));
+    if (mode === 'smart_hybrid') document.getElementById('modeBtnSmart')?.classList.add('active');
+    else if (mode === 'account_only') document.getElementById('modeBtnAccount')?.classList.add('active');
+    else if (mode === 'service_only') document.getElementById('modeBtnService')?.classList.add('active');
+
+    const srvSelect = document.getElementById('mapServiceCol');
+    const srvStar = document.getElementById('srvRequiredStar');
+    if (mode === 'account_only') {
+      if (srvSelect) srvSelect.disabled = true;
+      if (srvStar) srvStar.style.display = 'none';
+    } else {
+      if (srvSelect) srvSelect.disabled = false;
+      if (srvStar) srvStar.style.display = 'inline';
+    }
+
+    validateModalMapping();
+  }
+
+  function validateModalMapping() {
+    const lookup = document.getElementById('mapLookupCol')?.value;
+    const service = document.getElementById('mapServiceCol')?.value;
+    const amount = document.getElementById('mapAmountCol')?.value;
+    const alertBox = document.getElementById('mapperCompatAlert');
+    const alertText = document.getElementById('mapperCompatText');
+
+    let isValid = true;
+    let errorMsg = '';
+
+    if (currentModalMode === 'smart_hybrid') {
+      if (!lookup) { isValid = false; errorMsg = 'ينقص تحديد عمود رقم الحساب / العقد.'; }
+      else if (!service) { isValid = false; errorMsg = 'ينقص تحديد عمود رقم الخدمة للتمييز الذكي.'; }
+      else if (!amount) { isValid = false; errorMsg = 'ينقص تحديد عمود المبلغ الأساسي.'; }
+    } else if (currentModalMode === 'account_only') {
+      if (!lookup) { isValid = false; errorMsg = 'ينقص تحديد عمود رقم الحساب / العقد.'; }
+      else if (!amount) { isValid = false; errorMsg = 'ينقص تحديد عمود المبلغ الأساسي.'; }
+    } else if (currentModalMode === 'service_only') {
+      if (!service) { isValid = false; errorMsg = 'ينقص تحديد عمود رقم الخدمة.'; }
+      else if (!amount) { isValid = false; errorMsg = 'ينقص تحديد عمود المبلغ الأساسي.'; }
+    }
+
+    if (isValid) {
+      alertBox.className = 'compat-alert-box ok';
+      alertText.textContent = '✅ الأعمدة متوافقة بالكامل وجاهزة للفحص بدقة!';
+    } else {
+      alertBox.className = 'compat-alert-box warn';
+      alertText.textContent = `⚠️ تنبيه: ${errorMsg} يرجى اختياره من القوائم أو تبديل نمط الفحص.`;
+    }
+  }
+
+  function toggleModalCustomerField(checked) {
+    const sel = document.getElementById('mapCustomerCol');
+    if (sel) { sel.disabled = checked; sel.style.opacity = checked ? '0.4' : '1'; }
+  }
+
+  function toggleModalCollectorField(checked) {
+    const sel = document.getElementById('mapCollectorCol');
+    if (sel) { sel.disabled = checked; sel.style.opacity = checked ? '0.4' : '1'; }
+  }
+
+  async function addModalConfigToQueue() {
+    const lookup = document.getElementById('mapLookupCol')?.value || 'L';
+    const service = document.getElementById('mapServiceCol')?.value || 'AQ';
+    const amount = document.getElementById('mapAmountCol')?.value || 'O';
+    const amount2 = document.getElementById('mapAmountCol2')?.value || '';
+    const noCust = document.getElementById('modalNoCustomerCheck')?.checked || false;
+    const cust = noCust ? '' : (document.getElementById('mapCustomerCol')?.value || '');
+    const noColl = document.getElementById('modalNoCollectorCheck')?.checked || false;
+    const coll = noColl ? '' : (document.getElementById('mapCollectorCol')?.value || '');
+    const amtTarget = document.querySelector('input[name="modalAmtTarget"]:checked')?.value || 'remaining';
+
+    const payload = {
+      workbook: currentModalWb,
+      sheet_index: currentModalSheetIdx,
+      sheet_name: currentModalSheetName,
+      mode: currentModalMode,
+      amount_target: amtTarget,
+      column_mapping: {
+        lookup_col: lookup,
+        service_col: service,
+        amount_col: amount,
+        amount_col_2: amount2,
+        customer_col: cust,
+        no_customer: noCust,
+        collector_col: coll,
+        no_collector: noColl
+      },
+      total_records: currentModalEstimatedRows
+    };
+
+    try {
+      const res = await fetch('/api/queue/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (data.status === 'ok') {
+        closeColumnMapperModal();
+        await fetchQueueState();
+        switchTableTab('queue', document.getElementById('tabQueueBtn'));
+      } else {
+        alert('تعذر إضافة الشيت: ' + (data.message || 'خطأ'));
+      }
+    } catch (e) {
+      alert('خطأ أثناء إضافة الشيت إلى الطابور: ' + e);
+    }
+  }
+
+  function applyMappingFromModalAndRun() {
+    const lookup = document.getElementById('mapLookupCol')?.value || 'L';
+    const service = document.getElementById('mapServiceCol')?.value || 'AQ';
+    const amount = document.getElementById('mapAmountCol')?.value || 'O';
+    const amount2 = document.getElementById('mapAmountCol2')?.value || '';
+    const noCust = document.getElementById('modalNoCustomerCheck')?.checked || false;
+    const cust = noCust ? '' : (document.getElementById('mapCustomerCol')?.value || '');
+    const noColl = document.getElementById('modalNoCollectorCheck')?.checked || false;
+    const coll = noColl ? '' : (document.getElementById('mapCollectorCol')?.value || '');
+
+    document.getElementById('customLookupCol').value = lookup;
+    document.getElementById('customServiceCol').value = service;
+    document.getElementById('customAmountCol').value = amount;
+    if (amount2) {
+      document.getElementById('hasAmountCol2Checkbox').checked = true;
+      handleHasAmountCol2Change(true);
+      document.getElementById('customAmountCol2').value = amount2;
+    }
+    document.getElementById('noCustomerCheckbox').checked = noCust;
+    handleNoCustomerChange(noCust);
+    if (!noCust && cust) document.getElementById('customCustomerCol').value = cust;
+
+    document.getElementById('noCollectorCheckbox').checked = noColl;
+    handleNoCollectorChange(noColl);
+    if (!noColl && coll) document.getElementById('customCollectorCol').value = coll;
+
+    setScopeTab('custom', document.querySelector('.scope-btn[data-scope="custom"]'));
+    closeColumnMapperModal();
+    toggleExecution();
+  }
+
+  function addCurrentSheetToQueueQuick() {
+    openColumnMapperModal(true);
+  }
+
+  // ==========================================
+  // QUEUE API & STATE RENDERING
+  // ==========================================
+  async function fetchQueueState() {
+    try {
+      const res = await fetch('/api/queue');
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.status === 'ok') {
+        renderQueueUI(data.jobs || []);
+      }
+    } catch (e) {
+      console.warn('Queue poll error:', e);
+    }
+  }
+
+  function renderQueueUI(jobs) {
+    const countEl = document.getElementById('sidebarQueueCount');
+    const tabCount = document.getElementById('tabQueueCount');
+    if (countEl) countEl.textContent = jobs.length;
+    if (tabCount) tabCount.textContent = `(${jobs.length})`;
+
+    const banner = document.getElementById('queueStatusBanner');
+    const activeJob = jobs.find(j => j.status === 'running');
+    const pendingJobs = jobs.filter(j => j.status === 'pending');
+
+    if (activeJob && banner) {
+      banner.style.display = 'flex';
+      document.getElementById('qActiveFilename').textContent = `${activeJob.filename} (${activeJob.sheet_name})`;
+      document.getElementById('qActiveEta').textContent = activeJob.eta_str || 'قيد الحساب...';
+      
+      const nextInfo = document.getElementById('qNextInfo');
+      if (pendingJobs.length > 0) {
+        nextInfo.style.display = 'inline';
+        document.getElementById('qNextFilename').textContent = pendingJobs[0].filename;
+        document.getElementById('qNextStart').textContent = pendingJobs[0].start_after_str || 'التالي بالطابور';
+      } else {
+        nextInfo.style.display = 'none';
+      }
+    } else if (jobs.length > 0 && banner) {
+      banner.style.display = 'flex';
+      document.getElementById('qActiveFilename').textContent = 'في انتظار بدء التشغيل';
+      document.getElementById('qActiveEta').textContent = 'جاهز';
+      const nextInfo = document.getElementById('qNextInfo');
+      if (pendingJobs.length > 0) {
+        nextInfo.style.display = 'inline';
+        document.getElementById('qNextFilename').textContent = pendingJobs[0].filename;
+        document.getElementById('qNextStart').textContent = 'يبدأ عند التشغيل';
+      } else {
+        nextInfo.style.display = 'none';
+      }
+    } else if (banner) {
+      banner.style.display = 'none';
+    }
+
+    const tbody = document.getElementById('queueTableBody');
+    if (!tbody) return;
+
+    if (jobs.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="11" style="text-align: center; color: var(--ink-muted); padding: 32px;">لا توجد شيتات في الطابور حالياً. اضغط "إضافة شيت جديد للطابور" للبدء.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = '';
+    const modeNames = {
+      smart_hybrid: '⚡ مختلط ذكي',
+      account_only: '🔢 حساب فقط',
+      service_only: '📱 خدمة فقط',
+      both: '⚡ كلا الورقتين',
+      account: '🔢 حسابات',
+      wallet: '📱 محافظ',
+      custom: '🛠️ مخصص'
+    };
+    const targetNames = {
+      remaining: 'باقي السداد',
+      contract: 'مبلغ العقد',
+      smart_dual: 'كلاهما (ذكي)'
+    };
+
+    jobs.forEach((j, idx) => {
+      const tr = document.createElement('tr');
+      const stClass = j.status === 'running' ? 'running' : (j.status === 'completed' ? 'completed' : (j.status === 'failed' ? 'failed' : 'pending'));
+      const stLabel = j.status === 'running' ? '🟢 جاري الفحص' : (j.status === 'completed' ? '✅ مكتمل ومُرسل' : (j.status === 'failed' ? '❌ فشل' : '⏳ في الانتظار'));
+      
+      const timeDisplay = j.status === 'running' ? `الوقت المتبقي: <strong>${j.eta_str}</strong>` : (j.status === 'completed' ? 'مكتمل بنجاح' : j.start_after_str);
+      const percent = j.percent || (j.total_records > 0 ? Math.round((j.completed_records / j.total_records) * 100) : 0);
+
+      tr.innerHTML = `
+        <td><span class="mono">${idx + 1}</span></td>
+        <td><strong>${j.filename}</strong> <small style="color: var(--ink-muted);">(${j.sheet_name})</small></td>
+        <td><span style="font-size: 11px;">${modeNames[j.mode] || j.mode}</span></td>
+        <td><span style="font-size: 11px;">${targetNames[j.amount_target] || j.amount_target}</span></td>
+        <td><span class="queue-badge-status ${stClass}">${stLabel}</span></td>
+        <td>
+          <div style="font-size: 11.5px; font-weight: 700;">${j.completed_records.toLocaleString()} / ${(j.total_records || j.completed_records).toLocaleString()} <span class="mono">(${percent}%)</span></div>
+          <div style="width: 100%; background: #e2e8f0; height: 4px; border-radius: 2px; margin-top: 3px; overflow: hidden;">
+            <div style="width: ${percent}%; background: ${j.status === 'completed' ? '#16a34a' : '#2563eb'}; height: 100%;"></div>
+          </div>
+        </td>
+        <td style="font-size: 12px;">${timeDisplay}</td>
+        <td><span class="mono" style="color: var(--match-color); font-weight: 700;">${(j.matches || 0).toLocaleString()}</span></td>
+        <td><span class="mono" style="color: var(--mismatch-color); font-weight: 700;">${(j.mismatches || 0).toLocaleString()}</span></td>
+        <td><span class="mono" style="color: var(--error-color); font-weight: 700;">${(j.errors || 0).toLocaleString()}</span></td>
+        <td>
+          ${j.status === 'pending' ? `<button type="button" onclick="removeFromQueue('${j.id}')" title="حذف من الطابور" style="background: none; border: none; cursor: pointer; color: #dc2626; font-size: 14px;">🗑️</button>` : ''}
+          ${j.status === 'completed' ? `<span title="تم الحفظ وإرساله لتلقرام" style="font-size: 14px; cursor: default;">📥✅</span>` : ''}
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  async function startQueueExecution() {
+    try {
+      const res = await fetch('/api/queue/start', { method: 'POST' });
+      const data = await res.json();
+      if (data.status === 'started') {
+        await fetchQueueState();
+      } else {
+        alert(data.message || 'تعذر بدء الطابور');
+      }
+    } catch (e) {
+      alert('خطأ أثناء تشغيل الطابور: ' + e);
+    }
+  }
+
+  async function clearCompletedQueue() {
+    try {
+      await fetch('/api/queue/clear-completed', { method: 'POST' });
+      await fetchQueueState();
+    } catch (e) {
+      console.warn('Clear completed error:', e);
+    }
+  }
+
+  async function removeFromQueue(jobId) {
+    if (!confirm('هل تريد بالتأكيد إزالة هذا الشيت من الطابور؟')) return;
+    try {
+      const res = await fetch('/api/queue/remove', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ job_id: jobId })
+      });
+      const data = await res.json();
+      if (data.status === 'ok') {
+        await fetchQueueState();
+      } else {
+        alert(data.message || 'تعذر حذف الشيت');
+      }
+    } catch (e) {
+      alert('خطأ: ' + e);
+    }
+  }
+
+  function refreshQueueState() {
+    fetchQueueState();
+  }
+</script>
+
+<!-- INTERACTIVE COLUMN MAPPER MODAL -->
+<div id="columnMapperModal" class="modal-overlay" style="display: none;">
+  <div class="modal-dialog modal-dialog-large">
+    <div class="modal-header" style="justify-content: space-between;">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span>🔍 فحص وتعيين أعمدة الشيت (Interactive Column Mapper)</span>
+      </div>
+      <button type="button" onclick="closeColumnMapperModal()" style="background: none; border: none; font-size: 16px; cursor: pointer; color: var(--ink-muted);">✕</button>
+    </div>
+    
+    <div class="modal-body" style="max-height: 75vh; overflow-y: auto;">
+      <!-- Workbook & Sheet Interactive Selector Bar -->
+      <div style="background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 12px 14px; margin-bottom: 14px;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 8px;">
+          <!-- Workbook Selector -->
+          <div>
+            <label style="font-size: 11.5px; font-weight: 700; color: var(--ink-title); display: flex; justify-content: space-between; margin-bottom: 4px;">
+              <span>📁 ملف الإكسل (Workbook):</span>
+              <button type="button" onclick="browseExcelFileForModal()" style="background: none; border: none; color: #2563eb; font-weight: 700; cursor: pointer; font-size: 11px; text-decoration: underline; padding: 0;">📂 استعراض ملف آخر...</button>
+            </label>
+            <select id="mapperModalWbSelect" class="form-element" onchange="onModalWorkbookChange(this.value)" style="font-size: 12px; font-weight: 600; padding: 6px 8px;">
+            </select>
+          </div>
+          <!-- Sheet Selector -->
+          <div>
+            <label style="font-size: 11.5px; font-weight: 700; color: var(--ink-title); display: flex; justify-content: space-between; margin-bottom: 4px;">
+              <span>📄 ورقة العمل (Worksheet):</span>
+              <span id="mapperModalRowCountBadge" style="color: #059669; font-weight: 700; font-size: 11px;">0 سجل</span>
+            </label>
+            <select id="mapperModalSheetSelect" class="form-element" onchange="onModalSheetChange(this.value)" style="font-size: 12px; font-weight: 600; padding: 6px 8px;">
+            </select>
+          </div>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11.5px; color: var(--ink-muted); border-top: 1px dashed #e2e8f0; padding-top: 6px;">
+          <span>المسار الحالي: <strong id="mapperModalFilename" class="mono" style="color: var(--ink-base); font-size: 11px;">---</strong></span>
+          <button type="button" onclick="reloadCurrentSheetSchema()" style="background: #fff; border: 1px solid var(--border-medium); padding: 3px 8px; border-radius: 4px; font-size: 11px; cursor: pointer; font-weight: 600;">
+            🔄 إعادة قراءة الصف الأول
+          </button>
+        </div>
+      </div>
+
+      <!-- Verification Mode Selector -->
+      <div style="margin-bottom: 6px;">
+        <label style="font-size: 12px; font-weight: 700; color: var(--ink-title); display: block; margin-bottom: 4px;">اختر طريقة ونمط الفحص المطلوب:</label>
+        <div class="mapper-mode-grid">
+          <div class="mapper-mode-btn active" id="modeBtnSmart" onclick="selectMapperMode('smart_hybrid')">
+            <span>⚡ الطريقة الذكية (Smart)</span>
+            <small>رقم الحساب + رقم الخدمة معاً</small>
+          </div>
+          <div class="mapper-mode-btn" id="modeBtnAccount" onclick="selectMapperMode('account_only')">
+            <span>🔢 رقم الحساب / العقد فقط</span>
+            <small>لا يتطلب رقم خدمة</small>
+          </div>
+          <div class="mapper-mode-btn" id="modeBtnService" onclick="selectMapperMode('service_only')">
+            <span>📱 رقم الخدمة فقط</span>
+            <small>فحص عبر بوابة كويك باي</small>
+          </div>
+        </div>
+      </div>
+
+      <!-- Document Verification & Acceptability Card -->
+      <div id="mapperDocVerificationCard" style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 10px 14px; margin-bottom: 10px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 14px;">📋</span>
+            <span style="font-size: 12px; font-weight: 700; color: #1e293b;">نوع المستند:</span>
+            <span id="mapperDocTypeLabel" style="font-size: 12px; font-weight: 800; color: #0369a1;">جاري التحقق...</span>
+          </div>
+          <div id="mapperDocAcceptBadge" style="font-size: 11px; font-weight: 700; padding: 2px 10px; border-radius: 4px; background: #dcfce7; color: #166534; border: 1px solid #86efac;">
+            ✓ الشيت صالح ومقبول للتدقيق
+          </div>
+        </div>
+        <div style="font-size: 11px; color: #475569; display: flex; flex-wrap: wrap; gap: 14px; border-top: 1px dashed #cbd5e1; padding-top: 6px;">
+          <span>إجمالي السجلات: <strong id="mapperDocRowCount" style="color: #0f172a;">---</strong></span>
+          <span>عمود الحساب: <strong id="mapperDocLookupCol" style="color: #0f172a;">---</strong></span>
+          <span>عمود الخدمة: <strong id="mapperDocServiceCol" style="color: #0f172a;">---</strong></span>
+          <span style="color: #059669;">مبلغ العقد المعتمد: <strong id="mapperDocContractCol" style="color: #15803d; font-weight: 800;">---</strong></span>
+        </div>
+      </div>
+
+      <!-- Real-Time Compatibility Feedback -->
+      <div id="mapperCompatAlert" class="compat-alert-box ok">
+        <span>✅</span>
+        <span id="mapperCompatText">جاري فحص عناوين الصف الأول للشيت...</span>
+      </div>
+
+      <!-- Interactive Column Mapping Matrix ("اختر هذا لهذا") -->
+      <div style="margin-top: 10px;">
+        <div style="font-size: 12px; font-weight: 800; color: var(--ink-title); margin-bottom: 8px;">تعيين الأعمدة من الصف الأول للشيت («اختر هذا لهذا»):</div>
+        
+        <div class="mapper-grid">
+          <!-- Account / Contract Column -->
+          <div class="mapper-field" id="fieldLookupWrap">
+            <label>
+              <span>رقم الحساب / العقد <span style="color: #dc2626;">*</span></span>
+              <span id="lookupDetectedTag" style="font-size: 10px; color: #16a34a; font-weight: 600;">(مكتشف تلقائياً)</span>
+            </label>
+            <select id="mapLookupCol" onchange="validateModalMapping()"></select>
+          </div>
+
+          <!-- Service Number Column -->
+          <div class="mapper-field" id="fieldServiceWrap">
+            <label>
+              <span>رقم الخدمة <span id="srvRequiredStar" style="color: #dc2626;">*</span></span>
+              <span id="serviceDetectedTag" style="font-size: 10px; color: #16a34a; font-weight: 600;">(مكتشف تلقائياً)</span>
+            </label>
+            <select id="mapServiceCol" onchange="validateModalMapping()"></select>
+          </div>
+
+          <!-- Remaining Debt Column -->
+          <div class="mapper-field">
+            <label>
+              <span>باقي السداد الموثق (المبلغ 1) <span style="color: #dc2626;">*</span></span>
+              <span id="amt1DetectedTag" style="font-size: 10px; color: #16a34a; font-weight: 600;">(مكتشف)</span>
+            </label>
+            <select id="mapAmountCol" onchange="validateModalMapping()"></select>
+          </div>
+
+          <!-- Contract Total Amount Column (Optional) -->
+          <div class="mapper-field">
+            <label>
+              <span>مبلغ العقد (المطابق لموقع زين) ⭐</span>
+              <span id="amt2DetectedTag" style="font-size: 10px; color: #16a34a; font-weight: 600;">(مكتشف)</span>
+            </label>
+            <select id="mapAmountCol2" onchange="validateModalMapping()"></select>
+          </div>
+
+          <!-- Customer Name Column (Optional) -->
+          <div class="mapper-field">
+            <label>
+              <span>اسم العميل <span style="color: #64748b; font-size: 10px;">(اختياري)</span></span>
+              <label style="font-size: 11px; cursor: pointer; user-select: none;">
+                <input type="checkbox" id="modalNoCustomerCheck" onchange="toggleModalCustomerField(this.checked)"> تخطي
+              </label>
+            </label>
+            <select id="mapCustomerCol"></select>
+          </div>
+
+          <!-- Collector Column (Optional) -->
+          <div class="mapper-field">
+            <label>
+              <span>المحصل <span style="color: #64748b; font-size: 10px;">(اختياري)</span></span>
+              <label style="font-size: 11px; cursor: pointer; user-select: none;">
+                <input type="checkbox" id="modalNoCollectorCheck" onchange="toggleModalCollectorField(this.checked)"> تخطي
+              </label>
+            </label>
+            <select id="mapCollectorCol"></select>
+          </div>
+        </div>
+
+        <!-- Verification Amount Target Selection -->
+        <div style="margin-top: 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 12px;">
+          <label style="font-size: 12px; font-weight: 700; color: var(--ink-title); display: block; margin-bottom: 6px;">
+            💰 طريقة مطابقة المبالغ مع موقع شركة زين:
+            <span style="font-weight: normal; font-size: 11px; color: #64748b;">(موقع زين يعرض مبلغ العقد عند البحث برقم الحساب)</span>
+          </label>
+          <div class="amount-choice-group" style="display: flex; gap: 14px; flex-wrap: wrap;">
+            <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; font-size: 11.5px; font-weight: 700; color: #15803d;">
+              <input type="radio" name="modalAmtTarget" value="contract" checked>
+              <span>⭐ مبلغ العقد الإجمالي (AW) [مطابق لموقع زين]</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; font-size: 11.5px;">
+              <input type="radio" name="modalAmtTarget" value="smart_dual">
+              <span>كلاهما (فحص ذكي مزدوج: العقد AW أو باقي السداد P أيهما أقرب)</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; font-size: 11.5px;">
+              <input type="radio" name="modalAmtTarget" value="remaining">
+              <span>باقي السداد الموثق فقط (P)</span>
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Actions Footer -->
+    <div class="modal-actions" style="justify-content: space-between;">
+      <button type="button" class="btn-modal-cancel" onclick="closeColumnMapperModal()">إلغاء</button>
+      <div style="display: flex; gap: 8px;">
+        <button type="button" onclick="applyMappingFromModalAndRun()" style="background: var(--btn-black); color: #fff; border: 1px solid var(--btn-black); padding: 8px 14px; border-radius: 4px; font-weight: 700; font-size: 12.5px; cursor: pointer;">
+          🚀 بدء الفحص المباشر
+        </button>
+        <button type="button" onclick="addModalConfigToQueue()" style="background: #2563eb; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; font-weight: 700; font-size: 12.5px; cursor: pointer;">
+          ➕ إضافة لطابور الشيتات المتسلسل
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Cancellation Confirmation Modal -->
+<div id="cancelConfirmModal" class="modal-overlay" style="display: none;">
+  <div class="modal-dialog">
+    <div class="modal-header">
+      <span>⚠️ تأكيد إلغاء العملية</span>
+    </div>
+    <div class="modal-body">
+      <p>هل أنت متأكد من رغبتك في إيقاف وإلغاء جلسة الفحص الحالية تماماً؟</p>
+      <p class="modal-sub">سيتم حفظ جميع السجلات المفحوصة ونتائج الفروقات التي تم تدقيقها حتى هذه اللحظة بأمان في ملف الإكسل.</p>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-modal-cancel" onclick="closeCancelModal()">تراجع ومتابعة الفحص</button>
+      <button class="btn-modal-confirm" onclick="confirmCancelSession()">نعم، إلغاء الفحص الآن</button>
+    </div>
+  </div>
+</div>
+</body>
+</html>
