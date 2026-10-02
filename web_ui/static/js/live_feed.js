@@ -38,12 +38,19 @@ const LiveFeed = {
     document.getElementById('kpiMatch').textContent = (kpis.matches || 0).toLocaleString();
     document.getElementById('kpiMismatch').textContent = `${(kpis.mismatch_total || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })} ر.س`;
     document.getElementById('kpiError').textContent = (kpis.errors || 0).toLocaleString();
+    document.getElementById('kpiVerified').textContent = (kpis.verified || 0).toLocaleString();
+    const reviewCount = (kpis.needs_review || 0) + (kpis.not_found || 0);
+    document.getElementById('kpiReview').textContent = reviewCount.toLocaleString();
+    document.getElementById('kpiDeferred').textContent = (kpis.deferred || 0).toLocaleString();
+    document.getElementById('retryNotice').textContent = kpis.deferred
+      ? `أقرب موعد لمحاولة مؤجلة: ${kpis.next_retry_seconds || 0} ثانية` : '';
 
     // Tab count badges
     document.getElementById('countAll').textContent = (kpis.completed || 0);
     document.getElementById('countMatch').textContent = (kpis.matches || 0);
     document.getElementById('countMismatch').textContent = (kpis.mismatches || 0);
     document.getElementById('countError').textContent = (kpis.errors || 0);
+    document.getElementById('countReview').textContent = reviewCount;
   },
 
   updateWorkerPills(workers) {
@@ -57,7 +64,12 @@ const LiveFeed = {
       pill.className = 'worker-pill';
 
       const dotClass = w.status === 'processing' || w.status === 'ready' ? 'active' : (w.in_cooldown ? 'cooldown' : '');
-      const badgeText = w.in_cooldown ? `تبريد (${w.cooldown_remaining_seconds}s)` : (w.status === 'processing' ? 'فحص نشط' : w.status);
+      const badgeText = w.waiting_for_shared_service_browser ? 'ينتظر الاتصال المشترك' :
+        (w.in_cooldown ? `تبريد (${w.cooldown_remaining_seconds}s)` :
+        (w.status === 'processing' ? 'فحص نشط' : ({ready:'جاهز',stopped:'متوقف',error:'تعذر التشغيل',idle:'بانتظار الفحص'}[w.status] || w.status)));
+      if (w.waiting_for_shared_service_browser) {
+        pill.title = 'عامل آخر يفحص رقم خدمة عبر نفس الاتصال؛ يبدأ هذا العامل بعد انتهاء الفحص وفاصل الانتظار.';
+      }
 
       pill.innerHTML = `
         <span class="status-dot ${dotClass}"></span>
@@ -86,6 +98,8 @@ const LiveFeed = {
       let badgeHtml = '';
       if (r.status === 'match') badgeHtml = '<span class="badge badge-match">مطابقة ✔</span>';
       else if (r.status === 'mismatch') badgeHtml = '<span class="badge badge-mismatch">فرق رصيد ⚠</span>';
+      else if (r.status === 'not_found') badgeHtml = '<span class="badge">غير موجود</span>';
+      else if (r.status === 'needs_review') badgeHtml = '<span class="badge">تحتاج مراجعة</span>';
       else badgeHtml = '<span class="badge badge-error">خطأ ✖</span>';
 
       tr.innerHTML = `
@@ -94,7 +108,7 @@ const LiveFeed = {
         <td><strong class="mono">${r.lookup_number}</strong></td>
         <td>${r.customer_name || 'عميل غير محدد'}</td>
         <td><span class="mono">${(r.expected_amount || 0).toFixed(2)}</span> ر.س</td>
-        <td><span class="mono" style="${r.status === 'mismatch' ? 'color: var(--status-mismatch); font-weight: 800;' : ''}">${(r.live_amount || 0).toFixed(2)}</span> ر.س</td>
+        <td><span class="mono" style="${r.status === 'mismatch' ? 'color: var(--status-mismatch); font-weight: 800;' : ''}">${r.live_amount == null ? '—' : Number(r.live_amount).toFixed(2)}</span>${r.live_amount == null ? '' : ' ر.س'}</td>
         <td>${badgeHtml}</td>
       `;
       tbody.appendChild(tr);
@@ -108,6 +122,7 @@ const LiveFeed = {
     document.querySelectorAll('#auditTableBody tr').forEach(tr => {
       if (!tr.dataset.status) return;
       if (tab === 'all') tr.style.display = '';
+      else if (tab === 'review' && ['needs_review', 'not_found'].includes(tr.dataset.status)) tr.style.display = '';
       else if (tr.dataset.status === tab) tr.style.display = '';
       else tr.style.display = 'none';
     });

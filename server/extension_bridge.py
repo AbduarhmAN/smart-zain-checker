@@ -114,23 +114,31 @@ class ExtensionBridgeHandler(BaseHTTPRequestHandler):
     def handle_task_result(self, payload: dict[str, Any], worker_id: str) -> None:
         task_id = payload.get("task_id", "")
         # Accept amount, website_amount, live_amount, due_amount
-        live_amount = (
-            payload.get("live_amount")
-            or payload.get("amount")
-            or payload.get("website_amount")
-            or payload.get("current_amount")
-            or payload.get("due_amount")
-        )
+        live_amount = next((payload[key] for key in
+                            ("live_amount", "amount", "website_amount", "current_amount", "due_amount")
+                            if key in payload and payload[key] is not None), None)
         status = payload.get("status", "match")
         error_msg = payload.get("error_message") or payload.get("error_details") or payload.get("reason") or ""
 
-        self.orchestrator.record_task_outcome(
-            task_id=task_id,
-            live_amount_raw=live_amount,
-            status=status,
-            error_msg=error_msg,
-            worker_id=worker_id,
-        )
+        if status == "verification_required":
+            self.orchestrator.handle_verification_required(task_id, error_msg, worker_id)
+        elif status in ("blocked", "session_expired"):
+            from workers.service_transport import get_ip_service_retry_after, set_ip_service_cooldown
+            actor = self.orchestrator.supervisor.get_worker(worker_id)
+            if actor and status == "blocked" and not actor.use_proxy:
+                set_ip_service_cooldown(actor.ip_group, 12.0)
+            self.orchestrator.defer_task_to_end(
+                task_id, error_msg, worker_id=worker_id, category=status,
+                retry_after=max(3.9, get_ip_service_retry_after(actor.ip_group)) if actor and status == "blocked" else 0.0,
+            )
+        else:
+            self.orchestrator.record_task_outcome(
+                task_id=task_id,
+                live_amount_raw=live_amount,
+                status=status,
+                error_msg=error_msg,
+                worker_id=worker_id,
+            )
         total_count = len(getattr(self.orchestrator, "customers", [])) or 1
         completed_count = len(getattr(self.orchestrator, "completed_indices", []))
         self.send_cors_json(200, {

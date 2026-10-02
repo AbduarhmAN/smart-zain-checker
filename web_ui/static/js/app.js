@@ -126,6 +126,14 @@ const App = {
       LiveFeed.updateKPIs(data.kpis);
       LiveFeed.updateWorkerPills(data.workers);
       LiveFeed.renderTable(data.table_rows);
+      const notice = document.getElementById('sessionNotice');
+      notice.textContent = data.verification_notice || '';
+      notice.style.display = data.verification_notice ? 'block' : 'none';
+      this.renderVerifications(data.verifications || []);
+      document.getElementById('sessionWorkbook').textContent = data.workbook ? `ملف جلسة الفحص: ${data.workbook}` : '';
+      const telegramBadge = document.getElementById('tgStatusBadge');
+      telegramBadge.textContent = data.telegram_enabled ? 'مفعّل' : 'غير مفعّل';
+      telegramBadge.className = data.telegram_enabled ? 'badge badge-match' : 'badge';
 
       // Keep Queue table and tab badge in real-time sync
       this._pollCount = (this._pollCount || 0) + 1;
@@ -162,6 +170,55 @@ const App = {
       btn.className = 'btn btn-primary';
       btn.onclick = () => ColumnMapper.openModal();
     }
+  },
+
+  renderVerifications(items) {
+    const container = document.getElementById('serviceVerifications');
+    const signature = JSON.stringify(items.map(item => [item.id, item.submitted]));
+    if (this.verificationSignature === signature) return;
+    this.verificationSignature = signature;
+    container.replaceChildren();
+    container.style.display = items.length ? 'block' : 'none';
+    items.forEach(item => {
+      const panel = document.createElement('div');
+      panel.style.cssText = 'padding:16px;margin-bottom:12px;border:1px solid var(--border-light);border-radius:var(--radius-sm);';
+      const title = document.createElement('h3');
+      title.textContent = `تحقق زين — ${item.route === 'proxy' ? 'جلسة البروكسي' : 'الجلسة المباشرة'}`;
+      const image = document.createElement('img');
+      image.src = `/api/service-verification-image?id=${encodeURIComponent(item.id)}`;
+      image.alt = 'التحدي الحالي في جلسة العامل';
+      image.style.cssText = 'display:block;max-width:100%;margin:12px 0;background:white;';
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.maxLength = 64;
+      input.autocomplete = 'off';
+      input.setAttribute('aria-label', `رمز تحقق ${item.route === 'proxy' ? 'البروكسي' : 'المباشر'}`);
+      input.className = 'form-select';
+      input.disabled = item.submitted;
+      const button = document.createElement('button');
+      button.className = 'btn btn-primary';
+      button.textContent = item.submitted ? 'أُرسل الرمز؛ انتظر النتيجة' : 'إرسال رمز التحقق';
+      button.disabled = item.submitted;
+      button.style.marginTop = '8px';
+      const status = document.createElement('p');
+      status.setAttribute('role', 'status');
+      button.onclick = async () => {
+        if (!input.value.trim()) { status.textContent = 'أدخل الرمز الظاهر في الصورة'; return; }
+        button.disabled = true;
+        try {
+          const response = await API.post('/api/service-verification-submit', {id:item.id,answer:input.value});
+          status.textContent = response.message;
+          input.value = '';
+          input.disabled = true;
+          button.textContent = 'أُرسل الرمز؛ انتظر النتيجة';
+        } catch (error) {
+          status.textContent = error.message;
+          button.disabled = false;
+        }
+      };
+      panel.append(title, image, input, button, status);
+      container.append(panel);
+    });
   },
 
   async handleCancel() {

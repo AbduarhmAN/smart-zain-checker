@@ -43,6 +43,7 @@ simulation_outputs/
 .zain-queue.json
 
 # Chrome Profiles & Automation runtime
+.zain-service-profiles/
 .zain-browser-profile/
 .zain-checker-profile/
 .zain-checker-profile-*/

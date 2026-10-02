@@ -197,6 +197,11 @@ class ExactTemplateReporter:
         sorted_records = sorted(self.records, key=lambda x: int(x.get("row") or 0))
 
         for rec in sorted_records:
+            status = rec.get("status")
+            if status in ("not_found", "needs_review", "error") or rec.get("live_sar") is None:
+                note = rec.get("error") or ("لم يتم العثور على مبلغ مؤكد" if status == "not_found" else "تحتاج نتيجة الفحص إلى مراجعة")
+                self.tab4_notes.append((rec, note))
+                continue
             exp_val = float(rec.get("expected_sar") or 0.0)
             live_val = float(rec.get("live_sar") or 0.0)
             diff_val = round(exp_val - live_val, 2)

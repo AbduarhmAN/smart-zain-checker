@@ -7,6 +7,7 @@ from __future__ import annotations
 import logging
 import threading
 import time
+import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
@@ -19,6 +20,10 @@ from manager.checkpoint import CheckpointManager
 from manager.event_bus import EVENT_BUS
 from manager.queue import QueueService
 from workers.supervisor import WorkerSupervisor
+from workers.service_transport import (
+    SERVICE_INTERVAL, get_ip_service_lock, get_ip_service_retry_after,
+    normalize_number, set_ip_service_cooldown,
+)
 
 logger = logging.getLogger("Orchestrator")
 
@@ -64,6 +69,15 @@ class Orchestrator:
         # Deferred retry queue for blocked service numbers (retried at the very end of session)
         self.deferred_indices: List[int] = []
         self.deferred_attempts: Dict[int, int] = {}
+        self.deferred_retry_at: Dict[int, float] = {}
+        self.retry_attempts_by_status: Dict[int, dict[str, int]] = {}
+        self.reviews_count = 0
+        self.not_found_count = 0
+        self.session_token = uuid.uuid4().hex
+        self.verification_notice = ""
+        self.verification_pause_tasks: set[str] = set()
+        self.verification_auto_resume = False
+        self.telegram_enabled = False
 
 
     def start_session_from_config(
@@ -143,6 +157,7 @@ class Orchestrator:
             self.workbook_name = workbook_path.name
             self.result_path = self.project_root / result_file
             self.is_finalizing = False
+            self.session_token = uuid.uuid4().hex
             ensure_audit_workbook_exists(self.result_path)
 
             chk_path = self.project_root / f".checkpoint_{workbook_path.stem}_{sheet_index}.json"
@@ -178,9 +193,23 @@ class Orchestrator:
 
             self.deferred_indices.clear()
             self.deferred_attempts.clear()
+            self.deferred_retry_at.clear()
+            self.retry_attempts_by_status.clear()
+            self.reviews_count = 0 if force_restart else int(saved.get("reviews_count", 0))
+            self.not_found_count = 0 if force_restart else int(saved.get("not_found_count", 0))
+            if not force_restart:
+                self.deferred_indices = [int(i) for i in saved.get("deferred_indices", [])
+                                         if 0 <= int(i) < len(self.customers) and int(i) not in self.completed_indices]
+                self.deferred_attempts = {int(i): int(n) for i, n in saved.get("deferred_attempts", {}).items()}
+                self.retry_attempts_by_status = {int(i): dict(n) for i, n in saved.get("retry_attempts_by_status", {}).items()}
+                self.deferred_retry_at = {int(i): time.monotonic() + max(0.0, float(n))
+                                          for i, n in saved.get("deferred_retry_delays", {}).items()}
             self.target_url = target_url
             self.is_running = True
             self.is_paused = False
+            self.verification_notice = ""
+            self.verification_pause_tasks.clear()
+            self.verification_auto_resume = False
             self.active_leases.clear()
             self.recent_results.clear()
 
@@ -210,7 +239,7 @@ class Orchestrator:
             if getattr(actor, "use_direct_api", False) and actor.status == "ready":
                 w_thread = threading.Thread(
                     target=self._run_worker_api_loop,
-                    args=(actor.worker_id,),
+                    args=(actor.worker_id, self.session_token),
                     name=f"DirectApiWorker-{actor.worker_id}",
                     daemon=True,
                 )
@@ -224,333 +253,285 @@ class Orchestrator:
         })
         return True
 
+    @staticmethod
+    def _search_number(customer: Customer) -> str:
+        service = normalize_number(customer.service_number)
+        lookup = normalize_number(customer.lookup_number)
+        if service.startswith("2"):
+            return service
+        if lookup.startswith("2"):
+            return lookup
+        return normalize_number(customer.contract or customer.lookup_number)
+
+    def _task_payload(self, task_id: str, data: dict) -> dict[str, Any]:
+        customer = data["customer"]
+        number = self._search_number(customer)
+        return {
+            "task_id": task_id, "index": data["index"],
+            "row_number": customer.row_number, "search_number": number,
+            "contract": customer.contract, "service_number": customer.service_number,
+            "record_type": "wallet" if number.startswith("2") else "account",
+            "expected_amount_sar": customer.expected_amount / 100.0,
+            "target_url": (f"https://app.sa.zain.com/ar/quickpay?account={number}"
+                           if number.startswith("2") else self.target_url),
+            "worker_id": data["worker_id"],
+        }
+
+    def renew_task_lease(self, task_id: str, worker_id: str) -> bool:
+        with self.lock:
+            lease = self.active_leases.get(task_id)
+            if lease is None or lease["worker_id"] != worker_id:
+                return False
+            lease["leased_at"] = time.monotonic()
+            return True
+
     def lease_next_task_for_worker(self, worker_id: str) -> Optional[dict[str, Any]]:
-        """Leases the next uncompleted customer record to the requesting worker."""
+        """Lease once per row and enforce service exclusion per outbound route."""
         with self.lock:
             if not self.is_running or self.is_paused:
                 return None
-
-            now = time.time()
-            # Clean expired leases (older than 120s)
-            expired = [t_id for t_id, data in self.active_leases.items() if now - data["leased_at"] > 120]
-            for exp_id in expired:
-                del self.active_leases[exp_id]
-
-            # 1. If this worker already has an active task in progress, re-issue it (do not skip ahead)
-            for active_task_id, active_data in self.active_leases.items():
-                if active_data.get("worker_id") == worker_id:
-                    cust = active_data["customer"]
-                    return {
-                        "task_id": active_task_id,
-                        "index": active_data["index"],
-                        "row_number": cust.row_number,
-                        "search_number": cust.lookup_number,
-                        "contract": cust.contract,
-                        "service_number": cust.service_number,
-                        "record_type": cust.record_type,
-                        "expected_amount_sar": cust.expected_amount / 100.0,
-                        "target_url": getattr(self, "target_url", "https://business.zain.sa/dashboard/quick-pay"),
-                        "worker_id": worker_id,
-                    }
-
-            already_leased_indices = {data["index"] for data in self.active_leases.values()}
-
-            current_actor = self.supervisor.get_worker(worker_id)
-            current_ip_group = current_actor.ip_group if current_actor else "unknown"
-
-            # Identify IP groups that currently hold an active lease on a 2xxx service number
-            busy_service_ip_groups: set[str] = set()
-            for active_task_id, active_data in self.active_leases.items():
-                other_w_id = active_data.get("worker_id")
-                other_actor = self.supervisor.get_worker(other_w_id)
-                if other_actor:
-                    other_cust = active_data.get("customer")
-                    if other_cust:
-                        is_other_service = (
-                            str(getattr(other_cust, "service_number", "")).startswith("2")
-                            or str(getattr(other_cust, "lookup_number", "")).startswith("2")
-                        )
-                        if is_other_service:
-                            busy_service_ip_groups.add(other_actor.ip_group)
-
-            candidate_idx = None
-
-            # Phase 1: Regular candidates (skip completed, already leased, and deferred)
-            for idx, cust in enumerate(self.customers):
-                if idx in self.completed_indices or idx in already_leased_indices or idx in self.deferred_indices:
+            actor = self.supervisor.get_worker(worker_id)
+            if actor is None or actor.status in ("stopped", "error") or actor.is_in_cooldown():
+                return None
+            now = time.monotonic()
+            for task_id, data in list(self.active_leases.items()):
+                if now - data["leased_at"] <= 120:
                     continue
-
-                is_candidate_service = (
-                    str(getattr(cust, "service_number", "")).startswith("2")
-                    or str(getattr(cust, "lookup_number", "")).startswith("2")
-                )
-
-                # Strict Rule: Two workers sharing the same IP MUST NOT query a 2xxx service number concurrently!
-                if is_candidate_service and (current_ip_group in busy_service_ip_groups):
+                # Never recycle a service while its route has active network I/O.
+                if self._search_number(data["customer"]).startswith("2") and get_ip_service_lock(data["ip_group"]).locked():
+                    data["leased_at"] = now
                     continue
+                self.active_leases.pop(task_id)
+                previous = self.supervisor.get_worker(data["worker_id"])
+                if previous and previous.current_task and previous.current_task.get("task_id") == task_id:
+                    previous.current_task = None
+                    if previous.status == "processing":
+                        previous.status = "ready"
+            for task_id, data in self.active_leases.items():
+                if data["worker_id"] == worker_id:
+                    data["leased_at"] = now
+                    return self._task_payload(task_id, data)
 
-                candidate_idx = idx
-                break
+            leased = {data["index"] for data in self.active_leases.values()}
+            busy = {data["ip_group"] for data in self.active_leases.values()
+                    if self._search_number(data["customer"]).startswith("2")}
+            def eligible(index):
+                service = self._search_number(self.customers[index]).startswith("2")
+                return not service or (actor.ip_group not in busy
+                                       and not get_ip_service_lock(actor.ip_group).locked()
+                                       and get_ip_service_retry_after(actor.ip_group) <= 0)
 
-            # Phase 2: Deferred candidates (retried at the very end of the queue!)
-            if candidate_idx is None and self.deferred_indices:
-                # Check if all normal records are either completed or currently in flight
-                has_pending_regular = any(
-                    i for i in range(len(self.customers))
-                    if i not in self.completed_indices and i not in self.deferred_indices and i not in already_leased_indices
-                )
-                if not has_pending_regular:
-                    # We are at the end of the queue: retry deferred records!
-                    for def_idx in list(self.deferred_indices):
-                        if def_idx in self.completed_indices or def_idx in already_leased_indices:
-                            continue
-                        cust = self.customers[def_idx]
-                        is_candidate_service = (
-                            str(getattr(cust, "service_number", "")).startswith("2")
-                            or str(getattr(cust, "lookup_number", "")).startswith("2")
-                        )
-                        if is_candidate_service and (current_ip_group in busy_service_ip_groups):
-                            continue
+            regular = [i for i in range(len(self.customers))
+                       if i not in self.completed_indices and i not in leased and i not in self.deferred_indices]
+            candidate = next((i for i in regular if eligible(i)), None)
+            if candidate is None and not regular:
+                candidate = next((i for i in self.deferred_indices
+                                  if i not in self.completed_indices and i not in leased
+                                  and self.deferred_retry_at.get(i, 0.0) <= now and eligible(i)), None)
+            if candidate is None:
+                return None
+            task_id = f"task_{self.session_token}_{candidate}_{uuid.uuid4().hex}"
+            data = {"index": candidate, "customer": self.customers[candidate],
+                    "worker_id": worker_id, "leased_at": now, "ip_group": actor.ip_group}
+            self.active_leases[task_id] = data
+            task = self._task_payload(task_id, data)
+            actor.assign_task({"task_id": task_id, "row": task["row_number"],
+                               "search_number": task["search_number"],
+                               "expected_sar": task["expected_amount_sar"]})
+            return task
 
-                        candidate_idx = def_idx
-                        break
-
-            if candidate_idx is not None:
-                idx = candidate_idx
-                cust = self.customers[idx]
-                task_id = f"task_{idx}_{int(now)}"
-                self.active_leases[task_id] = {
-                    "index": idx,
-                    "customer": cust,
-                    "worker_id": worker_id,
-                    "leased_at": now,
-                }
-
-                actor = self.supervisor.get_worker(worker_id)
-                if actor:
-                    actor.assign_task({
-                        "row": cust.row_number,
-                        "search_number": cust.lookup_number,
-                        "expected_sar": cust.expected_amount / 100.0,
-                    })
-
-                # Determine whether to search by account or service in Zain portal
-                return {
-                    "task_id": task_id,
-                    "index": idx,
-                    "row_number": cust.row_number,
-                    "search_number": cust.lookup_number,
-                    "contract": cust.contract,
-                    "service_number": cust.service_number,
-                    "record_type": cust.record_type,
-                    "expected_amount_sar": cust.expected_amount / 100.0,
-                    "target_url": getattr(self, "target_url", "https://business.zain.sa/dashboard/quick-pay"),
-                    "worker_id": worker_id,
-                }
-
-            if current_actor and (current_ip_group in busy_service_ip_groups) and current_actor.current_task is None:
-                current_actor.status = "ready"
-                current_actor.status_reason = "وضع الاستعداد الذكي: حماية الـ IP المشترك من الحظر (انتظار انتهاء استعلام 2xx)"
-
-            return None
-
-    def defer_task_to_end(self, task_id: str, reason: str = "") -> None:
-        """Defers a blocked task so it is retried at the very end of the session, not in the error list."""
-        with self.lock:
-            lease = self.active_leases.pop(task_id, None)
-            if not lease:
-                return
-
-            idx = lease["index"]
-            cust = lease["customer"]
-            attempts = self.deferred_attempts.get(idx, 0) + 1
-            self.deferred_attempts[idx] = attempts
-
-            if idx not in self.deferred_indices and idx not in self.completed_indices:
-                self.deferred_indices.append(idx)
-
-            logger.warning(
-                f"[DeferredQueue] السطر {cust.row_number} ({cust.lookup_number}) تعرض للحظر ({reason}). "
-                f"تم نقله لنهاية القائمة لإعادة المحاولة لاحقاً (المحاولة {attempts})."
+    def _save_checkpoint_locked(self, last_index: int) -> None:
+        if self.checkpoint_manager:
+            now = time.monotonic()
+            self.checkpoint_manager.save(
+                completed_indices=set(self.completed_indices), mismatches=list(self.mismatches),
+                last_index=last_index, workbook_name=self.workbook_name,
+                extra={"errors_count": self.errors_count, "matches_count": self.matches_count,
+                       "reviews_count": self.reviews_count, "not_found_count": self.not_found_count,
+                       "deferred_indices": list(self.deferred_indices),
+                       "deferred_attempts": dict(self.deferred_attempts),
+                       "retry_attempts_by_status": dict(self.retry_attempts_by_status),
+                       "deferred_retry_delays": {i: max(0.0, at - now) for i, at in self.deferred_retry_at.items()}},
             )
 
+    def defer_task_to_end(self, task_id: str, reason: str = "", *,
+                          worker_id: Optional[str] = None, retry_after: float = SERVICE_INTERVAL,
+                          category: str = "blocked") -> None:
+        """Retry at the end; exhausted rejections become review, never row errors."""
+        with self.lock:
+            lease = self.active_leases.get(task_id)
+            if not lease or (worker_id is not None and lease["worker_id"] != worker_id):
+                return
+            idx = lease["index"]
+            if idx in self.completed_indices:
+                return
+            attempts = self.retry_attempts_by_status.setdefault(idx, {})
+            attempts[category] = attempts.get(category, 0) + 1
+            self.deferred_attempts[idx] = self.deferred_attempts.get(idx, 0) + 1
+            if attempts[category] >= 3:
+                self.record_task_outcome(task_id, None, "needs_review", reason, lease["worker_id"])
+                return
+            self.active_leases.pop(task_id)
+            if idx in self.deferred_indices:
+                self.deferred_indices.remove(idx)
+            self.deferred_indices.append(idx)
+            self.deferred_retry_at[idx] = time.monotonic() + max(0.0, retry_after)
+            actor = self.supervisor.get_worker(lease["worker_id"])
+            if actor:
+                actor.current_task = None
+                if not actor.is_in_cooldown():
+                    actor.status = "ready"
+                actor.status_reason = reason
+            self._save_checkpoint_locked(idx)
             EVENT_BUS.publish("task_deferred", {
-                "row": cust.row_number,
-                "number": cust.lookup_number,
-                "reason": reason,
-                "attempt": attempts,
-                "deferred_count": len([i for i in self.deferred_indices if i not in self.completed_indices]),
+                "row": lease["customer"].row_number, "number": self._search_number(lease["customer"]),
+                "reason": reason, "attempt": attempts[category], "category": category,
+                "deferred_count": len(self.deferred_indices),
             })
 
     def record_task_outcome(
-        self,
-        task_id: str,
-        live_amount_raw: Any,
-        status: str,  # 'match', 'mismatch', 'error'
-        error_msg: str = "",
-        worker_id: str = "Worker 1",
+        self, task_id: str, live_amount_raw: Any, status: str,
+        error_msg: str = "", worker_id: str = "worker_1",
     ) -> None:
-        """Processes the outcome reported by a worker extension, writes to Excel, and updates stats."""
-        lease = None
+        """Commit lease ownership, completion, metrics and the writer entry atomically."""
         with self.lock:
-            lease = self.active_leases.pop(task_id, None)
-
-        if not lease:
-            return
-
-        cust: Customer = lease["customer"]
-        idx: int = lease["index"]
-
-        live_halalas = parse_money_to_halalas(live_amount_raw) or 0
-        live_sar = live_halalas / 100.0
-
-        if status == "error":
-            with self.lock:
-                self.errors_count += 1
-                self.completed_indices.add(idx)
-
-            label = "خطأ فحص"
+            lease = self.active_leases.get(task_id)
+            if not lease or lease["worker_id"] != worker_id or lease["index"] in self.completed_indices:
+                return
+            cust = lease["customer"]
+            idx = lease["index"]
+            if status not in ("match", "mismatch", "error", "not_found", "needs_review"):
+                status = "needs_review"
+            live_halalas = parse_money_to_halalas(live_amount_raw) if status in ("match", "mismatch") else None
+            if status in ("match", "mismatch") and (live_halalas is None or live_halalas < 0):
+                status = "needs_review"
+                error_msg = error_msg or "لم يتم الحصول على مبلغ صالح"
+                live_halalas = None
             eff_expected = cust.expected_amount
-            diff_sar = 0.0
-
-            result = CheckResult(
-                row=cust.row_number,
-                record_type=cust.record_type,
-                lookup_number=cust.lookup_number,
-                customer_name=cust.customer_name,
-                expected_amount=cust.expected_amount / 100.0,
-                live_amount=0.0,
-                status="error",
-                diff_sar=0.0,
-                worker_id=worker_id,
-                timestamp=time.strftime("%H:%M:%S"),
-            )
-        else:
-            # Match Verification with 20 Halalas tolerance
-            matched, eff_expected, diff_h = is_amount_match(
-                live_halalas=live_halalas,
-                expected_primary=cust.expected_amount,
-                expected_secondary=cust.expected_amount_2,
-            )
-
-            with self.lock:
-                self.completed_indices.add(idx)
-
-            if matched:
-                with self.lock:
+            live_sar = live_halalas / 100.0 if live_halalas is not None else None
+            diff_sar = None
+            if status in ("match", "mismatch"):
+                matched, eff_expected, diff_h = is_amount_match(
+                    live_halalas=live_halalas, expected_primary=cust.expected_amount,
+                    expected_secondary=cust.expected_amount_2,
+                )
+                status = "match" if matched else "mismatch"
+                diff_sar = 0.0 if matched else diff_h / 100.0
+                label = "مسدد بالكامل" if live_sar == 0.0 and eff_expected > 0 else ("تطابق تام" if matched else "فرق رصيد")
+                if matched:
                     self.matches_count += 1
-                label = "مسدد بالكامل" if live_sar == 0.0 and eff_expected > 0 else "تطابق تام"
-                diff_sar = 0.0
-                result = CheckResult(
-                    row=cust.row_number,
-                    record_type=cust.record_type,
-                    lookup_number=cust.lookup_number,
-                    customer_name=cust.customer_name,
-                    expected_amount=eff_expected / 100.0,
-                    live_amount=live_sar,
-                    status="match",
-                    diff_sar=0.0,
-                    worker_id=worker_id,
-                    timestamp=time.strftime("%H:%M:%S"),
-                )
+                else:
+                    self.mismatches.append(ProgressMismatch(sequence_index=idx, expected_amount=eff_expected, website_amount=live_halalas))
+            elif status == "error":
+                label = "خطأ فحص"
+                self.errors_count += 1
+            elif status == "not_found":
+                label = "غير موجود"
+                self.not_found_count += 1
             else:
-                label = "مسدد بالكامل" if live_sar == 0.0 else "فرق رصيد"
-                diff_sar = diff_h / 100.0
-                with self.lock:
-                    self.mismatches.append(ProgressMismatch(
-                        sequence_index=idx,
-                        expected_amount=eff_expected,
-                        website_amount=live_halalas,
-                    ))
+                label = "تحتاج مراجعة"
+                self.reviews_count += 1
+            number = self._search_number(cust)
+            result = CheckResult(
+                row=cust.row_number, record_type="wallet" if number.startswith("2") else "account",
+                lookup_number=number, customer_name=cust.customer_name,
+                expected_amount=eff_expected / 100.0, live_amount=live_sar,
+                status=status, diff_sar=diff_sar, worker_id=worker_id,
+                timestamp=time.strftime("%H:%M:%S"), details=error_msg,
+            )
+            row_record = {
+                "row": cust.row_number,
+                "name": cust.customer_name or "عميل غير محدد",
+                "national_id": getattr(cust, "national_id", "") or "-",
+                "contract": cust.contract or cust.lookup_number or "-",
+                "account": cust.original_account_number or cust.lookup_number or "-",
+                "service": cust.service_number or "-",
+                "customer_phones": getattr(cust, "phones", "") or "-",
+                "collector": cust.collector_name or "-",
+                "supervisor": getattr(cust, "supervisor_name", "") or "-",
+                "branch": getattr(cust, "branch_name", "") or "-",
+                "expected_sar": eff_expected / 100.0,
+                "live_sar": live_sar,
+                "diff_sar": diff_sar,
+                "status_label": label,
+                "case_status": getattr(cust, "case_status", "") or "-",
+                "main_status": cust.main_status or "-",
+                "sub_status": cust.sub_status or "-",
+                "follow_notes": cust.notes or "-",
+                "follow_date": getattr(cust, "followup_date", "") or "-",
+                "status": result.status,
+                "error": error_msg,
+                "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+            }
 
-                result = CheckResult(
-                    row=cust.row_number,
-                    record_type=cust.record_type,
-                    lookup_number=cust.lookup_number,
-                    customer_name=cust.customer_name,
-                    expected_amount=eff_expected / 100.0,
-                    live_amount=live_sar,
-                    status="mismatch",
-                    diff_sar=diff_sar,
-                    worker_id=worker_id,
-                    timestamp=time.strftime("%H:%M:%S"),
-                )
-
-        # Build 19-column executive deliverable record
-        row_record = {
-            "row": cust.row_number,
-            "name": cust.customer_name or "عميل غير محدد",
-            "national_id": getattr(cust, "national_id", "") or "-",
-            "contract": cust.contract or cust.lookup_number or "-",
-            "account": cust.original_account_number or cust.lookup_number or "-",
-            "service": cust.service_number or "-",
-            "customer_phones": getattr(cust, "phones", "") or "-",
-            "collector": cust.collector_name or "-",
-            "supervisor": getattr(cust, "supervisor_name", "") or "-",
-            "branch": getattr(cust, "branch_name", "") or "-",
-            "expected_sar": eff_expected / 100.0,
-            "live_sar": live_sar,
-            "diff_sar": diff_sar,
-            "status_label": label,
-            "case_status": getattr(cust, "case_status", "") or "-",
-            "main_status": cust.main_status or "-",
-            "sub_status": cust.sub_status or "-",
-            "follow_notes": cust.notes or "-",
-            "follow_date": getattr(cust, "followup_date", "") or "-",
-            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
-        }
-
-        with self.lock:
             self.all_completed_records[idx] = row_record
-
-        # Push to async writer queue in RAM (0.000001s, non-blocking)
-        if self.result_queue is not None:
-            self.result_queue.put(row_record)
-
-        actor = self.supervisor.get_worker(worker_id)
-
-        if actor:
-            actor.record_outcome(result.status)
-
-        with self.lock:
+            if self.result_queue is not None:
+                self.result_queue.put(row_record)
+            self.completed_indices.add(idx)
+            self.active_leases.pop(task_id)
+            if task_id in self.verification_pause_tasks:
+                self.verification_pause_tasks.discard(task_id)
+                if status not in ("match", "mismatch", "not_found"):
+                    self.verification_auto_resume = False
+                elif self.verification_auto_resume and not self.verification_pause_tasks and self.is_running:
+                    self.is_paused = False
+                    self.verification_notice = ""
+                    self.verification_auto_resume = False
+                    EVENT_BUS.publish("session_resumed", {"reason": "verification_completed"})
+            if idx in self.deferred_indices:
+                self.deferred_indices.remove(idx)
+            self.deferred_retry_at.pop(idx, None)
+            actor = self.supervisor.get_worker(worker_id)
+            if actor:
+                actor.record_outcome(result.status)
             self.recent_results.insert(0, result.to_dict())
-            if len(self.recent_results) > 150:
-                self.recent_results.pop()
-
-        # Save checkpoint periodically (every record)
-        if self.checkpoint_manager:
-            self.checkpoint_manager.save(
-                completed_indices=self.completed_indices,
-                mismatches=self.mismatches,
-                last_index=idx,
-                workbook_name=self.workbook_name,
-                extra={
-                    "errors_count": self.errors_count,
-                    "matches_count": self.matches_count,
-                },
-            )
-
-        # Update queue progress
-        if self.current_job_id:
-            self.queue_service.update_job_progress(
-                job_id=self.current_job_id,
-                completed=len(self.completed_indices),
-                remaining=max(0, len(self.customers) - len(self.completed_indices)),
-                matches=self.matches_count,
-                mismatches=len(self.mismatches),
-                errors=self.errors_count,
-            )
-
+            self.recent_results = self.recent_results[:150]
+            self._save_checkpoint_locked(idx)
+            if self.current_job_id:
+                self.queue_service.update_job_progress(
+                    job_id=self.current_job_id, completed=len(self.completed_indices),
+                    remaining=max(0, len(self.customers) - len(self.completed_indices)),
+                    matches=self.matches_count, mismatches=len(self.mismatches), errors=self.errors_count,
+                )
         EVENT_BUS.publish("task_completed", result.to_dict())
 
     def pause_session(self) -> None:
         with self.lock:
             self.is_paused = True
+            self.verification_auto_resume = False
         EVENT_BUS.publish("session_paused", {})
+
+    def handle_verification_required(self, task_id: str, message: str, worker_id: str) -> None:
+        """Pause the session before another row can be leased after CAPTCHA."""
+        with self.lock:
+            lease = self.active_leases.get(task_id)
+            if not lease or lease["worker_id"] != worker_id:
+                return
+            self.is_paused = True
+            self.verification_pause_tasks.discard(task_id)
+            self.verification_auto_resume = False
+            self.verification_notice = message or "تطلب صفحة زين تحققًا بشريًا"
+            self.defer_task_to_end(task_id, self.verification_notice, worker_id=worker_id,
+                                   retry_after=0.0, category="verification_required")
+        EVENT_BUS.publish("session_paused", {"reason": self.verification_notice})
+
+    def notify_pending_verification(self, task_id: str, message: str, worker_id: str) -> None:
+        with self.lock:
+            lease = self.active_leases.get(task_id)
+            if not lease or lease["worker_id"] != worker_id:
+                return
+            if not self.is_paused:
+                self.verification_auto_resume = True
+            self.verification_pause_tasks.add(task_id)
+            self.is_paused = True
+            self.verification_notice = message
+        EVENT_BUS.publish("session_paused", {"reason": message})
 
     def resume_session(self) -> None:
         with self.lock:
+            self.verification_pause_tasks.clear()
             self.is_paused = False
+            self.verification_notice = ""
         EVENT_BUS.publish("session_resumed", {})
 
     def cancel_session(self) -> None:
@@ -558,147 +539,83 @@ class Orchestrator:
             self.is_running = False
             self.is_paused = False
             self.active_leases.clear()
+            self.verification_pause_tasks.clear()
+            self.verification_auto_resume = False
+        from workers.stealth_service_engine import cancel_pending_verifications
+        cancel_pending_verifications()
         self.supervisor.stop_all()
         if self.writer_thread and self.result_queue:
             self.result_queue.put("STOP_SENTINEL")
         EVENT_BUS.publish("session_cancelled", {})
 
-    def _run_worker_api_loop(self, worker_id: str) -> None:
-        """Continuously leases and executes verification tasks directly via Zain REST API."""
-        logger.info(f"Worker {worker_id} direct REST API engine started.")
+    def _run_worker_api_loop(self, worker_id: str, session_token: Optional[str] = None) -> None:
+        """Execute leased tasks, keeping active leases alive and results fenced."""
         actor = self.supervisor.get_worker(worker_id)
         if not actor:
             return
-
-        while self.is_running:
-            if self.is_paused:
+        session_token = session_token or self.session_token
+        while self.is_running and self.session_token == session_token:
+            if self.is_paused or actor.is_in_cooldown():
                 time.sleep(0.5)
                 continue
-
-            if actor.is_in_cooldown():
-                time.sleep(1.0)
-                continue
-
             task = self.lease_next_task_for_worker(worker_id)
-            if not task:
-                time.sleep(0.4)
-                should_finalize = False
+            if task is None:
                 with self.lock:
-                    if not self.is_running or self.is_finalizing:
-                        break
-                    remaining_deferred = [i for i in self.deferred_indices if i not in self.completed_indices]
-                    if len(self.customers) > 0 and len(self.completed_indices) >= len(self.customers) and not self.active_leases and not remaining_deferred:
+                    finalize = (self.is_running and not self.is_finalizing and bool(self.customers)
+                                and len(self.completed_indices) >= len(self.customers) and not self.active_leases)
+                    if finalize:
                         self.is_finalizing = True
-                        should_finalize = True
-
-                if should_finalize:
+                if finalize:
                     self._finalize_job()
                     break
+                time.sleep(0.4)
                 continue
-
-            contract = task.get("contract") or task.get("search_number")
-            service_num = task.get("service_number") or ""
-            task_id = task.get("task_id")
-
-            # Route service vs contract queries intelligently
-            if str(service_num).startswith("2") and task.get("record_type") == "wallet":
-                status, live_amount, msg = actor.execute_task_api(service_num)
-            else:
-                status, live_amount, msg = actor.execute_task_api(contract)
-                # If contract search returned error/not_found and service_num starts with 2, fallback
-                if (status != "ok" or live_amount is None) and str(service_num).startswith("2"):
-                    s_status, s_amount, s_msg = actor.execute_task_api(service_num)
-                    if s_status == "ok":
-                        status, live_amount, msg = s_status, s_amount, s_msg
-                    elif status not in ("ok", "match") and s_status in ("error", "not_found", "blocked"):
-                        status, live_amount, msg = s_status, s_amount, s_msg
-
+            task_id = task["task_id"]
+            stop_heartbeat = threading.Event()
+            def heartbeat():
+                while not stop_heartbeat.wait(10.0):
+                    if not self.renew_task_lease(task_id, worker_id):
+                        break
+            heartbeat_thread = threading.Thread(target=heartbeat, daemon=True, name=f"LeaseHeartbeat-{worker_id}")
+            heartbeat_thread.start()
             try:
-                if status == "ok":
-                    self.record_task_outcome(
-                        task_id=task_id,
-                        live_amount_raw=live_amount,
-                        status="match",
-                        worker_id=worker_id,
-                    )
-                elif status == "blocked":
-                    idx = task.get("index")
-                    attempts = self.deferred_attempts.get(idx, 0) + 1
-                    if attempts <= 2:
-                        logger.warning(
-                            f"Worker {worker_id} blocked/redirected on {service_num or contract}: {msg}. "
-                            f"Moving to end of list (Attempt {attempts}/2)."
-                        )
-                        # Proxy workers (Worker 3) have isolated clean IPs and must NEVER be placed in cooldown
-                        if not actor.use_proxy:
-                            actor.set_cooldown(12.0, f"حظر مؤقت: {msg}")
-                        self.defer_task_to_end(task_id, reason=msg)
+                try:
+                    actor.on_verification = lambda message: self.notify_pending_verification(task_id, message, worker_id)
+                    status, amount, message = actor.execute_task_api(task["search_number"])
+                except Exception as exc:
+                    status, amount, message = "network_error", None, f"تعذر استكمال الطلب: {type(exc).__name__}"
+            finally:
+                stop_heartbeat.set()
+                heartbeat_thread.join(timeout=1.0)
+            if self.session_token != session_token:
+                break
+            if status == "ok":
+                self.record_task_outcome(task_id, amount, "match", worker_id=worker_id)
+            elif status == "verification_required":
+                self.handle_verification_required(task_id, message, worker_id)
+            elif status in ("blocked", "session_expired"):
+                if status == "blocked" and not actor.use_proxy:
+                    set_ip_service_cooldown(actor.ip_group, 12.0)
+                delay = max(SERVICE_INTERVAL, get_ip_service_retry_after(actor.ip_group)) if status == "blocked" else 0.0
+                self.defer_task_to_end(task_id, message, worker_id=worker_id, retry_after=delay, category=status)
+            elif status == "not_found":
+                self.record_task_outcome(task_id, None, "not_found", message, worker_id)
+            elif status in ("unknown_response", "error"):
+                self.record_task_outcome(task_id, None, "needs_review", message, worker_id)
+            else:
+                with self.lock:
+                    lease = self.active_leases.get(task_id)
+                    if not lease or lease["worker_id"] != worker_id:
                         continue
-                    else:
-                        logger.error(f"Record {service_num or contract} permanently blocked after {attempts} deferred retries.")
-                        self.record_task_outcome(
-                            task_id=task_id,
-                            live_amount_raw=0.0,
-                            status="error",
-                            error_msg=f"حظر دائم بعد المحاولات: {msg}",
-                            worker_id=worker_id,
-                        )
-                elif status == "session_expired":
-                    idx = task.get("index")
-                    attempts = self.deferred_attempts.get(idx, 0) + 1
-                    if attempts <= 2:
-                        logger.info(
-                            f"Worker {worker_id} session refreshed on {service_num or contract}: {msg}. "
-                            f"Moving to end of list (No worker cooldown)."
-                        )
-                        # Session challenge: NO worker cooldown needed! Just defer to end of list
-                        self.defer_task_to_end(task_id, reason=msg)
-                        continue
-                    else:
-                        self.record_task_outcome(
-                            task_id=task_id,
-                            live_amount_raw=0.0,
-                            status="error",
-                            error_msg=f"انتهاء صلاحية الجلسة بعد المحاولات: {msg}",
-                            worker_id=worker_id,
-                        )
-                elif status in ("error", "not_found"):
-                    self.record_task_outcome(
-                        task_id=task_id,
-                        live_amount_raw=0.0,
-                        status="error",
-                        error_msg=msg or "لم يتم العثور على بيانات الفاتورة",
-                        worker_id=worker_id,
-                    )
-                else:  # network_error
-                    retries = 0
-                    with self.lock:
-                        if task_id in self.active_leases:
-                            self.active_leases[task_id]["retries"] = self.active_leases[task_id].get("retries", 0) + 1
-                            retries = self.active_leases[task_id]["retries"]
-
-                    if retries <= 2:
-                        logger.warning(f"Worker {worker_id} network issue on contract {contract}: {msg} (retry {retries}/2)")
-                        if not actor.use_proxy:
-                            actor.set_cooldown(2.0, f"Network error: {msg}")
-                        time.sleep(0.5)
-                        continue
-                    else:
-                        logger.error(f"Worker {worker_id} permanent network error on {contract} after {retries} retries: {msg}")
-                        self.record_task_outcome(
-                            task_id=task_id,
-                            live_amount_raw=0.0,
-                            status="error",
-                            error_msg=f"خطأ اتصال: {msg}",
-                            worker_id=worker_id,
-                        )
-            except Exception as outcome_err:
-                logger.error(f"Worker {worker_id} error processing outcome for contract {contract}: {outcome_err}")
-
-            # Safe pacing interval (0.35s) to stay well within rate limits
+                    lease["retries"] = lease.get("retries", 0) + 1
+                    attempts = lease["retries"]
+                if attempts <= 2:
+                    if not actor.use_proxy and not task["search_number"].startswith("2"):
+                        actor.set_cooldown(2.0, message)
+                    time.sleep(0.5)
+                    continue
+                self.record_task_outcome(task_id, None, "needs_review", message, worker_id)
             time.sleep(0.35)
-
-        logger.info(f"Worker {worker_id} direct REST API engine finished.")
 
     def _finalize_job(self) -> None:
         with self.lock:
@@ -740,6 +657,8 @@ class Orchestrator:
             "matches": self.matches_count,
             "mismatches": len(self.mismatches),
             "errors": self.errors_count,
+            "needs_review": self.reviews_count,
+            "not_found": self.not_found_count,
             "result_file": str(self.result_path),
         })
 
@@ -801,19 +720,35 @@ class Orchestrator:
             matches = self.matches_count
             mismatches = len(self.mismatches)
             errors = self.errors_count
+            reviews = self.reviews_count
+            not_found = self.not_found_count
 
             # Calculate net mismatch halalas
             net_mismatch_halalas = sum(abs(m.website_amount - m.expected_amount) for m in self.mismatches)
 
             table_snapshot = list(self.recent_results)
             active_leases_count = len(self.active_leases)
+            deferred_count = len(self.deferred_indices)
+            retry_delays = [max(0.0, self.deferred_retry_at.get(i, 0.0) - time.monotonic())
+                            for i in self.deferred_indices]
+            verification_notice = self.verification_notice
+            busy_service_groups = {lease["ip_group"] for lease in self.active_leases.values()
+                                   if self._search_number(lease["customer"]).startswith("2")}
 
         workers_info = self.supervisor.get_status_summary()
+        for worker in workers_info:
+            worker["waiting_for_shared_service_browser"] = bool(
+                self.is_running and not self.is_paused and worker["status"] == "ready"
+                and worker.get("ip_group") in busy_service_groups)
+        from workers.stealth_service_engine import pending_verifications
 
         return {
             "running": self.is_running,
             "paused": self.is_paused,
             "workbook": self.workbook_name,
+            "verification_notice": verification_notice,
+            "telegram_enabled": self.telegram_enabled,
+            "verifications": pending_verifications(),
             "kpis": {
                 "total": total,
                 "completed": done,
@@ -821,8 +756,13 @@ class Orchestrator:
                 "matches": matches,
                 "mismatches": mismatches,
                 "errors": errors,
+                "needs_review": reviews,
+                "not_found": not_found,
                 "mismatch_total": net_mismatch_halalas / 100.0,
                 "active_leases": active_leases_count,
+                "verified": matches + mismatches,
+                "deferred": deferred_count,
+                "next_retry_seconds": round(min(retry_delays), 1) if retry_delays else 0.0,
             },
             "workers": workers_info,
             "table_rows": table_snapshot,

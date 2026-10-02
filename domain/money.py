@@ -48,7 +48,7 @@ def parse_money_to_halalas(raw: Any) -> Optional[int]:
         try:
             dec = Decimal(str(raw))
             return int((dec * Decimal(100)).to_integral_value())
-        except (InvalidOperation, ValueError):
+        except (InvalidOperation, ValueError, OverflowError):
             return None
 
     cleaned = sanitize_amount_string(raw)
@@ -58,7 +58,7 @@ def parse_money_to_halalas(raw: Any) -> Optional[int]:
     try:
         dec = Decimal(cleaned)
         return int((dec * Decimal(100)).to_integral_value())
-    except (InvalidOperation, ValueError):
+    except (InvalidOperation, ValueError, OverflowError):
         return None
 
 

@@ -44,6 +44,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--bridge-port", type=int, default=8766, help="Chrome Extension Bridge port (default: 8766)")
     parser.add_argument("--no-telegram", action="store_true", help="Disable Telegram bot and event notifier")
     parser.add_argument("--no-workers", action="store_true", help="Start gateway only without auto-spawning browser workers")
+    proxy_options = parser.add_mutually_exclusive_group()
+    proxy_options.add_argument("--no-proxy-workers", action="store_true", help="Disable configured proxy workers and use only direct workers")
+    proxy_options.add_argument("--with-proxy-workers", action="store_true", help="Explicitly enable configured proxy workers (default: enabled)")
     return parser.parse_args()
 
 
@@ -62,8 +65,10 @@ def main() -> None:
 
     # 1. Initialize Workers Module (Actor Model & One-for-One Supervisor)
     from workers.supervisor import WorkerSupervisor
-    supervisor = WorkerSupervisor(project_root=PROJECT_ROOT)
-    logger.info("Worker Supervisor initialized (Worker 1: Direct, Worker 2: Proxy).")
+    enable_proxy = not args.no_proxy_workers
+    supervisor = WorkerSupervisor(project_root=PROJECT_ROOT, enable_proxy_workers=enable_proxy)
+    logger.info("Worker Supervisor initialized (%s workers, proxy workers %s).",
+                len(supervisor.get_all_workers()), "enabled" if enable_proxy else "disabled")
 
     # 2. Initialize Queue Service
     from manager.queue import QueueService
@@ -96,6 +101,7 @@ def main() -> None:
                 project_root=PROJECT_ROOT,
             )
             tg_runner.start()
+            orchestrator.telegram_enabled = True
             logger.info("Telegram Bot & Event Subscriber active.")
         except Exception as exc:
             logger.warning(f"Telegram Bot failed to start: {exc}")
@@ -124,6 +130,8 @@ def main() -> None:
         if tg_runner:
             tg_runner.stop()
         supervisor.stop_all()
+        from workers.stealth_service_engine import stop_service_browsers
+        stop_service_browsers()
         print("✓ All workers, servers, and processes safely terminated.")
         sys.exit(0)
 

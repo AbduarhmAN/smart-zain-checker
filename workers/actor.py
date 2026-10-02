@@ -39,13 +39,14 @@ class WorkerActor:
     @property
     def ip_group(self) -> str:
         """Returns a string identifier for the worker's outbound IP network."""
-        if self.use_proxy and self.proxy_url and str(self.proxy_url).strip():
-            from urllib.parse import urlparse
+        if self.use_proxy:
+            from workers.service_transport import connection_group
             try:
-                parsed = urlparse(str(self.proxy_url).strip())
-                return f"proxy_{parsed.hostname}:{parsed.port}"
-            except Exception:
-                return f"proxy_{str(self.proxy_url).strip()}"
+                if not self.proxy_url or not str(self.proxy_url).strip():
+                    raise ValueError("Missing proxy")
+                return connection_group(self.proxy_url)
+            except ValueError:
+                return f"invalid_proxy_{self.worker_id}"
         return "local_direct"
 
     def launch(self) -> bool:
@@ -116,8 +117,21 @@ class WorkerActor:
     def execute_task_api(self, contract_number: str) -> tuple[str, Optional[float], str]:
         """Queries the Zain Business REST API directly."""
         from workers.zain_api import query_contract_due_amount
-        effective_proxy = self.proxy_url if self.use_proxy else None
-        return query_contract_due_amount(contract_number, proxy_url=effective_proxy)
+        clean_num = str(contract_number).strip()
+        # Service numbers (starting with 2) use stealth browser with proxy support.
+        # Contracts (starting with 1) always use direct Business API for fast, zero-CAPTCHA inquiries.
+        is_service = clean_num.startswith("2")
+        if self.use_proxy and is_service and (not self.proxy_url or not str(self.proxy_url).strip()):
+            return "error", None, "Proxy worker requires a valid proxy URL"
+        if self.use_proxy and is_service:
+            from workers.service_transport import connection_group
+            try:
+                connection_group(self.proxy_url)
+            except ValueError:
+                return "error", None, "Proxy worker requires a valid proxy URL"
+        effective_proxy = self.proxy_url if (self.use_proxy and is_service) else None
+        return query_contract_due_amount(contract_number, proxy_url=effective_proxy,
+                                         on_verification=getattr(self, "on_verification", None))
 
     def restart(self) -> bool:
         """Safely restarts this worker independently."""
@@ -127,13 +141,17 @@ class WorkerActor:
 
     def set_cooldown(self, seconds: float, reason: str = "") -> None:
         """Puts ONLY this worker into cooldown (e.g. router IP block or rate-limit)."""
-        self.cooldown_until = time.time() + seconds
+        if self.use_proxy:
+            return
+        self.cooldown_until = time.monotonic() + seconds
         self.status = "cooldown"
         self.status_reason = reason or f"Cooldown for {int(seconds)}s"
 
     def is_in_cooldown(self) -> bool:
         """Checks if this worker is currently in cooldown."""
-        if self.cooldown_until > time.time():
+        if self.use_proxy:
+            return False
+        if self.cooldown_until > time.monotonic():
             return True
         if self.status == "cooldown":
             self.status = "ready"
@@ -175,6 +193,7 @@ class WorkerActor:
         self.completed_count += 1
         self.last_active_time = time.time()
         self.current_task = None
+        self.status = "ready"
         if outcome == "match":
             self.match_count += 1
             self.status = "ready"
@@ -197,7 +216,7 @@ class WorkerActor:
             "ip_group": self.ip_group,
             "pid": self.pid,
             "in_cooldown": self.is_in_cooldown(),
-            "cooldown_remaining_seconds": max(0, int(self.cooldown_until - time.time())),
+            "cooldown_remaining_seconds": max(0, int(self.cooldown_until - time.monotonic())) if not self.use_proxy else 0,
             "current_task": self.current_task,
             "completed": self.completed_count,
             "matches": self.match_count,

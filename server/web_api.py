@@ -73,6 +73,20 @@ class WebApiHandler(BaseHTTPRequestHandler):
             self.handle_workbook_sheets(parsed)
         elif path == "/api/live-status":
             self.handle_live_status()
+        elif path == "/api/service-verification-image":
+            from urllib.parse import parse_qs
+            from workers.stealth_service_engine import verification_image
+            challenge_id = parse_qs(parsed.query).get("id", [""])[0]
+            raw = verification_image(challenge_id)
+            if raw is None:
+                self.send_json(404, {"status": "error", "message": "انتهت صلاحية التحدي"})
+            else:
+                self.send_response(200)
+                self.send_header("Content-Type", "image/png")
+                self.send_header("Cache-Control", "no-store")
+                self.send_header("Content-Length", str(len(raw)))
+                self.end_headers()
+                self.wfile.write(raw)
         elif path == "/api/queue":
             self.handle_get_queue()
         elif path == "/api/telegram/status":
@@ -150,8 +164,21 @@ class WebApiHandler(BaseHTTPRequestHandler):
             self.orchestrator.pause_session()
             self.send_json(200, {"status": "ok", "message": "Session paused"})
         elif path == "/api/resume-session":
+            from workers.stealth_service_engine import pending_verifications
+            if pending_verifications():
+                self.send_json(409, {"status": "error", "message": "أكمل التحقق الظاهر قبل استئناف الفحص"})
+                return
             self.orchestrator.resume_session()
             self.send_json(200, {"status": "ok", "message": "Session resumed"})
+        elif path == "/api/service-verification-submit":
+            origin = self.headers.get("Origin")
+            if origin and urlparse(origin).netloc != self.headers.get("Host"):
+                self.send_json(403, {"status": "error", "message": "مصدر الطلب غير مسموح"})
+                return
+            from workers.stealth_service_engine import submit_verification
+            accepted = submit_verification(str(payload.get("id", "")), payload.get("answer", ""))
+            self.send_json(200 if accepted else 409, {"status": "ok" if accepted else "error",
+                            "message": "تم إرسال الرمز؛ انتظر نتيجة زين" if accepted else "التحدي منتهٍ أو سبق إرسال الرمز"})
         elif path == "/api/cancel-session":
             self.orchestrator.cancel_session()
             self.send_json(200, {"status": "ok", "message": "Session cancelled"})
@@ -329,9 +356,13 @@ class WebApiHandler(BaseHTTPRequestHandler):
         self.send_json(200, {"status": "ok", "removed": removed, "jobs": self.queue_service.get_jobs()})
 
     def handle_telegram_status(self) -> None:
-        self.send_json(200, {"status": "ok", "configured": True, "bot_username": "@ZainCheckerbot"})
+        enabled = bool(getattr(self.orchestrator, "telegram_enabled", False))
+        self.send_json(200, {"status": "ok", "enabled": enabled, "configured": enabled})
 
     def handle_telegram_ping(self) -> None:
+        if not getattr(self.orchestrator, "telegram_enabled", False):
+            self.send_json(409, {"status": "error", "message": "تكامل تلقرام غير مفعّل"})
+            return
         try:
             from telegram_bot.notifier import TelegramNotifier
             notifier = TelegramNotifier()

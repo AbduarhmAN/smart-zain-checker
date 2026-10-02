@@ -25,6 +25,7 @@ class WorkerSupervisor:
         project_root: Optional[Path] = None,
         workers_config: Optional[List[dict[str, Any]]] = None,
         on_worker_status_change: Optional[Callable[[str, str], None]] = None,
+        enable_proxy_workers: bool = True,
     ) -> None:
         root = project_root or Path.cwd()
         self.extension_dir = extension_dir or (root / "chrome_extension")
@@ -64,6 +65,9 @@ class WorkerSupervisor:
                 ]
 
         for cfg in cfgs:
+            uses_proxy = bool(cfg.get("use_proxy", bool(cfg.get("proxy_url") or cfg.get("proxy"))))
+            if uses_proxy and not enable_proxy_workers:
+                continue
             w_id = cfg["worker_id"]
             prof_dir = self.base_profiles_dir / f".zain-profile-{w_id}"
             actor = WorkerActor(
@@ -71,7 +75,7 @@ class WorkerSupervisor:
                 name=cfg.get("name", f"Worker {w_id}"),
                 profile_dir=prof_dir,
                 extension_dir=self.extension_dir,
-                use_proxy=bool(cfg.get("use_proxy", bool(cfg.get("proxy_url") or cfg.get("proxy")))),
+                use_proxy=uses_proxy,
                 proxy_url=cfg.get("proxy_url") or cfg.get("proxy"),
             )
             self.workers[w_id] = actor

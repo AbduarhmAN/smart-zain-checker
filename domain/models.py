@@ -109,11 +109,12 @@ class CheckResult:
     lookup_number: str
     customer_name: str
     expected_amount: float  # SAR
-    live_amount: float      # SAR
+    live_amount: Optional[float]  # None means no verified website amount.
     status: str             # 'match', 'mismatch', 'error'
-    diff_sar: float = 0.0
+    diff_sar: Optional[float] = 0.0
     worker_id: str = "Worker 1"
     timestamp: str = ""
+    details: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -127,6 +128,7 @@ class CheckResult:
             "status": self.status,
             "worker_id": self.worker_id,
             "time": self.timestamp,
+            "details": self.details,
         }
 
 
