@@ -3,6 +3,8 @@
  */
 const QueueUI = {
   async refresh() {
+    if (this.refreshing) return;
+    this.refreshing=true;
     try {
       const res = await API.getQueue();
       if (res.status === 'ok') {
@@ -10,7 +12,7 @@ const QueueUI = {
       }
     } catch (e) {
       console.warn('Failed to load queue:', e);
-    }
+    } finally {this.refreshing=false;}
   },
 
   renderQueueTable(jobs) {
@@ -28,13 +30,13 @@ const QueueUI = {
       const tr = document.createElement('tr');
       let statusBadge = '';
       if (job.status === 'active') statusBadge = '<span class="badge badge-match">جارٍ الفحص الآن ⚡</span>';
-      else if (job.status === 'completed') statusBadge = '<span class="badge" style="background:#065f46; color:#a7f3d0;">مكتمل ✔</span>';
-      else statusBadge = '<span class="badge" style="background:#334155; color:#94a3b8;">قيد الانتظار ⏳</span>';
+      else if (job.status === 'completed') statusBadge = '<span class="badge badge-match">انتهت المعالجة</span>';
+      else statusBadge = '<span class="badge">قيد الانتظار</span>';
 
       tr.innerHTML = `
         <td><strong class="mono">#${idx + 1}</strong></td>
-        <td><strong>${job.filename}</strong></td>
-        <td>${job.sheet_name}</td>
+        <td><strong>${Dashboard.escape(job.filename)}</strong></td>
+        <td>${Dashboard.escape(job.sheet_name)}</td>
         <td><span class="mono">${(job.total_records || 0).toLocaleString()}</span> سجل</td>
         <td>${statusBadge}</td>
         <td>
@@ -42,9 +44,8 @@ const QueueUI = {
           <span class="mono" style="color:var(--status-mismatch);">${job.mismatches || 0}</span> فرق
         </td>
         <td style="white-space: nowrap;">
-          ${job.status === 'completed' ? `<a href="/api/download-results?job_id=${job.id}" class="btn btn-primary" style="padding: 4px 8px; font-size: 11px; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; background: #059669; margin-left: 4px;" download>⬇️ تحميل النتائج</a>` : ''}
-          ${job.status === 'completed' ? `<button class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px; color: #fbbf24; border-color: rgba(245, 158, 11, 0.4); margin-left: 4px;" onclick="QueueUI.promptRestartJob('${job.id}')">🔄 إعادة الفحص من الصفر</button>` : ''}
-          <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="QueueUI.removeJob('${job.id}')">حذف ✖</button>
+          ${job.status === 'completed' && jobs.every(j=>j.status==='completed') ? `<a href="/api/download-results?job_id=${job.id}" class="btn btn-primary" style="padding: 4px 8px; font-size: 11px; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; background: #059669; margin-left: 4px;" download>⬇️ تحميل النتائج</a>` : ''}
+          <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="QueueUI.removeJob('${job.id}')">إزالة من الطابور</button>
         </td>
       `;
       tbody.appendChild(tr);
@@ -61,14 +62,14 @@ const QueueUI = {
     if (tabBtn) {
       if (jobs.length > 0) {
         if (activeCount > 0) {
-          tabBtn.innerHTML = `📋 طابور الشيتات (${completedCount}/${jobs.length} مكتمل ⚡)`;
+          tabBtn.innerHTML = `الطابور <span class="tab-count">${completedCount}/${jobs.length}</span>`;
         } else if (completedCount === jobs.length) {
-          tabBtn.innerHTML = `📋 طابور الشيتات (جميعها مكتملة ✔)`;
+          tabBtn.innerHTML = `الطابور <span class="tab-count">${jobs.length}</span>`;
         } else {
-          tabBtn.innerHTML = `📋 طابور الشيتات (${completedCount}/${jobs.length} مكتمل)`;
+          tabBtn.innerHTML = `الطابور <span class="tab-count">${completedCount}/${jobs.length}</span>`;
         }
       } else {
-        tabBtn.innerHTML = `📋 طابور الشيتات المتسلسل`;
+        tabBtn.innerHTML = 'الطابور';
       }
     }
   },
@@ -81,31 +82,45 @@ const QueueUI = {
     const allCompleted = jobs.length > 0 && jobs.every(j => j.status === 'completed');
 
     if (hasActive) {
-      btn.innerHTML = '⚡ الطابور يعمل حالياً...';
+      btn.textContent = 'الطابور يعمل الآن';
       btn.className = 'btn btn-secondary';
       btn.disabled = true;
     } else if (allCompleted) {
-      btn.innerHTML = '🔄 اضغط لإعادة فحص شهد من الصفر';
-      btn.className = 'btn btn-primary';
-      btn.disabled = false;
-      btn.onclick = () => {
-        const shahd = (jobs || []).find(j => j.filename.includes('شهد'));
-        if (shahd) {
-          QueueUI.promptRestartJob(shahd.id);
-        } else if (jobs && jobs.length > 0) {
-          QueueUI.promptRestartJob(jobs[0].id);
-        }
-      };
+      btn.textContent = 'انتهت معالجة الطابور';
+      btn.className = 'btn btn-secondary';
+      btn.disabled = true;
     } else if (hasPending) {
-      btn.innerHTML = '▶️ بدء تشغيل الطابور المتسلسل';
+      btn.innerHTML = Dashboard.icon('arrow')+' بدء معالجة الطابور';
       btn.className = 'btn btn-primary';
       btn.disabled = false;
       btn.onclick = () => QueueUI.startQueue();
     } else {
-      btn.innerHTML = '▶️ بدء تشغيل الطابور';
+      btn.textContent = 'بدء معالجة الطابور';
       btn.className = 'btn btn-secondary';
       btn.disabled = true;
     }
+  },
+
+  promptRestartAllJobs() {
+    RestartModal.show({
+      filename: 'كافة أوراق العمل في الطابور',
+      sheetName: `${(this.lastJobs || []).length} شيتات`,
+      statsText: `الحالة: جميع الشيتات مكتملة الفحص ✔ | سيتم تصفير التقدم ونقاط الاستعادة والبدء من أول شيت ومن أول سجل.`,
+      onConfirm: async () => {
+        try {
+          const res = await API.restartAllQueueJobs(true);
+          if (res.status === 'ok') {
+            await this.refresh();
+            App.poll();
+            LiveFeed.switchTab('all');
+          } else {
+            Dashboard.toast(res.message || 'تعذر إعادة بدء الطابور');
+          }
+        } catch (err) {
+          Dashboard.toast('خطأ أثناء إعادة تعيين الطابور: ' + err.message);
+        }
+      }
+    });
   },
 
   promptRestartJob(jobId) {
@@ -124,28 +139,31 @@ const QueueUI = {
             App.poll();
             LiveFeed.switchTab('all');
           } else {
-            alert(res.message || 'تعذر إعادة بدء الفحص');
+            Dashboard.toast(res.message || 'تعذر إعادة بدء الفحص');
           }
         } catch (err) {
-          alert('خطأ أثناء إعادة تعيين الشيت: ' + err.message);
+          Dashboard.toast('خطأ أثناء إعادة تعيين الشيت: ' + err.message);
         }
       }
     });
   },
 
   async removeJob(jobId) {
-    if (!confirm('هل تريد حذف هذه الورقة من الطابور؟')) return;
+    if (!await Dashboard.confirm({title:'إزالة من الطابور',text:'هل تريد إزالة هذه الورقة من قائمة الانتظار؟',accept:'إزالة الورقة'})) return;
     try {
       await API.removeQueueJob(jobId);
       this.refresh();
     } catch (e) {
-      alert('تعذر حذف الشيت: ' + e.message);
+      Dashboard.toast('تعذر حذف الشيت: ' + e.message);
     }
   },
 
   async startQueue() {
+    if (this.starting || App.isRunning) return;
+    this.starting = true;
+    App.updateControlButtons();
     const btn = document.getElementById('btnStartQueue');
-    const origText = btn ? btn.innerHTML : '▶️ بدء تشغيل الطابور';
+    const origText = btn ? btn.innerHTML : 'بدء معالجة الطابور';
     if (btn) btn.innerHTML = '⏳ جاري البدء...';
     try {
       const res = await API.startQueue();
@@ -154,12 +172,14 @@ const QueueUI = {
         App.poll();
         LiveFeed.switchTab('all');
       } else {
-        alert(res.message || 'تعذر تشغيل الطابور');
+        Dashboard.toast(res.message || 'تعذر تشغيل الطابور');
       }
     } catch (e) {
-      alert('خطأ أثناء تشغيل الطابور: ' + e.message);
+      Dashboard.toast('خطأ أثناء تشغيل الطابور: ' + e.message);
     } finally {
+      this.starting = false;
       if (btn) btn.innerHTML = origText;
+      App.updateControlButtons();
     }
   }
 };

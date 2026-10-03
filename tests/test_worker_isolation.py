@@ -37,10 +37,10 @@ class TestWorkerIsolation(unittest.TestCase):
         proxy_1 = resolve_worker_proxy("worker_1")
         self.assertIsNone(proxy_1)
 
-        # Worker 2 (proxy)
-        proxy_2 = resolve_worker_proxy("worker_2")
-        self.assertIsNotNone(proxy_2)
-        self.assertIn("166.0.39.3", proxy_2)
+        # Worker 3 (proxy)
+        proxy_3 = resolve_worker_proxy("worker_3")
+        self.assertIsNotNone(proxy_3)
+        self.assertIn("195.40.62.31", proxy_3)
 
     def test_per_worker_stalled_handoff(self):
         """Handoff stall on Worker 1 should isolate Worker 1 only, without impacting Worker 2."""

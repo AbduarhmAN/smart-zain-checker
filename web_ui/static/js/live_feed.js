@@ -10,6 +10,13 @@ const LiveFeed = {
         const tab = btn.dataset.tab;
         this.switchTab(tab);
       });
+      btn.addEventListener('keydown', event => {
+        if (!['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) return;
+        const tabs=[...document.querySelectorAll('.tab-btn')];
+        const index=tabs.indexOf(btn);
+        const next=event.key==='Home'?0:event.key==='End'?tabs.length-1:(index+(event.key==='ArrowLeft'?1:-1)+tabs.length)%tabs.length;
+        event.preventDefault();tabs[next].focus();this.switchTab(tabs[next].dataset.tab);
+      });
     });
   },
 
@@ -17,11 +24,25 @@ const LiveFeed = {
     this.activeTab = tab;
     document.querySelectorAll('.tab-btn').forEach(b => {
       b.classList.toggle('active', b.dataset.tab === tab);
+      b.setAttribute('aria-selected', String(b.dataset.tab === tab));
     });
 
     const isQueue = tab === 'queue';
     document.getElementById('regularTableContainer').style.display = isQueue ? 'none' : 'block';
     document.getElementById('queueTableContainer').style.display = isQueue ? 'block' : 'none';
+
+    // Update section label in table toolbar
+    const labelEl = document.getElementById('tableTabLabel');
+    if (labelEl) {
+      const titles = {
+        all: 'نتائج الشيت الحالي',
+        match: 'المطابقات التامة',
+        mismatch: 'حالات فروقات الرصيد',
+        error: 'المهلات والأخطاء',
+        review: 'حالات المراجعة / غير موجودة'
+      };
+      labelEl.textContent = titles[tab] || '📋 جدول نتائج الشيت';
+    }
 
     if (isQueue) {
       QueueUI.refresh();
@@ -51,14 +72,50 @@ const LiveFeed = {
     document.getElementById('countMismatch').textContent = (kpis.mismatches || 0);
     document.getElementById('countError').textContent = (kpis.errors || 0);
     document.getElementById('countReview').textContent = reviewCount;
+
+    // Repair Errors Controls
+    const totalRepairable = (kpis.errors || 0) + (kpis.needs_review || 0);
+    const previewRepairable = (typeof App !== 'undefined' && App.detectedResultsInfo?.error_count) || 0;
+    const effectiveRepairCount = totalRepairable || previewRepairable;
+
+    const repairBadge = document.getElementById('repairErrorsBadge');
+    if (repairBadge) repairBadge.textContent = effectiveRepairCount;
+
+    const btnRepair = document.getElementById('btnRepairErrors');
+    if (btnRepair) {
+      if (effectiveRepairCount > 0 || this.activeTab === 'error' || this.activeTab === 'review') {
+        btnRepair.style.display = 'inline-flex';
+        btnRepair.innerHTML = `<span>🛠️</span><span>صيانة الأخطاء</span> <span id="repairErrorsBadge" class="badge" style="background: rgba(0,0,0,0.25); color: #fff; font-size: 11px;">${effectiveRepairCount}</span>`;
+      } else {
+        btnRepair.style.display = 'none';
+      }
+    }
+
+    const btnKpiRepair = document.getElementById('btnKpiRepair');
+    if (btnKpiRepair) {
+      btnKpiRepair.style.display = (effectiveRepairCount > 0) ? 'block' : 'none';
+    }
+
+    const tableBadge = document.getElementById('tableTabBadge');
+    if (tableBadge) {
+      const counts = {
+        all: kpis.completed || 0,
+        match: kpis.matches || 0,
+        mismatch: kpis.mismatches || 0,
+        error: kpis.errors || 0,
+        review: reviewCount,
+      };
+      tableBadge.textContent = `${counts[this.activeTab] || 0} سجل`;
+    }
   },
 
   updateWorkerPills(workers) {
-    if (!workers || workers.length === 0) return;
     const group = document.getElementById('workerPillGroup');
     if (!group) return;
-
     group.innerHTML = '';
+    if (!workers || workers.length === 0) {
+      group.textContent = 'لا توجد قنوات فحص مفعّلة';return;
+    }
     workers.forEach(w => {
       const pill = document.createElement('div');
       pill.className = 'worker-pill';
@@ -73,19 +130,24 @@ const LiveFeed = {
 
       pill.innerHTML = `
         <span class="status-dot ${dotClass}"></span>
-        <span>${w.name}</span>
-        <span style="font-size: 10px; color: var(--ink-muted);">[${badgeText}]</span>
+        <span class="worker-name" dir="auto">${Dashboard.escape(w.name)}</span>
+        <span class="worker-state">${Dashboard.escape(badgeText)}</span>
       `;
       group.appendChild(pill);
     });
   },
 
-  renderTable(rows) {
+  renderTable(rows, preview = false) {
     const tbody = document.getElementById('auditTableBody');
     if (!tbody) return;
 
     if (!rows || rows.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--ink-faint); padding: 30px;">لا توجد سجلات مفحوصة حالياً. اضغط "بدء الفحص" للمتابعة.</td></tr>';
+      if(!preview && (App.isRunning || Dashboard.live?.round_pending)){
+        tbody.innerHTML='<tr><td colspan="9"><div class="empty-state">'+Dashboard.icon('file')+'<strong>النتائج بعد اكتمال الجولة</strong><p>تابع التقدم من أعلى الصفحة. تُفحص الملفات بالتتابع ويمكنك إيقاف الفحص مؤقتًا.</p></div></td></tr>';
+        this.filterTable();return;
+      }
+      tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state">'+Dashboard.icon('file')+'<strong>'+(preview?'لا توجد سجلات للمعاينة':'كل نتيجة تبدأ من ملف')+'</strong><p>'+(preview?'يمكنك تحميل الملف أو اختيار ورقة أخرى.':'اختر شيت العملاء، راجع الأعمدة، ثم ابدأ الفحص.')+'</p></div></td></tr>';
+      this.filterTable();
       return;
     }
 
@@ -96,20 +158,40 @@ const LiveFeed = {
       tr.dataset.status = r.status;
 
       let badgeHtml = '';
-      if (r.status === 'match') badgeHtml = '<span class="badge badge-match">مطابقة ✔</span>';
-      else if (r.status === 'mismatch') badgeHtml = '<span class="badge badge-mismatch">فرق رصيد ⚠</span>';
-      else if (r.status === 'not_found') badgeHtml = '<span class="badge">غير موجود</span>';
-      else if (r.status === 'needs_review') badgeHtml = '<span class="badge">تحتاج مراجعة</span>';
-      else badgeHtml = '<span class="badge badge-error">خطأ ✖</span>';
+      let actionHtml = '';
+      if (r.status === 'match') {
+        badgeHtml = '<span class="badge badge-match">مطابقة ✔</span>';
+      } else if (r.status === 'mismatch') {
+        badgeHtml = '<span class="badge badge-mismatch">فرق رصيد ⚠</span>';
+      } else if (r.status === 'not_found') {
+        badgeHtml = '<span class="badge">غير موجود</span>';
+      } else if (r.status === 'needs_review') {
+        badgeHtml = '<span class="badge">تحتاج مراجعة</span>';
+        actionHtml = `<button class="btn-repair-row" onclick="App.repairSingleRow(${r.row})" title="صيانة وإعادة فحص هذا السطر الآن">🛠️ صيانة</button>`;
+      } else {
+        badgeHtml = '<span class="badge badge-error">خطأ ✖</span>';
+        actionHtml = `<button class="btn-repair-row" onclick="App.repairSingleRow(${r.row})" title="صيانة وإعادة فحص هذا السطر الآن">🛠️ صيانة</button>`;
+      }
+
+      const recType = (r.record_type || r.type) === 'wallet' ? 'خدمة' : 'عقد';
+      const searchNum = r.lookup_number || r.number || '—';
+      const custName = r.customer_name || r.name || 'عميل غير محدد';
+      const expAmt = Number(r.expected_amount != null ? r.expected_amount : (r.expected_sar != null ? r.expected_sar : 0));
+      const liveAmt = (r.live_amount != null ? Number(r.live_amount) : (r.live_sar != null ? Number(r.live_sar) : null));
 
       tr.innerHTML = `
-        <td><span class="mono">${r.row}</span></td>
-        <td>${r.record_type === 'wallet' ? 'محفظة' : 'حساب'}</td>
-        <td><strong class="mono">${r.lookup_number}</strong></td>
-        <td>${r.customer_name || 'عميل غير محدد'}</td>
-        <td><span class="mono">${(r.expected_amount || 0).toFixed(2)}</span> ر.س</td>
-        <td><span class="mono" style="${r.status === 'mismatch' ? 'color: var(--status-mismatch); font-weight: 800;' : ''}">${r.live_amount == null ? '—' : Number(r.live_amount).toFixed(2)}</span>${r.live_amount == null ? '' : ' ر.س'}</td>
-        <td>${badgeHtml}</td>
+        <td><span class="mono">${Dashboard.escape(r.row)}</span></td>
+        <td>${recType}</td>
+        <td><strong class="mono">${Dashboard.escape(searchNum)}</strong></td>
+        <td>${Dashboard.escape(custName)}</td>
+        <td><span class="mono">${Number.isFinite(expAmt) ? expAmt.toFixed(2) : '—'}</span> ر.س</td>
+        <td><span class="mono" style="${r.status === 'mismatch' ? 'color: var(--status-mismatch); font-weight: 800;' : ''}">${liveAmt == null ? '—' : liveAmt.toFixed(2)}</span>${liveAmt == null ? '' : ' ر.س'}</td>
+        <td>
+          <div style="display: flex; gap: 6px; align-items: center;">
+            ${badgeHtml}
+            ${actionHtml}
+          </div>
+        </td>
       `;
       tbody.appendChild(tr);
     });
@@ -119,12 +201,31 @@ const LiveFeed = {
 
   filterTable() {
     const tab = this.activeTab;
+    const query = (document.getElementById('resultSearch')?.value || '').trim().toLocaleLowerCase();
+    let visibleCount = 0;
     document.querySelectorAll('#auditTableBody tr').forEach(tr => {
       if (!tr.dataset.status) return;
-      if (tab === 'all') tr.style.display = '';
-      else if (tab === 'review' && ['needs_review', 'not_found'].includes(tr.dataset.status)) tr.style.display = '';
-      else if (tr.dataset.status === tab) tr.style.display = '';
-      else tr.style.display = 'none';
+      let show = false;
+      if (tab === 'all') show = true;
+      else if (tab === 'review' && ['needs_review', 'not_found'].includes(tr.dataset.status)) show = true;
+      else if (tr.dataset.status === tab) show = true;
+      if (show && query && !tr.textContent.toLocaleLowerCase().includes(query)) show = false;
+      tr.style.display = show ? '' : 'none';
+      if (show) visibleCount++;
     });
+    const totalRows = document.querySelectorAll('#auditTableBody tr[data-status]').length;
+    let empty=document.getElementById('resultFilterEmpty');
+    if (totalRows && !empty) {
+      empty=document.createElement('tr');empty.id='resultFilterEmpty';
+      empty.innerHTML='<td colspan="7"><div class="empty-state"><strong>لا توجد نتائج مطابقة</strong><p>غيّر عبارة البحث أو فلتر النتائج.</p></div></td>';
+      document.getElementById('auditTableBody').appendChild(empty);
+    }
+    if (empty) empty.style.display=visibleCount===0?'':'none';
+    document.getElementById('visibleResultsLabel').textContent = totalRows ? `يعرض ${visibleCount} من ${totalRows} نتيجة محمّلة` : 'لا توجد نتائج معروضة';
+
+    const tableBadge = document.getElementById('tableTabBadge');
+    if (tableBadge && tab !== 'all') {
+      tableBadge.textContent = `${visibleCount} سجل معروض`;
+    }
   }
 };

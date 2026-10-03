@@ -1507,24 +1507,31 @@ def normalize_worker_id(worker_id: Any) -> tuple[str, str]:
     if isinstance(worker_id, bool):
         return ("Worker 2 (Proxy)", "worker_2") if worker_id else ("Worker 1 (Router)", "worker_1")
     w_str = str(worker_id or "").lower()
-    if "2" in w_str or "proxy" in w_str:
+    if "3" in w_str:
+        return ("Worker 3 (Proxy)", "worker_3")
+    if "2" in w_str:
         return ("Worker 2 (Proxy)", "worker_2")
+    if "proxy" in w_str:
+        return ("Worker 3 (Proxy)", "worker_3")
     return ("Worker 1 (Router)", "worker_1")
 
 
 def resolve_worker_proxy(worker_id: Any) -> str | None:
     """Resolves proxy for any worker from WORKERS_CONFIG. Returns None to use direct network."""
     from zain_checker.config import WORKERS_CONFIG, ZAIN_PROXY_SERVER
+    raw_id = str(worker_id or "").strip()
+    for w in WORKERS_CONFIG:
+        if str(w.get("worker_id", "")).strip() == raw_id:
+            proxy = w.get("proxy")
+            return str(proxy).strip() if proxy else None
     canonical_name, tag = normalize_worker_id(worker_id)
     for w in WORKERS_CONFIG:
         w_id = str(w.get("worker_id", "")).strip()
         w_canon, w_tag = normalize_worker_id(w_id)
-        if w_tag == tag or w_id == str(worker_id) or w_canon == canonical_name:
+        if w_tag == tag or w_canon == canonical_name:
             proxy = w.get("proxy")
-            if proxy:
-                return str(proxy).strip()
-            return None
-    if tag == "worker_2":
+            return str(proxy).strip() if proxy else None
+    if tag in ("worker_2", "worker_3") and "proxy" in str(worker_id).lower():
         return ZAIN_PROXY_SERVER
     return None
 

@@ -130,8 +130,12 @@ class WorkerActor:
             except ValueError:
                 return "error", None, "Proxy worker requires a valid proxy URL"
         effective_proxy = self.proxy_url if (self.use_proxy and is_service) else None
-        return query_contract_due_amount(contract_number, proxy_url=effective_proxy,
+        res = query_contract_due_amount(contract_number, proxy_url=effective_proxy,
                                          on_verification=getattr(self, "on_verification", None))
+        status, amount, msg = res
+        if "TargetClosed" in str(msg) or "TargetClosed" in str(status):
+            return "blocked", None, "حظر جدار الحماية أو انقطاع المتصفح (TargetClosedError) - جاري التبريد والمحاولة"
+        return res
 
     def restart(self) -> bool:
         """Safely restarts this worker independently."""

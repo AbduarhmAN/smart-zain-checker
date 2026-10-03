@@ -1,209 +1,121 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>نظام فحص وتدقيق مديونيات زين المتطور | Zain Smart Checker</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#153d35">
+  <title>تشيك · لوحة فحص زين</title>
   <link rel="stylesheet" href="/static/css/theme.css">
   <link rel="stylesheet" href="/static/css/layout.css">
   <link rel="stylesheet" href="/static/css/components.css">
-</head>
-<body>
-  <!-- Top Navigation Header -->
-  <header class="app-header">
-    <div class="brand-section">
-      <span style="font-size: 20px;">🛡️</span>
-      <h1 class="brand-title">منظومة فحص وتدقيق مديونيات زين</h1>
-      <span class="brand-tag">v3.0 Modular</span>
-    </div>
-
-    <div class="header-status-area">
-      <div class="worker-pill-group" id="workerPillGroup">
-        <!-- Live Worker Pills injected by JS -->
-      </div>
-      <div style="font-size: 12px; font-weight: 700; color: var(--ink-muted);">
-        🕒 <span id="clockBox" class="mono">--:--:--</span>
-      </div>
-    </div>
-  </header>
-
-  <!-- Main Split Layout -->
-  <main class="app-layout">
-    <!-- Sidebar Control Panel -->
-    <aside class="app-sidebar">
-      <div class="sidebar-card">
-        <div class="sidebar-card-title">
-          <span>📁 ملف وورقة الإكسل الحالية</span>
-        </div>
-        <div class="form-group">
-          <label class="form-label">ملف الإكسل (Workbook):</label>
-          <div style="display: flex; gap: 6px;">
-            <select id="selectWorkbook" class="form-select" style="flex: 1;"></select>
-            <input type="file" id="fileInputUpload" accept=".xlsx,.xls" style="display: none;">
-            <button id="btnBrowseFile" class="btn btn-secondary" style="padding: 6px 12px; font-size: 11.5px; white-space: nowrap;" title="استعراض ملف إكسل من جهازك">📂 استعراض...</button>
-          </div>
-        </div>
-        <div class="form-group">
-          <label class="form-label">ورقة العمل (Worksheet):</label>
-          <select id="selectSheet" class="form-select"></select>
-        </div>
-        <div class="form-group">
-          <label class="form-label">🌐 نطاق وروابط الفحص (Audit Mode):</label>
-          <select id="selectAuditMode" class="form-select">
-            <option value="smart_hybrid" selected>⭐ فحص ذكي مزدوج (عقود business.zain.sa + خدمات quickpay تلقائياً)</option>
-            <option value="account_only">عقود فقط (business.zain.sa/dashboard/quick-pay?contract=10...)</option>
-            <option value="service_only">خدمات فقط (quickpay?account=20...)</option>
-          </select>
-        </div>
-        <div style="display: flex; gap: 8px; margin-top: 14px;">
-          <button id="btnActionRun" class="btn btn-primary" style="flex: 1;">⚙️ فحص وتعيين الأعمدة</button>
-          <button id="btnActionCancel" class="btn btn-danger" style="display: none;" onclick="App.handleCancel()">إلغاء ✖</button>
-        </div>
-        <a id="btnDownloadResults" href="/api/download-results" class="btn btn-success" style="display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; margin-top: 10px; text-decoration: none; font-weight: 700; background: #059669; color: white; padding: 8px 12px; border-radius: var(--radius-sm);" download="نتائج فحص زين.xlsx" title="تحميل ملف الإكسل التنفيذي المطور">
-          📥 تحميل شيت النتائج (4 تبويبات)
-        </a>
-      </div>
-
-      <div class="sidebar-card">
-        <div class="sidebar-card-title">
-          <span>🤖 بوت تلقرام للمتابعة والتقارير</span>
-          <span id="tgStatusBadge" class="badge">غير متحقق</span>
-        </div>
-        <p style="font-size: 11.5px; color: var(--ink-muted); margin-bottom: 10px;">
-          يتلقى تنبيهات الإنجاز الفورية ويرسل ملف "نتائج فحص زين.xlsx" تلقائياً عند انتهاء الفحص.
-        </p>
-        <button class="btn btn-secondary" style="width: 100%;" onclick="App.testTelegram()">🔔 إرسال إشعار تجريبي</button>
-      </div>
-    </aside>
-
-    <!-- Main Workspace -->
-    <section class="app-workspace">
-      <!-- KPI Metric Counters -->
-      <div class="kpi-grid">
-        <div class="kpi-card">
-          <span class="kpi-label">إجمالي السجلات المستهدفة</span>
-          <span id="kpiTotal" class="kpi-value mono">0</span>
-        </div>
-        <div class="kpi-card">
-          <span class="kpi-label">السجلات المنتهية المعالجة</span>
-          <span id="kpiDone" class="kpi-value mono">0</span>
-        </div>
-        <div class="kpi-card">
-          <span class="kpi-label">السجلات المتبقية</span>
-          <span id="kpiRemaining" class="kpi-value mono">0</span>
-        </div>
-        <div class="kpi-card match">
-          <span class="kpi-label">المطابقات التامة ✔</span>
-          <span id="kpiMatch" class="kpi-value mono">0</span>
-        </div>
-        <div class="kpi-card mismatch">
-          <span class="kpi-label">إجمالي فروقات المديونية</span>
-          <span id="kpiMismatch" class="kpi-value mono">0.00 ر.س</span>
-        </div>
-        <div class="kpi-card error">
-          <span class="kpi-label">المهلات والأخطاء ✖</span>
-          <span id="kpiError" class="kpi-value mono">0</span>
-        </div>
-        <div class="kpi-card">
-          <span class="kpi-label">أرصدة مؤكدة</span>
-          <span id="kpiVerified" class="kpi-value mono">0</span>
-        </div>
-        <div class="kpi-card">
-          <span class="kpi-label">تحتاج مراجعة / غير موجودة</span>
-          <span id="kpiReview" class="kpi-value mono">0</span>
-        </div>
-        <div class="kpi-card">
-          <span class="kpi-label">صفوف مؤجلة</span>
-          <span id="kpiDeferred" class="kpi-value mono">0</span>
-          <span id="retryNotice" style="font-size: 11px;"></span>
-        </div>
-      </div>
-      <div id="sessionNotice" role="status" style="display: none; padding: 12px; border: 1px solid var(--border-light); border-radius: var(--radius-sm);"></div>
-      <section id="serviceVerifications" aria-label="التحقق في جلسة زين" style="display: none;"></section>
-      <div id="sessionWorkbook" style="font-size: 12px; color: var(--ink-muted);"></div>
-
-      <!-- Navigation Tabs -->
-      <div class="tabs-nav">
-        <button class="tab-btn active" data-tab="all">جميع النتائج <span id="countAll" class="tab-count">0</span></button>
-        <button class="tab-btn" data-tab="match">المطابقات فقط <span id="countMatch" class="tab-count">0</span></button>
-        <button class="tab-btn" data-tab="mismatch">الفروقات المكتشفة <span id="countMismatch" class="tab-count">0</span></button>
-        <button class="tab-btn" data-tab="error">المهلات والأخطاء <span id="countError" class="tab-count">0</span></button>
-        <button class="tab-btn" data-tab="review">تحتاج مراجعة / غير موجودة <span id="countReview" class="tab-count">0</span></button>
-        <button class="tab-btn" data-tab="queue">📋 طابور الشيتات المتسلسل</button>
-      </div>
-
-      <!-- Regular Results Table -->
-      <div id="regularTableContainer" class="table-card">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>السطر</th>
-              <th>النوع</th>
-              <th>رقم البحث / الحساب</th>
-              <th>اسم العميل</th>
-              <th>مبلغ الملف المتوقع</th>
-              <th>المبلغ بموقع زين</th>
-              <th>الحالة والنتيجة</th>
-            </tr>
-          </thead>
-          <tbody id="auditTableBody">
-            <tr>
-              <td colspan="7" style="text-align: center; color: var(--ink-faint); padding: 30px;">
-                اضغط على "فحص وتعيين الأعمدة" لبدء الفحص أو إضافة ملفات إلى الطابور.
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <!-- Queue Table Container -->
-      <div id="queueTableContainer" class="table-card" style="display: none;">
-        <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--border-color); background: rgba(255,255,255,0.02);">
-          <div style="display: flex; gap: 10px; align-items: center;">
-            <button id="btnStartQueue" class="btn btn-primary" onclick="QueueUI.startQueue()" style="padding: 6px 14px; font-weight: 700;">
-              ▶️ بدء تشغيل الطابور المتسلسل
-            </button>
-            <button class="btn btn-secondary" onclick="ColumnMapper.openModal()" style="padding: 6px 12px;">
-              ➕ إضافة شيت جديد للطابور
-            </button>
-          </div>
-          <div style="display: flex; gap: 8px;">
-            <button class="btn btn-secondary" onclick="QueueUI.refresh()" style="padding: 6px 10px; font-size: 12px;">
-              🔄 تحديث
-            </button>
-          </div>
-        </div>
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>اسم الملف</th>
-              <th>ورقة العمل</th>
-              <th>إجمالي السجلات</th>
-              <th>الحالة</th>
-              <th>نتائج الإنجاز</th>
-              <th>إجراءات</th>
-            </tr>
-          </thead>
-          <tbody id="queueTableBody"></tbody>
-        </table>
-      </div>
+  <link rel="stylesheet" href="/static/css/dashboard.css">
+</head><body>
+<svg class="svg-library" aria-hidden="true"><defs><symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></symbol><symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol><symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V3m-5 5 5-5 5 5M4 15v5h16v-5"/></symbol><symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v13m-5-5 5 5 5-5M4 16v5h16v-5"/></symbol><symbol id="i-file" viewBox="0 0 24 24"><path d="M14 2H5v20h14V7Z M14 2v5h5M8 12h8M8 16h8"/></symbol><symbol id="i-send" viewBox="0 0 24 24"><path d="m22 2-7 20-4-9L2 9Z M11 13 22 2"/></symbol><symbol id="i-search" viewBox="0 0 24 24"><circle cx="10" cy="10" r="6"/><path d="m15 15 6 6"/></symbol><symbol id="i-arrow" viewBox="0 0 24 24"><path d="M19 12H5m6-6-6 6 6 6"/></symbol><symbol id="i-settings" viewBox="0 0 24 24"><path d="M4 7h16M4 17h16"/><circle cx="8" cy="7" r="3" fill="currentColor"/><circle cx="16" cy="17" r="3" fill="currentColor"/></symbol><symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 7a9 9 0 1 0 1 8M20 2v6h-6"/></symbol><symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol><symbol id="i-queue" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h1M3 12h1M3 18h1"/></symbol><symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9 9a3 3 0 1 1 4 3v2M12 18h.01"/></symbol><symbol id="i-link" viewBox="0 0 24 24"><path d="m10 13 4-4M8 16l-2 2a4 4 0 0 1-6-6l5-5a4 4 0 0 1 6 0M16 8l2-2a4 4 0 0 1 6 6l-5 5a4 4 0 0 1-6 0" transform="translate(1 0) scale(.9)"/></symbol></defs></svg>
+<a class="skip-link" href="#workspace">انتقل إلى النتائج</a>
+<header class="app-header">
+  <a class="brand-section" href="/" aria-label="تشيك — الرئيسية">
+    <span class="brand-mark"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg></span><span class="brand-copy"><strong>تشيك<span class="brand-period">.</span></strong><small>SMART ZAIN CHECKER</small></span>
+  </a>
+  <nav class="header-nav" aria-label="أقسام مساحة العمل">
+    <button class="header-link active" data-view="overview" onclick="Dashboard.showOverview()"><svg class="icon" aria-hidden="true"><use href="#i-grid"/></svg> نظرة عامة</button>
+    <button class="header-link" data-view="queue" onclick="Dashboard.showQueue()"><svg class="icon" aria-hidden="true"><use href="#i-queue"/></svg> طابور الملفات</button>
+    <button class="header-link" data-view="telegram" onclick="Dashboard.showTelegram()"><svg class="icon" aria-hidden="true"><use href="#i-send"/></svg> التلقرام</button>
+  </nav>
+  <div class="header-status-area"><span id="connectionStatus" class="connection-label" role="status"><i class="status-dot"></i>جارٍ الاتصال</span><time id="clockBox" class="mono">—</time><button class="icon-button" onclick="Dashboard.openGuide()" aria-label="دليل الاستخدام"><svg class="icon" aria-hidden="true"><use href="#i-help"/></svg></button></div>
+</header>
+<main class="app-layout">
+  <aside class="app-sidebar" aria-label="إعداد الفحص">
+    <div class="sidebar-title"><span class="eyebrow">من الملف إلى النتيجة</span><h2>جهّز جولتك</h2><p>اختر ملفاتك، تحقق من البيانات، ثم ابدأ الفحص بالتتابع.</p></div>
+    <section class="sidebar-card file-panel">
+      <div class="panel-heading"><span class="step-number">01</span><h3>ملف العملاء</h3><span class="file-format mono">XLSX</span></div>
+      <button id="btnBrowseFile" class="upload-zone"><span class="upload-icon"><svg class="icon" aria-hidden="true"><use href="#i-upload"/></svg></span><strong>ارفع ملف الإكسل</strong><span>اختر ملفًا من جهازك</span></button>
+      <input id="fileInputUpload" type="file" accept=".xlsx" multiple hidden>
+      <div class="form-group"><label for="selectWorkbook" class="form-label">أو اختر ملفًا محفوظًا</label><select id="selectWorkbook" class="form-select"><option value="">جارٍ تحميل الملفات…</option></select></div>
+      <div class="form-group"><label for="selectSheet" class="form-label">ورقة العمل</label><select id="selectSheet" class="form-select"></select></div>
     </section>
-  </main>
-
+    <section class="sidebar-card setup-panel">
+      <div class="panel-heading"><span class="step-number">02</span><h3>طريقة الفحص</h3></div>
+      <label for="selectAuditMode" class="form-label">الأرقام المستهدفة</label>
+      <select id="selectAuditMode" class="form-select"><option value="smart_hybrid">العقود والخدمات</option><option value="account_only">العقود فقط — تبدأ بـ1</option><option value="service_only">الخدمات فقط — تبدأ بـ2</option></select>
+      <p class="field-hint">راجع عمود المبلغ في الخطوة التالية.</p>
+      <button id="btnActionRun" class="btn btn-primary main-action" disabled>جارٍ الاتصال… <svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg></button>
+      <button id="btnCheckAnotherFile" class="btn btn-secondary" style="display:none" onclick="ColumnMapper.openModal()">تحقق من الملف المحدد وأضفه</button>
+      <button id="btnActionCancel" class="btn btn-danger" style="display:none" onclick="App.handleCancel()">إنهاء الجلسة</button>
+      <a id="btnDownloadResults" class="btn btn-secondary report-link" href="/api/download-results?current=1" download aria-disabled="true"><svg class="icon" aria-hidden="true"><use href="#i-download"/></svg> تحميل النتائج</a>
+    </section>
+    <section id="telegramPanel" class="telegram-panel" aria-labelledby="telegramTitle">
+      <div class="panel-heading"><span class="telegram-logo"><svg class="icon" aria-hidden="true"><use href="#i-send"/></svg></span><h3 id="telegramTitle">متابعتك في التلقرام</h3><span id="tgStatusBadge" class="badge">جارٍ التحقق</span></div>
+      <p id="telegramDescription">حالة البوت والإرسال تظهر هنا بصورة مستقلة.</p>
+      <button id="btnTelegramToggle" class="btn btn-telegram" onclick="Dashboard.toggleTelegram()">تفعيل التلقرام</button>
+      <div class="telegram-actions"><button id="btnTelegramCheck" onclick="Dashboard.checkTelegram()"><svg class="icon" aria-hidden="true"><use href="#i-link"/></svg> فحص الاتصال</button><button id="btnTelegramPing" onclick="App.testTelegram()" disabled><svg class="icon" aria-hidden="true"><use href="#i-send"/></svg> رسالة تجريبية</button></div>
+      <button id="btnTelegramReport" class="telegram-report" onclick="Dashboard.sendTelegramReport()" disabled><svg class="icon" aria-hidden="true"><use href="#i-file"/></svg> إرسال نتائج الجلسة إلى حسابك</button>
+      <p id="telegramFeedback" role="status" class="telegram-feedback"></p>
+    </section>
+    <button class="sidebar-guide" onclick="Dashboard.openGuide()"><svg class="icon" aria-hidden="true"><use href="#i-help"/></svg> كيف أبدأ أول فحص؟ <svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg></button>
+  </aside>
+  <section id="workspace" class="app-workspace" tabindex="-1">
+    <div class="workspace-heading"><div><p class="eyebrow">مساحة التدقيق</p><h1>نظرة أوضح. متابعة أسهل.</h1></div><div class="today-label"><span id="todayDate">—</span><small>تتحدث النتائج تلقائيًا</small></div></div>
+    <div class="overview-grid">
+      <section class="session-card" aria-labelledby="sessionHeading">
+        <div class="session-content"><div class="session-top"><span class="session-kicker">جلسة الفحص</span><span id="sessionState" class="session-state">بانتظار ملف</span></div>
+        <h2 id="sessionHeading" dir="auto">ابدأ من شيت العملاء</h2><p id="sessionWorkbook">اختر ملفًا من القائمة لبدء التدقيق.</p>
+        <div class="session-numbers"><div><span id="sessionCountLabel">تمت معالجتها</span><strong id="kpiDone" class="mono">0</strong></div><div><span>إجمالي العملاء</span><strong id="kpiTotal" class="mono">0</strong></div><div class="remaining-label"><span>متبقية</span><strong id="kpiRemaining" class="mono">0</strong></div></div>
+        <div class="progress-track" role="progressbar" id="sessionProgress" aria-label="تقدم معالجة الشيت" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="progressFill"></span></div>
+        <p id="sessionHint" class="session-hint">النتائج المؤكدة تُعرض بعد قراءة المبلغ من زين.</p></div>
+        <div class="progress-orbit"><svg viewBox="0 0 120 120" aria-hidden="true"><circle class="orbit-base" cx="60" cy="60" r="51"/><circle id="progressCircle" class="orbit-value" cx="60" cy="60" r="51"/></svg><div><strong id="progressPercent" class="mono">0<span>%</span></strong><small>تقدم المعالجة</small></div></div>
+      </section>
+      <section class="difference-card"><div class="difference-top"><span>إجمالي فروقات الأرصدة</span><span class="difference-symbol">↗</span></div><strong id="kpiMismatch" class="mono">0.00 ر.س</strong><p>مجموع الفروقات في النتائج المؤكدة</p><button onclick="LiveFeed.switchTab('mismatch')">عرض الحالات <svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg></button></section>
+    </div>
+    <section class="session-timing" aria-label="وقت الفحص وموعد الانتهاء المتوقع">
+      <div><span id="timingStartLabel">وقت بدء الفحص</span><strong id="timingStart" class="timing-value" dir="rtl">—</strong></div>
+      <div><span>الوقت المنقضي</span><strong id="timingElapsed" class="timing-value" dir="rtl">—</strong></div>
+      <div><span>الوقت المتبقي المتوقع</span><strong id="timingRemaining" class="timing-value" dir="rtl">—</strong></div>
+      <div class="timing-finish"><span>موعد الانتهاء المتوقع</span><strong id="timingFinish" class="timing-value" dir="rtl">—</strong></div>
+      <p id="timingNote">يظهر التقدير عند بدء الفحص.</p>
+    </section>
+    <div class="kpi-grid">
+      <div class="kpi-card verified"><span class="metric-dot"></span><span class="kpi-label">أرصدة مؤكدة</span><strong id="kpiVerified" class="kpi-value mono">0</strong></div>
+      <div class="kpi-card"><span class="metric-dot"></span><span class="kpi-label">مطابقات تامة</span><strong id="kpiMatch" class="kpi-value mono">0</strong></div>
+      <div class="kpi-card"><span class="metric-dot amber"></span><span class="kpi-label">تحتاج مراجعة / غير موجودة</span><strong id="kpiReview" class="kpi-value mono">0</strong></div>
+      <div class="kpi-card"><span class="metric-dot amber"></span><span class="kpi-label">صفوف مؤجلة</span><strong id="kpiDeferred" class="kpi-value mono">0</strong><small id="retryNotice"></small></div>
+      <div class="kpi-card"><span class="metric-dot coral"></span><span class="kpi-label">مهلات وأخطاء</span><strong id="kpiError" class="kpi-value mono">0</strong><button id="btnKpiRepair" class="metric-action" style="display:none" onclick="App.repairErrors()">إعادة المحاولة</button></div>
+    </div>
+    <section class="workers-section" aria-label="حالة العمال"><div class="section-caption"><span>قنوات الفحص</span><small>الخدمات على الاتصال نفسه تُفحص بالتتابع</small></div><div id="workerPillGroup" class="worker-pill-group"><span class="muted">جارٍ قراءة حالة العمال…</span></div></section>
+    <div id="sessionNotice" class="session-notice" role="status" style="display:none"></div>
+    <section id="serviceVerifications" class="verification-section" aria-label="التحقق في جلسة زين" style="display:none"></section>
+    <section class="results-section">
+      <div class="results-heading"><div><p class="eyebrow">من الشيت إلى زين</p><h2>سجل النتائج</h2></div><label class="search-box"><svg class="icon" aria-hidden="true"><use href="#i-search"/></svg><input id="resultSearch" type="search" placeholder="ابحث برقم أو اسم العميل" aria-label="البحث في النتائج المعروضة" oninput="LiveFeed.filterTable()"></label></div>
+      <div class="tabs-nav" role="tablist" aria-label="تصفية النتائج">
+        <button class="tab-btn active" role="tab" aria-selected="true" data-tab="all">الكل <span id="countAll" class="tab-count">0</span></button>
+        <button class="tab-btn" role="tab" aria-selected="false" data-tab="match">المطابقات <span id="countMatch" class="tab-count">0</span></button>
+        <button class="tab-btn" role="tab" aria-selected="false" data-tab="mismatch">الفروقات <span id="countMismatch" class="tab-count">0</span></button>
+        <button class="tab-btn" role="tab" aria-selected="false" data-tab="review">المراجعة <span id="countReview" class="tab-count">0</span></button>
+        <button class="tab-btn" role="tab" aria-selected="false" data-tab="error">الأخطاء <span id="countError" class="tab-count">0</span></button>
+        <button class="tab-btn" role="tab" aria-selected="false" data-tab="queue">الطابور</button>
+      </div>
+      <div id="regularTableContainer" class="table-card">
+        <div class="table-toolbar"><span id="tableTabLabel">نتائج الشيت الحالي</span><span id="tableTabBadge" class="badge">0 سجل</span><button id="btnRepairErrors" class="btn btn-warning" style="display:none" onclick="App.repairErrors()">إعادة فحص الأخطاء <span id="repairErrorsBadge">0</span></button></div>
+        <div class="table-scroll"><table class="data-table"><thead><tr><th>السطر</th><th>النوع</th><th>رقم البحث</th><th>اسم العميل</th><th>المبلغ في الشيت</th><th>المبلغ في زين</th><th>النتيجة</th></tr></thead><tbody id="auditTableBody"><tr><td colspan="7"><div class="empty-state"><svg class="icon" aria-hidden="true"><use href="#i-file"/></svg><strong>كل نتيجة تبدأ من ملف</strong><p>ارفع شيت العملاء وراجع أعمدته، ثم ابدأ الفحص.</p></div></td></tr></tbody></table></div>
+        <div class="table-footer"><span id="visibleResultsLabel">لا توجد نتائج معروضة</span><span>— تعني أن المبلغ لم يتأكد</span></div>
+      </div>
+      <div id="queueTableContainer" class="table-card" style="display:none"><div class="table-toolbar"><button id="btnStartQueue" class="btn btn-primary" onclick="QueueUI.startQueue()">تشغيل الطابور</button><button class="btn btn-secondary" onclick="ColumnMapper.openModal()">إضافة شيت</button><button class="icon-button" onclick="QueueUI.refresh()" aria-label="تحديث الطابور"><svg class="icon" aria-hidden="true"><use href="#i-refresh"/></svg></button></div><div class="table-scroll"><table class="data-table"><thead><tr><th>#</th><th>الملف</th><th>ورقة العمل</th><th>السجلات</th><th>الحالة</th><th>النتائج</th><th>الإجراءات</th></tr></thead><tbody id="queueTableBody"></tbody></table></div></div>
+    </section>
+    <footer class="workspace-footer"><span><span class="footer-mark">✓</span> تشيك · مساحة العمل المحلية</span><span id="lastUpdated">بانتظار الاتصال</span></footer>
+  </section>
+</main>
   <!-- Interactive Column Mapper Modal -->
-  <div id="modalOverlay" class="modal-overlay" style="display: none;">
-    <div class="modal-dialog">
+  <div id="modalOverlay" aria-label="تعيين أعمدة الشيت" class="modal-overlay" style="display: none;">
+    <div class="modal-dialog mapper-dialog" role="dialog" aria-modal="true" aria-labelledby="mapperTitle" tabindex="-1">
       <div class="modal-header">
-        <h3 class="modal-title">⚙️ فحص وتعيين أعمدة الشيت</h3>
-        <button class="btn btn-secondary" style="padding: 2px 8px;" onclick="ColumnMapper.closeModal()">✖</button>
+        <div><span class="eyebrow">الخطوة الأخيرة قبل الفحص</span><h3 id="mapperTitle" class="modal-title">راجع أعمدتك قبل البدء</h3></div>
+        <button class="icon-button" aria-label="إغلاق مراجعة الأعمدة" onclick="ColumnMapper.closeModal()">×</button>
       </div>
       <div class="modal-body">
         <!-- Document Classification & Validity Banner -->
-        <div style="background: rgba(37,99,235,0.08); border: 1px solid rgba(37,99,235,0.3); border-radius: var(--radius-sm); padding: 12px;">
+        <div class="document-summary">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
             <div style="display: flex; align-items: center; gap: 6px;">
-              <span>📋</span>
+              <svg class="icon" aria-hidden="true"><use href="#i-file"/></svg>
               <span style="font-size: 12px; font-weight: 700;">نوع المستند:</span>
               <strong id="docTypeLabel" style="color: var(--accent-primary); font-size: 12px;">---</strong>
             </div>
@@ -214,31 +126,31 @@
           </div>
         </div>
 
-        <!-- Column Selectors Grid -->
+        <p id="mapValidationMessage" class="mapper-note" role="status" style="display:none;overflow-wrap:anywhere"></p>
+        <p class="mapper-note">يكفي عمود الرقم وعمود المبلغ. عند اختيار «العقود والخدمات»، تُحدّد طريقة البحث لكل صف تلقائيًا حسب الرقم.</p>
+        <label class="mapper-header-toggle"><input id="mapHasHeaders" type="checkbox" checked onchange="ColumnMapper.changeHeaderMode()"> الصف الأول يحتوي على أسماء الأعمدة <small>أزل العلامة إذا كان أول صف يحتوي على بيانات عميل.</small></label>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
           <div class="form-group">
-            <label class="form-label">رقم الحساب / العقد (Account):</label>
-            <select id="mapLookupCol" class="form-select"></select>
+            <label class="form-label" for="mapLookupCol">رقم البحث · حساب / عقد / خدمة</label><select id="mapLookupCol" class="form-select"></select>
           </div>
           <div class="form-group">
-            <label class="form-label">رقم الخدمة (Service):</label>
-            <select id="mapServiceCol" class="form-select"></select>
+            <label class="form-label" for="mapRemainingCol">المبلغ المطلوب مراجعته</label><select id="mapRemainingCol" class="form-select"></select>
+          </div>
+        </div>
+        <section class="mapper-preview" aria-labelledby="mapperPreviewTitle"><div class="mapper-preview-heading"><h3 id="mapperPreviewTitle">معاينة أول ٥ صفوف</h3><span>عمود الرقم والمبلغ مُظلّلان</span></div><div class="mapper-preview-scroll"><table id="mapperPreviewTable"><thead></thead><tbody></tbody></table></div><p id="mapperPreviewHint">راجع العينة ثم اختر العمودين الصحيحين.</p></section>
+        <details id="mapperAdvanced"><summary style="cursor:pointer;padding:10px 0">أعمدة إضافية / خيارات متقدمة</summary>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="form-group">
+            <label class="form-label" for="mapServiceCol">رقم خدمة في عمود منفصل</label><select id="mapServiceCol" class="form-select"></select>
           </div>
           <div class="form-group">
-            <label class="form-label">مبلغ العقد ⭐ [مطابق لموقع زين]:</label>
-            <select id="mapContractCol" class="form-select"></select>
+            <label class="form-label" for="mapContractCol">مبلغ آخر للمقارنة · اختياري</label><select id="mapContractCol" class="form-select"></select>
           </div>
           <div class="form-group">
-            <label class="form-label">باقي السداد الموثق (المبلغ 1):</label>
-            <select id="mapRemainingCol" class="form-select"></select>
+            <label class="form-label" for="mapCustomerCol">اسم العميل (اختياري):</label><select id="mapCustomerCol" class="form-select"></select>
           </div>
           <div class="form-group">
-            <label class="form-label">اسم العميل (اختياري):</label>
-            <select id="mapCustomerCol" class="form-select"></select>
-          </div>
-          <div class="form-group">
-            <label class="form-label">المحصل (اختياري):</label>
-            <select id="mapCollectorCol" class="form-select"></select>
+            <label class="form-label" for="mapCollectorCol">المحصل (اختياري):</label><select id="mapCollectorCol" class="form-select"></select>
           </div>
         </div>
 
@@ -248,39 +160,33 @@
           <div style="display: flex; gap: 14px; flex-wrap: wrap;">
             <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer;">
               <input type="radio" name="amtTarget" value="contract" checked>
-              <span style="color: var(--status-match); font-weight: 700;">⭐ مبلغ العقد (AW) [المطابق لموقع زين]</span>
+              <span style="color: var(--status-match); font-weight: 700;">مبلغ العقد المحدد</span>
             </label>
             <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer;">
               <input type="radio" name="amtTarget" value="smart_dual">
-              <span>كلاهما (فحص ذكي مزدوج - الأقرب)</span>
+              <span>كلاهما (المطابقة مع أحد المبلغين)</span>
             </label>
             <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer;">
               <input type="radio" name="amtTarget" value="remaining">
-              <span>باقي السداد الموثق فقط (P)</span>
+              <span>باقي السداد الموثق</span>
             </label>
           </div>
         </div>
 
-        <!-- Dual Link Information Display -->
-        <div style="margin-top: 10px; background: rgba(37,99,235,0.06); padding: 10px 14px; border-radius: var(--radius-sm); border: 1px solid rgba(37,99,235,0.25); font-size: 11.5px; color: var(--ink-muted);">
-          <strong style="color: var(--accent-primary);">⚡ الروابط المستخدمة في الفحص المزدوج الذكي:</strong>
-          <div style="margin-top: 5px; display: flex; flex-direction: column; gap: 4px;">
-            <div>• أرقام الحسابات/العقود (<span class="mono">10...</span>): <span class="mono" style="color:var(--accent-primary);">https://business.zain.sa/dashboard/quick-pay?contract=10...</span></div>
-            <div>• أرقام الخدمات/الشرائح (<span class="mono">20...</span>): <span class="mono" style="color:var(--status-match);">https://app.sa.zain.com/ar/quickpay?account=20...</span></div>
-          </div>
-        </div>
+        <p class="mapper-note">تأكد من اختيار عمود الرقم وعمود المبلغ الصحيحين. اختر «كلاهما» إذا كنت تريد مقارنة رصيد زين مع أحد المبلغين المحددين.</p>
+        </details>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="ColumnMapper.closeModal()">إلغاء</button>
-        <button class="btn btn-primary" onclick="ColumnMapper.applyAndAddToQueue()">➕ إضافة لطابور الشيتات</button>
-        <button class="btn btn-success" onclick="ColumnMapper.applyAndStartDirect()">🚀 بدء الفحص المباشر</button>
+        <button class="btn btn-secondary" onclick="ColumnMapper.skipCurrentFile()">تخطي هذا الملف</button>
+        <button class="btn btn-success" id="btnMapperQueue" onclick="ColumnMapper.applyAndAddToQueue()">تحقق وأضف إلى الجولة</button>
+        <button class="btn btn-secondary" id="btnMapperStart" style="display:none" onclick="ColumnMapper.applyAndStartDirect()">بدء الفحص مباشرة</button>
       </div>
     </div>
   </div>
 
   <!-- Warning & Restart Confirmation Modal -->
   <div id="restartModalOverlay" class="modal-overlay" style="display: none;">
-    <div class="modal-dialog" style="max-width: 540px; border-color: #ef4444; box-shadow: 0 20px 45px rgba(239, 68, 68, 0.25);">
+    <div class="modal-dialog" role="dialog" aria-modal="true" tabindex="-1" style="max-width: 540px; border-color: #ef4444; box-shadow: 0 20px 45px rgba(239, 68, 68, 0.25);">
       <div class="modal-header" style="background: rgba(239, 68, 68, 0.08); border-bottom: 1px solid rgba(239, 68, 68, 0.25);">
         <h3 class="modal-title" style="color: #ef4444; display: flex; align-items: center; gap: 8px;">
           <span style="font-size: 18px;">⚠️</span>
@@ -322,12 +228,9 @@
     </div>
   </div>
 
-  <!-- Scripts -->
-  <script src="/static/js/api.js"></script>
-  <script src="/static/js/restart_modal.js"></script>
-  <script src="/static/js/live_feed.js"></script>
-  <script src="/static/js/queue_ui.js"></script>
-  <script src="/static/js/column_mapper.js"></script>
-  <script src="/static/js/app.js"></script>
-</body>
-</html>
+
+<div id="guideOverlay" class="modal-overlay" style="display:none"><section class="modal-dialog guide-dialog" role="dialog" aria-modal="true" aria-labelledby="guideTitle" tabindex="-1"><div class="modal-header"><h2 id="guideTitle">أول فحص، في ثلاث خطوات</h2><button class="icon-button" onclick="Dashboard.closeGuide()" aria-label="إغلاق الدليل">×</button></div><div class="modal-body"><ol class="guide-steps"><li><b>اختر ملف العملاء</b><p>ارفع ملف XLSX أو اختر ملفًا محفوظًا، ثم حدّد ورقة العمل.</p></li><li><b>راجع الأعمدة</b><p>حدّد رقم الحساب أو الخدمة، والمبلغ المطلوب مراجعته. اسم العميل اختياري.</p></li><li><b>ابدأ وتابع النتيجة</b><p>راقب الأرصدة المؤكدة. إذا ظهر تحقق من زين، أكمله في Chrome أو في اللوحة.</p></li></ol><div class="guide-note">التلقرام: فعّل البوت، ثم افحص الاتصال. إرسال الرسائل والملفات له أزرار مستقلة.</div></div><div class="modal-footer"><button class="btn btn-primary" onclick="Dashboard.closeGuide()">لنبدأ <svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg></button></div></section></div>
+<div id="confirmOverlay" class="modal-overlay" style="display:none"><section class="modal-dialog confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="confirmTitle" tabindex="-1"><div class="modal-header"><h2 id="confirmTitle">تأكيد الإجراء</h2><button class="icon-button" onclick="Dashboard.resolveConfirm(false)" aria-label="إغلاق التأكيد">×</button></div><div class="modal-body"><p id="confirmText"></p></div><div class="modal-footer"><button class="btn btn-secondary" onclick="Dashboard.resolveConfirm(false)">رجوع</button><button id="confirmAccept" class="btn btn-primary" onclick="Dashboard.resolveConfirm(true)">تأكيد</button></div></section></div>
+<div id="toastRegion" class="toast-region" aria-live="polite" aria-atomic="false"></div>
+<script src="/static/js/api.js"></script><script src="/static/js/session_timing.js"></script><script src="/static/js/dashboard.js"></script><script src="/static/js/restart_modal.js"></script><script src="/static/js/live_feed.js"></script><script src="/static/js/queue_ui.js"></script><script src="/static/js/column_mapper.js"></script><script src="/static/js/app.js"></script>
+</body></html>

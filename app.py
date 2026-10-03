@@ -87,21 +87,13 @@ def main() -> None:
     # 4. Initialize Telegram Bot Module (Decoupled EventBus Listener)
     tg_notifier = None
     tg_runner = None
+    from telegram_bot.integration import TelegramIntegration
+    orchestrator.telegram_integration = TelegramIntegration(orchestrator, queue_service, PROJECT_ROOT)
     if not args.no_telegram:
         try:
-            from telegram_bot.notifier import TelegramNotifier
-            from telegram_bot.bot import TelegramBotRunner
-
-            tg_notifier = TelegramNotifier()
-            tg_notifier.start_listening()
-
-            tg_runner = TelegramBotRunner(
-                orchestrator=orchestrator,
-                queue_service=queue_service,
-                project_root=PROJECT_ROOT,
-            )
-            tg_runner.start()
-            orchestrator.telegram_enabled = True
+            orchestrator.telegram_integration.set_enabled(True)
+            tg_notifier = orchestrator.telegram_integration.notifier
+            tg_runner = orchestrator.telegram_integration.runner
             logger.info("Telegram Bot & Event Subscriber active.")
         except Exception as exc:
             logger.warning(f"Telegram Bot failed to start: {exc}")
@@ -129,6 +121,7 @@ def main() -> None:
         gateway.stop()
         if tg_runner:
             tg_runner.stop()
+        orchestrator.telegram_integration.stop()
         supervisor.stop_all()
         from workers.stealth_service_engine import stop_service_browsers
         stop_service_browsers()

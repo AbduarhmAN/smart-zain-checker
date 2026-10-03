@@ -42,6 +42,8 @@ FILL_HEADER_GREEN = PatternFill(start_color="001B5E20", end_color="001B5E20", fi
 FILL_HEADER_PURPLE = PatternFill(start_color="004A148C", end_color="004A148C", fill_type="solid") # Tab 2 (فروقات زيادة المديونية بالسالب)
 FILL_HEADER_BLUE = PatternFill(start_color="000D47A1", end_color="000D47A1", fill_type="solid")   # Tab 3 (جميع الفروقات شامل المسدد)
 FILL_HEADER_RED = PatternFill(start_color="00B71C1C", end_color="00B71C1C", fill_type="solid")    # Tab 4 (الأخطاء والملاحظات للمحصل)
+FILL_HEADER_TEAL = PatternFill(start_color="0000695C", end_color="0000695C", fill_type="solid")   # Maintenance Tab (نتائج صيانة وتدقيق الأخطاء)
+FILL_HEADER_NAVY = PatternFill(start_color="000F2942", end_color="000F2942", fill_type="solid")   # Master Archive Tab (جميع السجلات المفحوصة)
 FILL_DATA = PatternFill(start_color="00F8FAFC", end_color="00F8FAFC", fill_type="solid")          # Clean slate row fill
 FILL_SUMMARY = PatternFill(start_color="00FFF9C4", end_color="00FFF9C4", fill_type="solid")       # Warm Gold Total row
 
@@ -86,6 +88,22 @@ WIDTHS_NOTES_TAB = {
     "H": 26.0,  # الحالة الفرعية بالملف
 }
 
+WIDTHS_MASTER_TAB = {
+    "A": 22.0,  # طريقة البحث
+    "B": 32.0,  # الحساب / الخدمة
+    "C": 22.0,  # رابط التأكد
+    "D": 32.0,  # اسم العميل
+    "E": 16.0,  # رقم الصف في الشيت
+    "F": 22.0,  # المبلغ المسجل بالشيت
+    "G": 24.0,  # المبلغ الحالي في موقع زين
+    "H": 18.0,  # الفرق (ريال)
+    "I": 26.0,  # نتيجة الفحص
+    "J": 24.0,  # الحالة الرئيسية بالملف
+    "K": 26.0,  # الحالة الفرعية بالملف
+    "L": 35.0,  # أخر متابعة للمحصل
+    "M": 22.0,  # تاريخ ووقت الفحص
+}
+
 HEADERS_DIFF_TAB = [
     "طريقة البحث",
     "الحساب / الخدمة",
@@ -109,6 +127,22 @@ HEADERS_NOTES_TAB = [
     "رابط صفحة زين",
     "الحالة الرئيسية بالملف",
     "الحالة الفرعية بالملف",
+]
+
+HEADERS_MASTER_TAB = [
+    "طريقة البحث",
+    "الحساب / الخدمة",
+    "رابط التأكد",
+    "اسم العميل",
+    "رقم الصف في الشيت",
+    "المبلغ المسجل بالشيت",
+    "المبلغ الحالي في موقع زين",
+    "الفرق (ريال)",
+    "نتيجة الفحص",
+    "الحالة الرئيسية بالملف",
+    "الحالة الفرعية بالملف",
+    "أخر متابعة للمحصل",
+    "تاريخ ووقت الفحص",
 ]
 
 
@@ -175,16 +209,19 @@ def build_hyperlink_and_method(account: str, service: str, contract: str) -> Tup
 
 class ExactTemplateReporter:
     """Constructs the executive multi-tab workbook replicating 2.xlsx with 100% fidelity:
-    1. 'الفروقات الصافية للمحصلين' (Positive net differences / customer payments)
-    2. 'فروقات زيادة المديونية (بالسالب)' (Negative differences / extra debt on Zain)
-    3. 'جميع الفروقات (شامل المسدد)' (All differences including settled/paid accounts)
-    4. 'الأخطاء والملاحظات للمحصل' (Errors, zero-balance rows, and collector notes)
+    1. 'جميع السجلات المفحوصة' / 'نتائج صيانة وتدقيق الأخطاء' (Comprehensive master archive)
+    2. 'الفروقات الصافية للمحصلين' (Positive net differences / customer payments)
+    3. 'فروقات زيادة المديونية (بالسالب)' (Negative differences / extra debt on Zain)
+    4. 'جميع الفروقات (شامل المسدد)' (All differences including settled/paid accounts)
+    5. 'الأخطاء والملاحظات للمحصل' (Errors, zero-balance rows, and collector notes)
     """
 
-    def __init__(self, records: List[Dict[str, Any]], output_path: str | Path) -> None:
+    def __init__(self, records: List[Dict[str, Any]], output_path: str | Path, is_repair: bool = False) -> None:
         self.records = records
         self.output_path = Path(output_path)
+        self.is_repair = is_repair or ("صيانة" in str(output_path))
 
+        self.tab_all_records: List[Dict[str, Any]] = []
         self.tab1_net_diffs: List[Dict[str, Any]] = []
         self.tab2_negative_diffs: List[Dict[str, Any]] = []
         self.tab3_all_diffs: List[Dict[str, Any]] = []
@@ -193,10 +230,11 @@ class ExactTemplateReporter:
         self._classify_records()
 
     def _classify_records(self) -> None:
-        """Classifies records into 4 tabs according to exact collector rules."""
+        """Classifies records into tabs according to exact collector rules."""
         sorted_records = sorted(self.records, key=lambda x: int(x.get("row") or 0))
 
         for rec in sorted_records:
+            self.tab_all_records.append(rec)
             status = rec.get("status")
             if status in ("not_found", "needs_review", "error") or rec.get("live_sar") is None:
                 note = rec.get("error") or ("لم يتم العثور على مبلغ مؤكد" if status == "not_found" else "تحتاج نتيجة الفحص إلى مراجعة")
@@ -240,40 +278,96 @@ class ExactTemplateReporter:
     def build(self) -> None:
         wb = Workbook()
 
-        # 1. Tab 1: الفروقات الايجابيه
-        ws1 = wb.active
-        ws1.title = "الفروقات الايجابيه"
-        self._populate_diff_sheet(
-            ws=ws1,
-            records=self.tab1_net_diffs,
-            total_label="إجمالي الفروقات الإيجابية",
-            count_suffix="عملاء",
-            header_fill=FILL_HEADER_GREEN,
-        )
+        if self.is_repair:
+            # 1. Tab 1: نتائج صيانة وتدقيق الأخطاء
+            ws1 = wb.active
+            ws1.title = "نتائج صيانة وتدقيق الأخطاء"
+            self._populate_master_sheet(
+                ws=ws1,
+                records=self.tab_all_records,
+                total_label="إجمالي السجلات التي تمت صيانتها وتدقيقها",
+                count_suffix="سجل",
+                header_fill=FILL_HEADER_TEAL,
+            )
 
-        # 2. Tab 2: فروقات سالبه
-        ws2 = wb.create_sheet(title="فروقات سالبه")
-        self._populate_diff_sheet(
-            ws=ws2,
-            records=self.tab2_negative_diffs,
-            total_label="إجمالي الفروقات السالبة",
-            count_suffix="عملاء",
-            header_fill=FILL_HEADER_PURPLE,
-        )
+            # 2. Tab 2: فروقات شامله
+            ws2 = wb.create_sheet(title="فروقات شامله")
+            self._populate_diff_sheet(
+                ws=ws2,
+                records=self.tab3_all_diffs,
+                total_label="الإجمالي الكلي للفروقات الشاملة",
+                count_suffix="سجل",
+                header_fill=FILL_HEADER_BLUE,
+            )
 
-        # 3. Tab 3: فروقات شامله
-        ws3 = wb.create_sheet(title="فروقات شامله")
-        self._populate_diff_sheet(
-            ws=ws3,
-            records=self.tab3_all_diffs,
-            total_label="الإجمالي الكلي للفروقات الشاملة",
-            count_suffix="سجل",
-            header_fill=FILL_HEADER_BLUE,
-        )
+            # 3. Tab 3: الفروقات الايجابيه
+            ws3 = wb.create_sheet(title="الفروقات الايجابيه")
+            self._populate_diff_sheet(
+                ws=ws3,
+                records=self.tab1_net_diffs,
+                total_label="إجمالي الفروقات الإيجابية",
+                count_suffix="عملاء",
+                header_fill=FILL_HEADER_GREEN,
+            )
 
-        # 4. Tab 4: الأخطاء والملاحظات للمحصل
-        ws4 = wb.create_sheet(title="الأخطاء والملاحظات للمحصل")
-        self._populate_notes_sheet(ws=ws4, notes_data=self.tab4_notes)
+            # 4. Tab 4: فروقات سالبه
+            ws4 = wb.create_sheet(title="فروقات سالبه")
+            self._populate_diff_sheet(
+                ws=ws4,
+                records=self.tab2_negative_diffs,
+                total_label="إجمالي الفروقات السالبة",
+                count_suffix="عملاء",
+                header_fill=FILL_HEADER_PURPLE,
+            )
+
+            # 5. Tab 5: الأخطاء المتبقية (لم تُحل)
+            ws5 = wb.create_sheet(title="الأخطاء المتبقية (لم تُحل)")
+            self._populate_notes_sheet(ws=ws5, notes_data=self.tab4_notes)
+        else:
+            # 1. Tab 1: جميع السجلات المفحوصة (الأرشيف الشامل)
+            ws1 = wb.active
+            ws1.title = "جميع السجلات المفحوصة"
+            self._populate_master_sheet(
+                ws=ws1,
+                records=self.tab_all_records,
+                total_label="الإجمالي الكلي لجميع السجلات المفحوصة",
+                count_suffix="عميل",
+                header_fill=FILL_HEADER_NAVY,
+            )
+
+            # 2. Tab 2: الفروقات الايجابيه
+            ws2 = wb.create_sheet(title="الفروقات الايجابيه")
+            self._populate_diff_sheet(
+                ws=ws2,
+                records=self.tab1_net_diffs,
+                total_label="إجمالي الفروقات الإيجابية",
+                count_suffix="عملاء",
+                header_fill=FILL_HEADER_GREEN,
+            )
+
+            # 3. Tab 3: فروقات سالبه
+            ws3 = wb.create_sheet(title="فروقات سالبه")
+            self._populate_diff_sheet(
+                ws=ws3,
+                records=self.tab2_negative_diffs,
+                total_label="إجمالي الفروقات السالبة",
+                count_suffix="عملاء",
+                header_fill=FILL_HEADER_PURPLE,
+            )
+
+            # 4. Tab 4: فروقات شامله
+            ws4 = wb.create_sheet(title="فروقات شامله")
+            self._populate_diff_sheet(
+                ws=ws4,
+                records=self.tab3_all_diffs,
+                total_label="الإجمالي الكلي للفروقات الشاملة",
+                count_suffix="سجل",
+                header_fill=FILL_HEADER_BLUE,
+            )
+
+            # 5. Tab 5: الأخطاء والملاحظات للمحصل
+            ws5 = wb.create_sheet(title="الأخطاء والملاحظات للمحصل")
+            self._populate_notes_sheet(ws=ws5, notes_data=self.tab4_notes)
 
         # Save cleanly with retry in case user has file open in Excel
         self.output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -290,6 +384,202 @@ class ExactTemplateReporter:
                     wb.save(alt_path)
                     break
         wb.close()
+
+    def _populate_master_sheet(
+        self,
+        ws: Any,
+        records: List[Dict[str, Any]],
+        total_label: str,
+        count_suffix: str,
+        header_fill: PatternFill = FILL_HEADER_NAVY,
+    ) -> None:
+        """Populates comprehensive master sheet with all checked records, status badges, and formulas."""
+        ws.views.sheetView[0].rightToLeft = True
+        ws.freeze_panes = "A2"
+
+        for col_letter, width in WIDTHS_MASTER_TAB.items():
+            ws.column_dimensions[col_letter].width = width
+
+        # Row 1: Header
+        ws.row_dimensions[1].height = 30.0
+        for col_idx, header_text in enumerate(HEADERS_MASTER_TAB, start=1):
+            cell = ws.cell(row=1, column=col_idx, value=header_text)
+            cell.font = FONT_HEADER
+            cell.fill = header_fill
+            cell.alignment = ALIGN_CENTER
+            cell.border = BORDER_THIN
+
+        # Data Rows
+        current_row = 2
+        for rec in records:
+            ws.row_dimensions[current_row].height = 26.0
+
+            method, identifier, url = build_hyperlink_and_method(
+                account=rec.get("account") or "",
+                service=rec.get("service") or "",
+                contract=rec.get("contract") or "",
+            )
+
+            exp_sar = float(rec.get("expected_sar") or 0.0)
+            live_sar_val = rec.get("live_sar")
+            live_sar = float(live_sar_val) if live_sar_val is not None else None
+            status = rec.get("status") or ""
+            st_label = rec.get("status_label") or ("تطابق تام" if status == "match" else status)
+
+            # Col 1: طريقة البحث
+            c1 = ws.cell(row=current_row, column=1, value=method)
+            c1.font = FONT_DATA_REGULAR
+            c1.fill = FILL_DATA
+            c1.alignment = ALIGN_CENTER
+            c1.border = BORDER_THIN
+
+            # Col 2: الحساب / الخدمة
+            c2 = ws.cell(row=current_row, column=2, value=identifier)
+            c2.font = FONT_DATA_REGULAR
+            c2.fill = FILL_DATA
+            c2.alignment = ALIGN_CENTER
+            c2.border = BORDER_THIN
+
+            # Col 3: رابط التأكد المباشر
+            c3 = ws.cell(row=current_row, column=3, value="اضغط لفتح صفحة زين")
+            c3.hyperlink = url
+            c3.font = FONT_HYPERLINK
+            c3.fill = FILL_DATA
+            c3.alignment = ALIGN_CENTER
+            c3.border = BORDER_THIN
+
+            # Col 4: اسم العميل
+            c4 = ws.cell(row=current_row, column=4, value=rec.get("name") or "عميل غير محدد")
+            c4.font = FONT_DATA_REGULAR
+            c4.fill = FILL_DATA
+            c4.alignment = ALIGN_RIGHT
+            c4.border = BORDER_THIN
+
+            # Col 5: رقم الصف في الشيت
+            c5 = ws.cell(row=current_row, column=5, value=str(rec.get("row") or current_row))
+            c5.font = FONT_DATA_REGULAR
+            c5.fill = FILL_DATA
+            c5.alignment = ALIGN_CENTER
+            c5.border = BORDER_THIN
+
+            # Col 6: المبلغ المسجل بالشيت
+            c6 = ws.cell(row=current_row, column=6, value=exp_sar)
+            c6.number_format = NUMBER_FORMAT
+            c6.font = FONT_DATA_REGULAR
+            c6.fill = FILL_DATA
+            c6.alignment = ALIGN_CENTER
+            c6.border = BORDER_THIN
+
+            # Col 7: المبلغ الحالي في موقع زين
+            c7 = ws.cell(row=current_row, column=7)
+            if live_sar is not None:
+                c7.value = live_sar
+                c7.number_format = NUMBER_FORMAT
+            else:
+                c7.value = "-"
+            c7.font = FONT_DATA_REGULAR
+            c7.fill = FILL_DATA
+            c7.alignment = ALIGN_CENTER
+            c7.border = BORDER_THIN
+
+            # Col 8: الفرق (ريال)
+            c8 = ws.cell(row=current_row, column=8)
+            if live_sar is not None:
+                c8.value = f"=F{current_row}-G{current_row}"
+                c8.number_format = NUMBER_FORMAT
+            else:
+                c8 = ws.cell(row=current_row, column=8, value="-")
+            c8.font = FONT_DATA_REGULAR
+            c8.fill = FILL_DATA
+            c8.alignment = ALIGN_CENTER
+            c8.border = BORDER_THIN
+
+            # Col 9: نتيجة الفحص
+            c9 = ws.cell(row=current_row, column=9, value=st_label)
+            c9.alignment = ALIGN_CENTER
+            c9.border = BORDER_THIN
+            c9.font = FONT_SUMMARY
+            if status == "match" or "تطابق" in st_label:
+                c9.fill = PatternFill(start_color="00E8F5E9", end_color="00E8F5E9", fill_type="solid")
+            elif status == "mismatch" or "فرق" in st_label:
+                c9.fill = PatternFill(start_color="00FFF3E0", end_color="00FFF3E0", fill_type="solid")
+            else:
+                c9.fill = PatternFill(start_color="00FFEBEE", end_color="00FFEBEE", fill_type="solid")
+
+            # Col 10: الحالة الرئيسية بالملف
+            c10 = ws.cell(row=current_row, column=10, value=rec.get("main_status") or "-")
+            c10.font = FONT_DATA_REGULAR
+            c10.fill = FILL_DATA
+            c10.alignment = ALIGN_CENTER
+            c10.border = BORDER_THIN
+
+            # Col 11: الحالة الفرعية بالملف
+            c11 = ws.cell(row=current_row, column=11, value=rec.get("sub_status") or "-")
+            c11.font = FONT_DATA_REGULAR
+            c11.fill = FILL_DATA
+            c11.alignment = ALIGN_CENTER
+            c11.border = BORDER_THIN
+
+            # Col 12: أخر متابعة للمحصل
+            c12 = ws.cell(row=current_row, column=12, value=rec.get("follow_notes") or "-")
+            c12.font = FONT_DATA_REGULAR
+            c12.fill = FILL_DATA
+            c12.alignment = ALIGN_RIGHT
+            c12.border = BORDER_THIN
+
+            # Col 13: تاريخ ووقت الفحص
+            c13 = ws.cell(row=current_row, column=13, value=rec.get("timestamp") or "-")
+            c13.font = FONT_DATA_REGULAR
+            c13.fill = FILL_DATA
+            c13.alignment = ALIGN_CENTER
+            c13.border = BORDER_THIN
+
+            current_row += 1
+
+        # Summary Row (Last row)
+        last_row = current_row
+        ws.row_dimensions[last_row].height = 26.0
+
+        num_records = len(records)
+        c_tot1 = ws.cell(row=last_row, column=1, value=total_label)
+        c_tot2 = ws.cell(row=last_row, column=2, value=f"{num_records} {count_suffix}")
+
+        for col_idx in (1, 2, 3, 4, 5, 9, 10, 11, 12, 13):
+            c = ws.cell(row=last_row, column=col_idx)
+            c.font = FONT_SUMMARY
+            c.fill = FILL_SUMMARY
+            c.alignment = ALIGN_CENTER
+            c.border = BORDER_THIN
+
+        start_row = 2
+        end_data_row = max(2, last_row - 1)
+
+        # Col 6: Sum of expected
+        c_sum6 = ws.cell(row=last_row, column=6)
+        c_sum6.value = f"=SUM(F{start_row}:F{end_data_row})" if num_records > 0 else 0.0
+        c_sum6.number_format = NUMBER_FORMAT
+        c_sum6.font = FONT_SUMMARY
+        c_sum6.fill = FILL_SUMMARY
+        c_sum6.alignment = ALIGN_CENTER
+        c_sum6.border = BORDER_THIN
+
+        # Col 7: Sum of live
+        c_sum7 = ws.cell(row=last_row, column=7)
+        c_sum7.value = f"=SUM(G{start_row}:G{end_data_row})" if num_records > 0 else 0.0
+        c_sum7.number_format = NUMBER_FORMAT
+        c_sum7.font = FONT_SUMMARY
+        c_sum7.fill = FILL_SUMMARY
+        c_sum7.alignment = ALIGN_CENTER
+        c_sum7.border = BORDER_THIN
+
+        # Col 8: Sum of diff
+        c_sum8 = ws.cell(row=last_row, column=8)
+        c_sum8.value = f"=SUM(H{start_row}:H{end_data_row})" if num_records > 0 else 0.0
+        c_sum8.number_format = NUMBER_FORMAT
+        c_sum8.font = FONT_SUMMARY
+        c_sum8.fill = FILL_SUMMARY
+        c_sum8.alignment = ALIGN_CENTER
+        c_sum8.border = BORDER_THIN
 
     def _populate_diff_sheet(
         self,
@@ -558,7 +848,11 @@ class ExactTemplateReporter:
             current_row += 1
 
 
-def export_executive_workbook(records: List[Dict[str, Any]], output_path: str | Path) -> None:
-    """Public export function called by Orchestrator and CLI to build the exact 3-tab workbook."""
-    reporter = ExactTemplateReporter(records=records, output_path=output_path)
+def export_executive_workbook(
+    records: List[Dict[str, Any]],
+    output_path: str | Path,
+    is_repair: bool = False,
+) -> None:
+    """Public export function called by Orchestrator and CLI to build the executive multi-tab workbook."""
+    reporter = ExactTemplateReporter(records=records, output_path=output_path, is_repair=is_repair)
     reporter.build()

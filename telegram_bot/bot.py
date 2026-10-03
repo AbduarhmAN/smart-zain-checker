@@ -4,6 +4,8 @@ Handles remote commands, status requests, and automatic sheet uploads into Queue
 from __future__ import annotations
 
 import json
+import re
+import uuid
 import logging
 import threading
 import time
@@ -13,6 +15,8 @@ from typing import Any, Optional
 
 from manager.orchestrator import Orchestrator
 from manager.queue import QueueService
+from telegram_bot.ui import TelegramUiMixin
+from telegram_bot.sheet_workflow import SheetWorkflowMixin
 
 logger = logging.getLogger("TelegramBot")
 
@@ -20,7 +24,7 @@ DEFAULT_BOT_TOKEN = "8613566630:AAFy7P3H7wiwpWzp2yiQ0KLtBtECtbmr7Gs"
 AUTHORIZED_USER_ID = 1085138908
 
 
-class TelegramBotRunner:
+class TelegramBotRunner(SheetWorkflowMixin, TelegramUiMixin):
     def __init__(
         self,
         orchestrator: Orchestrator,
@@ -38,6 +42,10 @@ class TelegramBotRunner:
 
         self._stop_event = threading.Event()
         self._thread: Optional[threading.Thread] = None
+        self._ui_lock = threading.RLock()
+        self._confirmations = {}
+        self._sheet_drafts = {}
+        self._last_update_id = 0
 
     def start(self) -> None:
         if self._thread and self._thread.is_alive():
@@ -49,6 +57,8 @@ class TelegramBotRunner:
 
     def stop(self) -> None:
         self._stop_event.set()
+        if self._thread and self._thread is not threading.current_thread():
+            self._thread.join(timeout=22)
 
     def _api_call(self, method: str, data: Optional[dict[str, Any]] = None, timeout: int = 25) -> Optional[dict[str, Any]]:
         try:
@@ -64,21 +74,32 @@ class TelegramBotRunner:
             return None
 
     def _poll_loop(self) -> None:
-        last_update_id = 0
+        self._api_call("setMyCommands", {"scope":{"type":"chat", "chat_id":self.authorized_id},
+            "commands":[{"command":"start", "description":"القائمة الرئيسية"},
+                        {"command":"status", "description":"متابعة تقدم الفحص"},
+                        {"command":"queue", "description":"عرض طابور الملفات"},
+                        {"command":"results", "description":"استلام نتائج الجلسة"},
+                        {"command":"upload", "description":"إضافة ملف العملاء"},
+                        {"command":"help", "description":"طريقة الاستخدام"}]})
         while not self._stop_event.is_set():
             try:
-                res = self._api_call("getUpdates", {"offset": last_update_id + 1, "timeout": 15}, timeout=20)
+                res = self._api_call("getUpdates", {"offset": self._last_update_id + 1, "timeout": 15}, timeout=20)
+                if self._stop_event.is_set():
+                    break
                 if not res or not res.get("ok"):
                     time.sleep(2.0)
                     continue
 
                 for update in res.get("result", []):
-                    last_update_id = max(last_update_id, update.get("update_id", 0))
+                    self._last_update_id = max(self._last_update_id, update.get("update_id", 0))
                     self._handle_update(update)
             except Exception as exc:
                 time.sleep(3.0)
 
     def _handle_update(self, update: dict[str, Any]) -> None:
+        if update.get("callback_query"):
+            self._handle_callback(update["callback_query"])
+            return
         msg = update.get("message")
         if not msg:
             return
@@ -89,56 +110,43 @@ class TelegramBotRunner:
             return  # Strict zero-trust authorization check
 
         chat_id = msg.get("chat", {}).get("id", self.authorized_id)
+        if chat_id != self.authorized_id:
+            return
         text = str(msg.get("text", "")).strip()
+        text = {
+            "📊 حالة الفحص": "/status", "📁 طابور الملفات": "/queue",
+            "⏸ إيقاف مؤقت": "/pause", "▶ استئناف الفحص": "/resume",
+            "📎 إضافة ملف": "/upload", "💡 طريقة الاستخدام": "/help",
+            "🏠 الرئيسية": "/start", "📥 نتائج الجلسة": "/results",
+            "📥 نتائج الجولة": "/results",
+        }.get(text, text)
 
         # 1. Handle Document Upload (.xlsx)
         doc = msg.get("document")
-        if doc and str(doc.get("file_name", "")).endswith(".xlsx"):
+        if doc and str(doc.get("file_name", "")).lower().endswith(".xlsx"):
             self._handle_document_upload(doc, chat_id)
             return
+        if doc:
+            self._dispatch_ui("upload", chat_id)
+            return
 
-        # 2. Handle Text Commands
-        if text.startswith("/start"):
-            self._reply(chat_id, (
-                "👋 **أهلاً بك في بوت إدارة فحص زين الذكي**\n\n"
-                "• أرسل أي ملف إكسل `.xlsx` هنا لإضافته فوراً إلى طابور الفحص.\n"
-                "• استخدم الأوامر:\n"
-                "  - `/status` : عرض حالة الفحص الحية والعدادات.\n"
-                "  - `/queue` : استعراض الشيتات في الطابور.\n"
-                "  - `/pause` : إيقاف الفحص مؤقتاً.\n"
-                "  - `/resume` : استئناف الفحص."
-            ))
-        elif text.startswith("/status"):
-            st = self.orchestrator.get_live_status()
-            k = st.get("kpis", {})
-            state_str = "متوقف مؤقتاً ⏸️" if st.get("paused") else ("نشط ويعمل 🟢" if st.get("running") else "خامل ⚪")
-            self._reply(chat_id, (
-                f"📊 **حالة المنظومة الحالية: {state_str}**\n\n"
-                f"• **الملف الحالي:** `{st.get('workbook') or 'لا يوجد'}`\n"
-                f"• **المفحوص:** `{k.get('completed', 0):,}` من `{k.get('total', 0):,}`\n"
-                f"• **المتطابق:** `{k.get('matches', 0):,}` ✔\n"
-                f"• **الفروقات الصافية:** `{k.get('mismatches', 0):,}` ⚠️ (`{k.get('mismatch_total', 0):,.2f}` ر.س)\n"
-                f"• **المهلات/الأخطاء:** `{k.get('errors', 0):,}` ✖"
-            ))
-        elif text.startswith("/queue"):
-            jobs = self.queue_service.get_jobs()
-            if not jobs:
-                self._reply(chat_id, "📋 الطابور فارغ حالياً. يمكنك إرسال ملف إكسل لإضافته.")
-            else:
-                lines = ["📋 **طابور فحص الشيتات الحالي:**\n"]
-                for i, j in enumerate(jobs, 1):
-                    lines.append(f"{i}. `{j['filename']}` ({j['sheet_name']}) - [{j['status']}]")
-                self._reply(chat_id, "\n".join(lines))
-        elif text.startswith("/pause") or text.startswith("/stop"):
-            self.orchestrator.pause_session()
-            self._reply(chat_id, "⏸️ تم إيقاف جلسة الفحص مؤقتاً بنجاح.")
-        elif text.startswith("/resume"):
-            self.orchestrator.resume_session()
-            self._reply(chat_id, "▶️ تم استئناف جلسة الفحص بنجاح.")
+        command = text.split()[0].split("@")[0] if text else ""
+        route = {"/start":"home", "/help":"help", "/upload":"upload", "/status":"status",
+                 "/queue":"queue:0", "/pause":"pause", "/stop":"pause", "/resume":"resume", "/results":"results"}.get(command)
+        if route:
+            if route == "home":
+                self._reply(chat_id, "أهلًا بك في تشيك. افتح لوحتك من الأزرار أدناه.")
+            self._dispatch_ui(route, chat_id)
+            return
+
+        self._dispatch_ui("help", chat_id)
 
     def _handle_document_upload(self, doc: dict[str, Any], chat_id: int) -> None:
         file_id = doc.get("file_id")
-        file_name = doc.get("file_name", f"uploaded_{int(time.time())}.xlsx")
+        original_name = str(doc.get("file_name") or "ملف_عملاء.xlsx")
+        file_name = re.sub(r'[\\/<>:"|?*\x00-\x1f]', '_', original_name).strip(' .')[:160]
+        if not file_name.lower().endswith('.xlsx'):
+            file_name = 'ملف_عملاء.xlsx'
 
         res = self._api_call("getFile", {"file_id": file_id})
         if not res or not res.get("ok"):
@@ -150,49 +158,26 @@ class TelegramBotRunner:
 
         try:
             target_path = self.project_root / file_name
+            if target_path.exists():
+                target_path = target_path.with_name(f"{target_path.stem}_{uuid.uuid4().hex[:8]}.xlsx")
             with urllib.request.urlopen(download_url, timeout=30) as resp:
-                target_path.write_bytes(resp.read())
+                file_bytes = resp.read()
+            with target_path.open('xb') as target_file:
+                target_file.write(file_bytes)
 
-            # Automatically inspect sheet and queue it
-            from domain.workbook import inspect_sheet_schema
-            from openpyxl import load_workbook
-            wb = load_workbook(target_path, read_only=True, data_only=True)
-            try:
-                ws = wb.worksheets[0]
-                schema = inspect_sheet_schema(ws)
-                est_rows = schema.get("estimated_rows", 0)
-                col_map = {
-                    "lookup_col": schema.get("indices", {}).get("lookup_col", 12),
-                    "amount_col": schema.get("indices", {}).get("remaining_col", 16),
-                    "amount_col_2": schema.get("indices", {}).get("contract_col", 49),
-                    "service_col": schema.get("indices", {}).get("service_col", 44),
-                }
-            finally:
-                wb.close()
-
-            job = self.queue_service.add_job(
-                file_path=target_path,
-                sheet_index=0,
-                sheet_name="ورقة 1",
-                mode="smart_hybrid",
-                amount_target="contract",
-                column_mapping=col_map,
-                total_records=est_rows,
-            )
-
-            self._reply(chat_id, (
-                f"✅ **تم استلام ملف الإكسل وإضافته للطابور بنجاح!**\n\n"
-                f"• **اسم الملف:** `{file_name}`\n"
-                f"• **عدد السجلات المقدر:** `{est_rows:,}` سجل\n"
-                f"• **مبلغ الفحص الأساسي:** `العمود AW (مبلغ العقد)`\n"
-                f"• **معرف المهمة في الطابور:** `{job.id}`"
-            ))
-        except Exception as exc:
-            self._reply(chat_id, f"⚠️ خطأ أثناء حفظ الملف وإضافته للطابور: {exc}")
+            self._open_sheet_review(target_path, chat_id)
+        except Exception:
+            self._reply(chat_id, "⚠ تعذر قراءة الملف أو إضافته إلى الطابور. تأكد من صيغة XLSX وراجع لوحة التحكم.")
 
     def _reply(self, chat_id: int, text: str) -> None:
         self._api_call("sendMessage", {
             "chat_id": chat_id,
-            "text": text,
-            "parse_mode": "Markdown",
+            "text": text.replace("**", "").replace("`", ""),
+            "reply_markup": {
+                "keyboard": [["📊 حالة الفحص", "📁 طابور الملفات"],
+                             ["🏠 الرئيسية", "📥 نتائج الجولة"],
+                             ["📎 إضافة ملف", "💡 طريقة الاستخدام"]],
+                "resize_keyboard": True, "is_persistent": True,
+                "input_field_placeholder": "اختر إجراءً أو أرسل ملف XLSX",
+            },
         })

@@ -1,0 +1,23 @@
+/* Motion for the local preview; native Telegram panels use their client's UI. */
+.phone{position:relative;isolation:isolate}
+.phone-header{position:relative}
+.avatar{position:relative}
+.avatar::after{content:"";position:absolute;inset:-4px;border:1px solid #85ba85;border-radius:50%;opacity:0;pointer-events:none}
+body:not(.motion-off) .avatar::after{animation:avatar-ring 1.9s ease-out 2}
+.motion-controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:15px}
+.motion-controls .preview-tag{margin:0}
+.motion-toggle{border:1px solid #c5d4c1;border-radius:20px;background:#f8fbf6;color:#526d5a;min-height:34px;padding:5px 12px;font-size:11px;display:inline-flex;align-items:center;gap:8px}
+.motion-toggle::before{content:"";width:6px;height:6px;background:#398063;border-radius:50%;box-shadow:0 0 0 3px #39806312}
+.motion-toggle[aria-pressed=false]::before{background:#87968a;box-shadow:none}
+.motion-toggle:disabled{cursor:default;opacity:.7}
+.button-row button,.view-menu button,.motion-toggle{position:relative;overflow:hidden;transition:transform 180ms ease,box-shadow 180ms ease,background-color 180ms ease,border-color 180ms ease}
+@media(hover:hover){.button-row button:hover{transform:translateY(-2px);box-shadow:0 5px 15px #00111b33;filter:brightness(1.1)}.view-menu button:hover{transform:translateY(-2px);border-color:#7ba38b;box-shadow:0 5px 15px #133b2710}}
+.button-row button:active,.view-menu button:active{transform:scale(.98)}
+.tap-wave{position:absolute;border-radius:50%;width:12px;height:12px;background:currentColor;opacity:0;pointer-events:none;z-index:0}
+.motion-progress{display:flex!important;align-items:center;gap:12px;width:100%;font-size:12px!important;color:#a5dfcc!important;padding:8px 0;white-space:normal;direction:ltr!important}
+.motion-track{display:block;height:6px;flex:1;background:#395361;border-radius:5px;overflow:hidden;position:relative}
+.motion-fill{position:absolute;inset:0;display:block;border-radius:5px;background:#8ecbb4;transform-origin:right}
+@keyframes avatar-ring{0%{transform:scale(.95);opacity:.45}80%,100%{transform:scale(1.45);opacity:0}}
+body.motion-off *,body.motion-off *::before,body.motion-off *::after{animation:none!important;transition:none!important}
+body.motion-off .button-row button:hover,body.motion-off .view-menu button:hover,body.motion-off button:active{transform:none}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}.button-row button:hover,.view-menu button:hover,button:active{transform:none!important}}

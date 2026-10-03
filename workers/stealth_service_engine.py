@@ -182,6 +182,37 @@ class StealthServiceWorker(threading.Thread):
             with self.verification_lock:
                 self.verification = None
 
+    def _is_context_alive(self, context) -> bool:
+        if context is None:
+            return False
+        try:
+            if hasattr(context, "browser") and context.browser and not context.browser.is_connected():
+                return False
+            _ = context.pages
+            return True
+        except Exception:
+            return False
+
+    def _heal_context(self, pw, old_context):
+        self.service_page = None
+        if old_context:
+            try:
+                old_context.close()
+            except Exception:
+                pass
+        time.sleep(1.0)
+        route = connection_group(self.proxy_url)
+        profile_key = hashlib.sha256(route.encode("utf-8")).hexdigest()[:20]
+        profile = Path(__file__).resolve().parent.parent / ".zain-service-profiles" / profile_key
+        for lock_name in ("lockfile", "SingletonLock"):
+            lock_path = profile / lock_name
+            if lock_path.exists():
+                try:
+                    lock_path.unlink()
+                except Exception:
+                    pass
+        return self._launch_context(pw)
+
     def run(self):
         try:
             from playwright.sync_api import sync_playwright
@@ -197,22 +228,40 @@ class StealthServiceWorker(threading.Thread):
                         try:
                             if job is None:
                                 break
+                            if not self._is_context_alive(context):
+                                logger.warning("Stealth browser context is closed or disconnected. Self-healing...")
+                                context = self._heal_context(pw, context)
                             if not job.cancelled.is_set():
                                 job.result = self._do_query(context, job)
                         except Exception as exc:
                             self.service_page = None
+                            exc_name = type(exc).__name__
+                            err_msg = str(exc)
+                            is_target_closed = "TargetClosed" in exc_name or ("target" in err_msg.lower() and "closed" in err_msg.lower())
                             if job is not None:
                                 if job.verification_pending.is_set():
                                     job.result = ("verification_required", None, "تعذر إكمال التحقق؛ أعد المحاولة عند جاهزية جلسة زين")
+                                elif is_target_closed:
+                                    job.result = ("blocked", None, "حظر جدار الحماية أو انقطاع استجابة المتصفح (TargetClosedError)")
                                 else:
-                                    job.result = ("network_error", None, f"تعذر استكمال المتصفح: {type(exc).__name__}")
+                                    job.result = ("network_error", None, f"تعذر استكمال المتصفح: {exc_name}")
+                            # Immediately heal context if target or context was closed/disconnected
+                            if is_target_closed or not self._is_context_alive(context):
+                                logger.warning("TargetClosed or invalid browser context. Healing context...")
+                                try:
+                                    context = self._heal_context(pw, context)
+                                except Exception as heal_err:
+                                    logger.error("Failed to heal browser context: %s", heal_err)
                         finally:
                             if job is not None:
                                 job.done.set()
                             self.work_queue.task_done()
                 finally:
                     self.service_page = None
-                    context.close()
+                    try:
+                        context.close()
+                    except Exception:
+                        pass
         except Exception as exc:
             self.startup_error = type(exc).__name__
             logger.error("Service browser unavailable: %s", self.startup_error)
@@ -303,7 +352,10 @@ class StealthServiceWorker(threading.Thread):
                 keep_page = result[0] in ("ok", "not_found") and not job.cancelled.is_set()
                 return result
             finally:
-                page.remove_listener("response", on_response)
+                try:
+                    page.remove_listener("response", on_response)
+                except Exception:
+                    pass
                 if not keep_page:
                     # Stop incomplete navigation before releasing the route lock.
                     try:

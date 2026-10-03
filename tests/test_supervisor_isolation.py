@@ -40,7 +40,7 @@ class TestModularWorkerIsolation(unittest.TestCase):
 
     def test_summary_telemetry(self):
         summary = self.supervisor.get_status_summary()
-        self.assertEqual(len(summary), 2)
+        self.assertEqual(len(summary), len(self.supervisor.get_all_workers()))
         ids = {w["id"] for w in summary}
         self.assertIn("worker_1", ids)
         self.assertIn("worker_2", ids)

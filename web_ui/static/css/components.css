@@ -102,6 +102,15 @@
   color: #ffffff;
 }
 
+.btn-warning {
+  background: #d97706;
+  color: #ffffff;
+  border: 1px solid #b45309;
+}
+.btn-warning:hover {
+  background: #b45309;
+}
+
 .btn-secondary {
   background: var(--bg-surface-elevated);
   color: var(--ink-base);
@@ -109,6 +118,25 @@
 }
 .btn-secondary:hover {
   background: #475569;
+}
+
+.btn-repair-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 7px;
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(217, 119, 6, 0.18);
+  border: 1px solid #d97706;
+  color: #fbbf24;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.btn-repair-row:hover {
+  background: #d97706;
+  color: #ffffff;
 }
 
 /* Navigation Tabs */
