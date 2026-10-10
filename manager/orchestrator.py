@@ -813,7 +813,8 @@ class Orchestrator:
         self.supervisor.stop_all()
         if self.writer_thread and self.result_queue:
             self.result_queue.put("STOP_SENTINEL")
-            self.writer_thread.join(timeout=10.0)
+            timeout_sec = max(30.0, float(len(self.customers or [])) * 0.005)
+            self.writer_thread.join(timeout=timeout_sec)
         EVENT_BUS.publish("session_cancelled", {})
 
     def _run_worker_api_loop(self, worker_id: str, session_token: Optional[str] = None) -> None:
@@ -1003,13 +1004,14 @@ class Orchestrator:
         writer_error_msg = ""
         if self.writer_thread and self.result_queue:
             self.result_queue.put("STOP_SENTINEL")
+            timeout_sec = max(60.0, float(len(self.customers or [])) * 0.005)
             try:
-                self.writer_thread.join(timeout=10.0)
+                self.writer_thread.join(timeout=timeout_sec)
             except Exception as e:
                 logger.warning(f"Writer thread join error: {e}")
 
             if self.writer_thread.is_alive():
-                logger.error("Writer thread did not terminate within 10.0s timeout; still running in background.")
+                logger.error(f"Writer thread did not terminate within {timeout_sec:.1f}s timeout; still running in background.")
                 writer_ok = False
                 writer_error_msg = "انتهت مهلة انتظار كاتب النتائج دون اكتماله وما زال الخيط يعمل بالخلفية"
             elif getattr(self.writer_thread, "fatal_error", None):
