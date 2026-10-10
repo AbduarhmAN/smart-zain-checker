@@ -1,22 +1,428 @@
 {
   "workers": [
     {
-      "worker_id": "worker_1",
-      "name": "Worker 1 (مباشر Business API)",
+      "worker_id": "worker_direct",
+      "name": "مسار خدمة 1 (مباشر سيرفر - Direct IP)",
       "use_proxy": false,
-      "proxy": null
+      "proxy": null,
+      "proxy_url": null,
+      "task_scope": "both"
     },
     {
-      "worker_id": "worker_2",
-      "name": "Worker 2 (مباشر Business API 2)",
-      "use_proxy": false,
-      "proxy": null
-    },
-    {
-      "worker_id": "worker_3",
-      "name": "Worker 3 (بروكسي بريطاني صارم)",
+      "worker_id": "worker_de_1",
+      "name": "مسار خدمة 2 (بروكسي فرانكفورت 1 - 166.0.39.88)",
       "use_proxy": true,
-      "proxy": "socks5://195.40.62.31:7252"
+      "proxy": "socks5://svmavlhd:s26hg8fpprfa@166.0.39.88:7596",
+      "proxy_url": "socks5://svmavlhd:s26hg8fpprfa@166.0.39.88:7596",
+      "task_scope": "service"
+    },
+    {
+      "worker_id": "worker_de_2",
+      "name": "مسار خدمة 3 (بروكسي فرانكفورت 2 - 23.27.85.174)",
+      "use_proxy": true,
+      "proxy": "socks5://svmavlhd:s26hg8fpprfa@23.27.85.174:7676",
+      "proxy_url": "socks5://svmavlhd:s26hg8fpprfa@23.27.85.174:7676",
+      "task_scope": "service"
+    },
+    {
+      "worker_id": "worker_sa_1",
+      "name": "مسار سعودي 1",
+      "use_proxy": true,
+      "proxy": "socks5://svmavlhdresidential-SA-1:s26hg8fpprfa@p.webshare.io:1080",
+      "proxy_url": "socks5://svmavlhdresidential-SA-1:s26hg8fpprfa@p.webshare.io:1080",
+      "task_scope": "account"
+    },
+    {
+      "worker_id": "worker_sa_2",
+      "name": "مسار سعودي 2",
+      "use_proxy": true,
+      "proxy": "socks5://svmavlhdresidential-SA-2:s26hg8fpprfa@p.webshare.io:1080",
+      "proxy_url": "socks5://svmavlhdresidential-SA-2:s26hg8fpprfa@p.webshare.io:1080",
+      "task_scope": "account"
+    },
+    {
+      "worker_id": "worker_sa_3",
+      "name": "مسار سعودي 3",
+      "use_proxy": true,
+      "proxy": "socks5://svmavlhdresidential-SA-3:s26hg8fpprfa@p.webshare.io:1080",
+      "proxy_url": "socks5://svmavlhdresidential-SA-3:s26hg8fpprfa@p.webshare.io:1080",
+      "task_scope": "account"
+    },
+    {
+      "worker_id": "worker_sa_4",
+      "name": "مسار سعودي 4",
+      "use_proxy": true,
+      "proxy": "socks5://svmavlhdresidential-SA-4:s26hg8fpprfa@p.webshare.io:1080",
+      "proxy_url": "socks5://svmavlhdresidential-SA-4:s26hg8fpprfa@p.webshare.io:1080",
+      "task_scope": "account"
+    },
+    {
+      "worker_id": "worker_sa_5",
+      "name": "مسار سعودي 5",
+      "use_proxy": true,
+      "proxy": "socks5://svmavlhdresidential-SA-5:s26hg8fpprfa@p.webshare.io:1080",
+      "proxy_url": "socks5://svmavlhdresidential-SA-5:s26hg8fpprfa@p.webshare.io:1080",
+      "task_scope": "account"
+    },
+    {
+      "worker_id": "worker_sa_6",
+      "name": "مسار سعودي 6",
+      "use_proxy": true,
+      "proxy": "socks5://svmavlhdresidential-SA-6:s26hg8fpprfa@p.webshare.io:1080",
+      "proxy_url": "socks5://svmavlhdresidential-SA-6:s26hg8fpprfa@p.webshare.io:1080",
+      "task_scope": "account"
+    },
+    {
+      "worker_id": "worker_sa_7",
+      "name": "مسار سعودي 7",
+      "use_proxy": true,
+      "proxy": "socks5://svmavlhdresidential-SA-7:s26hg8fpprfa@p.webshare.io:1080",
+      "proxy_url": "socks5://svmavlhdresidential-SA-7:s26hg8fpprfa@p.webshare.io:1080",
+      "task_scope": "account"
+    },
+    {
+      "worker_id": "worker_sa_8",
+      "name": "مسار سعودي 8",
+      "use_proxy": true,
+      "proxy": "socks5://svmavlhdresidential-SA-8:s26hg8fpprfa@p.webshare.io:1080",
+      "proxy_url": "socks5://svmavlhdresidential-SA-8:s26hg8fpprfa@p.webshare.io:1080",
+      "task_scope": "account"
+    },
+    {
+      "worker_id": "worker_sa_9",
+      "name": "مسار سعودي 9",
+      "use_proxy": true,
+      "proxy": "socks5://svmavlhdresidential-SA-9:s26hg8fpprfa@p.webshare.io:1080",
+      "proxy_url": "socks5://svmavlhdresidential-SA-9:s26hg8fpprfa@p.webshare.io:1080",
+      "task_scope": "account"
+    },
+    {
+      "worker_id": "worker_sa_10",
+      "name": "مسار سعودي 10",
+      "use_proxy": true,
+      "proxy": "socks5://svmavlhdresidential-SA-10:s26hg8fpprfa@p.webshare.io:1080",
+      "proxy_url": "socks5://svmavlhdresidential-SA-10:s26hg8fpprfa@p.webshare.io:1080",
+      "task_scope": "account"
+    },
+    {
+      "worker_id": "worker_sa_11",
+      "name": "مسار سعودي 11",
+      "use_proxy": true,
+      "proxy": "socks5://svmavlhdresidential-SA-11:s26hg8fpprfa@p.webshare.io:1080",
+      "proxy_url": "socks5://svmavlhdresidential-SA-11:s26hg8fpprfa@p.webshare.io:1080",
+      "task_scope": "account"
+    },
+    {
+      "worker_id": "worker_sa_12",
+      "name": "مسار سعودي 12",
+      "use_proxy": true,
+      "proxy": "socks5://svmavlhdresidential-SA-12:s26hg8fpprfa@p.webshare.io:1080",
+      "proxy_url": "socks5://svmavlhdresidential-SA-12:s26hg8fpprfa@p.webshare.io:1080",
+      "task_scope": "account"
+    },
+    {
+      "worker_id": "worker_sa_13",
+      "name": "مسار سعودي 13",
+      "use_proxy": true,
+      "proxy": "socks5://svmavlhdresidential-SA-13:s26hg8fpprfa@p.webshare.io:1080",
+      "proxy_url": "socks5://svmavlhdresidential-SA-13:s26hg8fpprfa@p.webshare.io:1080",
+      "task_scope": "account"
+    },
+    {
+      "worker_id": "worker_sa_14",
+      "name": "مسار سعودي 14",
+      "use_proxy": true,
+      "proxy": "socks5://svmavlhdresidential-SA-14:s26hg8fpprfa@p.webshare.io:1080",
+      "proxy_url": "socks5://svmavlhdresidential-SA-14:s26hg8fpprfa@p.webshare.io:1080",
+      "task_scope": "account"
+    },
+    {
+      "worker_id": "worker_sa_15",
+      "name": "مسار سعودي 15",
+      "use_proxy": true,
+      "proxy": "socks5://svmavlhdresidential-SA-15:s26hg8fpprfa@p.webshare.io:1080",
+      "proxy_url": "socks5://svmavlhdresidential-SA-15:s26hg8fpprfa@p.webshare.io:1080",
+      "task_scope": "account"
+    },
+    {
+      "worker_id": "worker_sa_16",
+      "name": "مسار سعودي 16",
+      "use_proxy": true,
+      "proxy": "socks5://svmavlhdresidential-SA-16:s26hg8fpprfa@p.webshare.io:1080",
+      "proxy_url": "socks5://svmavlhdresidential-SA-16:s26hg8fpprfa@p.webshare.io:1080",
+      "task_scope": "account"
+    },
+    {
+      "worker_id": "worker_sa_17",
+      "name": "مسار سعودي 17",
+      "use_proxy": true,
+      "proxy": "socks5://svmavlhdresidential-SA-17:s26hg8fpprfa@p.webshare.io:1080",
+      "proxy_url": "socks5://svmavlhdresidential-SA-17:s26hg8fpprfa@p.webshare.io:1080",
+      "task_scope": "account"
+    },
+    {
+      "worker_id": "worker_sa_18",
+      "name": "مسار سعودي 18",
+      "use_proxy": true,
+      "proxy": "socks5://svmavlhdresidential-SA-18:s26hg8fpprfa@p.webshare.io:1080",
+      "proxy_url": "socks5://svmavlhdresidential-SA-18:s26hg8fpprfa@p.webshare.io:1080",
+      "task_scope": "account"
+    },
+    {
+      "worker_id": "worker_sa_19",
+      "name": "مسار سعودي 19",
+      "use_proxy": true,
+      "proxy": "socks5://svmavlhdresidential-SA-19:s26hg8fpprfa@p.webshare.io:1080",
+      "proxy_url": "socks5://svmavlhdresidential-SA-19:s26hg8fpprfa@p.webshare.io:1080",
+      "task_scope": "account"
+    },
+    {
+      "worker_id": "worker_sa_20",
+      "name": "مسار سعودي 20",
+      "use_proxy": true,
+      "proxy": "socks5://svmavlhdresidential-SA-20:s26hg8fpprfa@p.webshare.io:1080",
+      "proxy_url": "socks5://svmavlhdresidential-SA-20:s26hg8fpprfa@p.webshare.io:1080",
+      "task_scope": "account"
+    },
+    {
+      "worker_id": "worker_sa_21",
+      "name": "مسار سعودي 21",
+      "use_proxy": true,
+      "proxy": "socks5://svmavlhdresidential-SA-21:s26hg8fpprfa@p.webshare.io:1080",
+      "proxy_url": "socks5://svmavlhdresidential-SA-21:s26hg8fpprfa@p.webshare.io:1080",
+      "task_scope": "account"
+    },
+    {
+      "worker_id": "worker_sa_22",
+      "name": "مسار سعودي 22",
+      "use_proxy": true,
+      "proxy": "socks5://svmavlhdresidential-SA-22:s26hg8fpprfa@p.webshare.io:1080",
+      "proxy_url": "socks5://svmavlhdresidential-SA-22:s26hg8fpprfa@p.webshare.io:1080",
+      "task_scope": "account"
+    },
+    {
+      "worker_id": "worker_sa_23",
+      "name": "مسار سعودي 23",
+      "use_proxy": true,
+      "proxy": "socks5://svmavlhdresidential-SA-23:s26hg8fpprfa@p.webshare.io:1080",
+      "proxy_url": "socks5://svmavlhdresidential-SA-23:s26hg8fpprfa@p.webshare.io:1080",
+      "task_scope": "account"
+    },
+    {
+      "worker_id": "worker_sa_24",
+      "name": "مسار سعودي 24",
+      "use_proxy": true,
+      "proxy": "socks5://svmavlhdresidential-SA-24:s26hg8fpprfa@p.webshare.io:1080",
+      "proxy_url": "socks5://svmavlhdresidential-SA-24:s26hg8fpprfa@p.webshare.io:1080",
+      "task_scope": "account"
+    },
+    {
+      "worker_id": "worker_sa_25",
+      "name": "مسار سعودي 25",
+      "use_proxy": true,
+      "proxy": "socks5://svmavlhdresidential-SA-25:s26hg8fpprfa@p.webshare.io:1080",
+      "proxy_url": "socks5://svmavlhdresidential-SA-25:s26hg8fpprfa@p.webshare.io:1080",
+      "task_scope": "account"
+    },
+    {
+      "worker_id": "worker_sa_26",
+      "name": "مسار سعودي 26",
+      "use_proxy": true,
+      "proxy": "socks5://svmavlhdresidential-SA-26:s26hg8fpprfa@p.webshare.io:1080",
+      "proxy_url": "socks5://svmavlhdresidential-SA-26:s26hg8fpprfa@p.webshare.io:1080",
+      "task_scope": "account"
+    },
+    {
+      "worker_id": "worker_sa_27",
+      "name": "مسار سعودي 27",
+      "use_proxy": true,
+      "proxy": "socks5://svmavlhdresidential-SA-27:s26hg8fpprfa@p.webshare.io:1080",
+      "proxy_url": "socks5://svmavlhdresidential-SA-27:s26hg8fpprfa@p.webshare.io:1080",
+      "task_scope": "account"
+    },
+    {
+      "worker_id": "worker_sa_28",
+      "name": "مسار سعودي 28",
+      "use_proxy": true,
+      "proxy": "socks5://svmavlhdresidential-SA-28:s26hg8fpprfa@p.webshare.io:1080",
+      "proxy_url": "socks5://svmavlhdresidential-SA-28:s26hg8fpprfa@p.webshare.io:1080",
+      "task_scope": "account"
+    },
+    {
+      "worker_id": "worker_sa_29",
+      "name": "مسار سعودي 29",
+      "use_proxy": true,
+      "proxy": "socks5://svmavlhdresidential-SA-29:s26hg8fpprfa@p.webshare.io:1080",
+      "proxy_url": "socks5://svmavlhdresidential-SA-29:s26hg8fpprfa@p.webshare.io:1080",
+      "task_scope": "account"
+    },
+    {
+      "worker_id": "worker_sa_30",
+      "name": "مسار سعودي 30",
+      "use_proxy": true,
+      "proxy": "socks5://svmavlhdresidential-SA-30:s26hg8fpprfa@p.webshare.io:1080",
+      "proxy_url": "socks5://svmavlhdresidential-SA-30:s26hg8fpprfa@p.webshare.io:1080",
+      "task_scope": "account"
+    },
+    {
+      "worker_id": "worker_sa_31",
+      "name": "مسار سعودي 31",
+      "use_proxy": true,
+      "proxy": "socks5://svmavlhdresidential-SA-31:s26hg8fpprfa@p.webshare.io:1080",
+      "proxy_url": "socks5://svmavlhdresidential-SA-31:s26hg8fpprfa@p.webshare.io:1080",
+      "task_scope": "account"
+    },
+    {
+      "worker_id": "worker_sa_32",
+      "name": "مسار سعودي 32",
+      "use_proxy": true,
+      "proxy": "socks5://svmavlhdresidential-SA-32:s26hg8fpprfa@p.webshare.io:1080",
+      "proxy_url": "socks5://svmavlhdresidential-SA-32:s26hg8fpprfa@p.webshare.io:1080",
+      "task_scope": "account"
+    },
+    {
+      "worker_id": "worker_sa_33",
+      "name": "مسار سعودي 33",
+      "use_proxy": true,
+      "proxy": "socks5://svmavlhdresidential-SA-33:s26hg8fpprfa@p.webshare.io:1080",
+      "proxy_url": "socks5://svmavlhdresidential-SA-33:s26hg8fpprfa@p.webshare.io:1080",
+      "task_scope": "account"
+    },
+    {
+      "worker_id": "worker_sa_34",
+      "name": "مسار سعودي 34",
+      "use_proxy": true,
+      "proxy": "socks5://svmavlhdresidential-SA-34:s26hg8fpprfa@p.webshare.io:1080",
+      "proxy_url": "socks5://svmavlhdresidential-SA-34:s26hg8fpprfa@p.webshare.io:1080",
+      "task_scope": "account"
+    },
+    {
+      "worker_id": "worker_sa_35",
+      "name": "مسار سعودي 35",
+      "use_proxy": true,
+      "proxy": "socks5://svmavlhdresidential-SA-35:s26hg8fpprfa@p.webshare.io:1080",
+      "proxy_url": "socks5://svmavlhdresidential-SA-35:s26hg8fpprfa@p.webshare.io:1080",
+      "task_scope": "account"
+    },
+    {
+      "worker_id": "worker_sa_36",
+      "name": "مسار سعودي 36",
+      "use_proxy": true,
+      "proxy": "socks5://svmavlhdresidential-SA-36:s26hg8fpprfa@p.webshare.io:1080",
+      "proxy_url": "socks5://svmavlhdresidential-SA-36:s26hg8fpprfa@p.webshare.io:1080",
+      "task_scope": "account"
+    },
+    {
+      "worker_id": "worker_sa_37",
+      "name": "مسار سعودي 37",
+      "use_proxy": true,
+      "proxy": "socks5://svmavlhdresidential-SA-37:s26hg8fpprfa@p.webshare.io:1080",
+      "proxy_url": "socks5://svmavlhdresidential-SA-37:s26hg8fpprfa@p.webshare.io:1080",
+      "task_scope": "account"
+    },
+    {
+      "worker_id": "worker_sa_38",
+      "name": "مسار سعودي 38",
+      "use_proxy": true,
+      "proxy": "socks5://svmavlhdresidential-SA-38:s26hg8fpprfa@p.webshare.io:1080",
+      "proxy_url": "socks5://svmavlhdresidential-SA-38:s26hg8fpprfa@p.webshare.io:1080",
+      "task_scope": "account"
+    },
+    {
+      "worker_id": "worker_sa_39",
+      "name": "مسار سعودي 39",
+      "use_proxy": true,
+      "proxy": "socks5://svmavlhdresidential-SA-39:s26hg8fpprfa@p.webshare.io:1080",
+      "proxy_url": "socks5://svmavlhdresidential-SA-39:s26hg8fpprfa@p.webshare.io:1080",
+      "task_scope": "account"
+    },
+    {
+      "worker_id": "worker_sa_40",
+      "name": "مسار سعودي 40",
+      "use_proxy": true,
+      "proxy": "socks5://svmavlhdresidential-SA-40:s26hg8fpprfa@p.webshare.io:1080",
+      "proxy_url": "socks5://svmavlhdresidential-SA-40:s26hg8fpprfa@p.webshare.io:1080",
+      "task_scope": "account"
+    },
+    {
+      "worker_id": "worker_sa_41",
+      "name": "مسار سعودي 41",
+      "use_proxy": true,
+      "proxy": "socks5://svmavlhdresidential-SA-41:s26hg8fpprfa@p.webshare.io:1080",
+      "proxy_url": "socks5://svmavlhdresidential-SA-41:s26hg8fpprfa@p.webshare.io:1080",
+      "task_scope": "account"
+    },
+    {
+      "worker_id": "worker_sa_42",
+      "name": "مسار سعودي 42",
+      "use_proxy": true,
+      "proxy": "socks5://svmavlhdresidential-SA-42:s26hg8fpprfa@p.webshare.io:1080",
+      "proxy_url": "socks5://svmavlhdresidential-SA-42:s26hg8fpprfa@p.webshare.io:1080",
+      "task_scope": "account"
+    },
+    {
+      "worker_id": "worker_sa_43",
+      "name": "مسار سعودي 43",
+      "use_proxy": true,
+      "proxy": "socks5://svmavlhdresidential-SA-43:s26hg8fpprfa@p.webshare.io:1080",
+      "proxy_url": "socks5://svmavlhdresidential-SA-43:s26hg8fpprfa@p.webshare.io:1080",
+      "task_scope": "account"
+    },
+    {
+      "worker_id": "worker_sa_44",
+      "name": "مسار سعودي 44",
+      "use_proxy": true,
+      "proxy": "socks5://svmavlhdresidential-SA-44:s26hg8fpprfa@p.webshare.io:1080",
+      "proxy_url": "socks5://svmavlhdresidential-SA-44:s26hg8fpprfa@p.webshare.io:1080",
+      "task_scope": "account"
+    },
+    {
+      "worker_id": "worker_sa_45",
+      "name": "مسار سعودي 45",
+      "use_proxy": true,
+      "proxy": "socks5://svmavlhdresidential-SA-45:s26hg8fpprfa@p.webshare.io:1080",
+      "proxy_url": "socks5://svmavlhdresidential-SA-45:s26hg8fpprfa@p.webshare.io:1080",
+      "task_scope": "account"
+    },
+    {
+      "worker_id": "worker_sa_46",
+      "name": "مسار سعودي 46",
+      "use_proxy": true,
+      "proxy": "socks5://svmavlhdresidential-SA-46:s26hg8fpprfa@p.webshare.io:1080",
+      "proxy_url": "socks5://svmavlhdresidential-SA-46:s26hg8fpprfa@p.webshare.io:1080",
+      "task_scope": "account"
+    },
+    {
+      "worker_id": "worker_sa_47",
+      "name": "مسار سعودي 47",
+      "use_proxy": true,
+      "proxy": "socks5://svmavlhdresidential-SA-47:s26hg8fpprfa@p.webshare.io:1080",
+      "proxy_url": "socks5://svmavlhdresidential-SA-47:s26hg8fpprfa@p.webshare.io:1080",
+      "task_scope": "account"
+    },
+    {
+      "worker_id": "worker_sa_48",
+      "name": "مسار سعودي 48",
+      "use_proxy": true,
+      "proxy": "socks5://svmavlhdresidential-SA-48:s26hg8fpprfa@p.webshare.io:1080",
+      "proxy_url": "socks5://svmavlhdresidential-SA-48:s26hg8fpprfa@p.webshare.io:1080",
+      "task_scope": "account"
+    },
+    {
+      "worker_id": "worker_sa_49",
+      "name": "مسار سعودي 49",
+      "use_proxy": true,
+      "proxy": "socks5://svmavlhdresidential-SA-49:s26hg8fpprfa@p.webshare.io:1080",
+      "proxy_url": "socks5://svmavlhdresidential-SA-49:s26hg8fpprfa@p.webshare.io:1080",
+      "task_scope": "account"
+    },
+    {
+      "worker_id": "worker_sa_50",
+      "name": "مسار سعودي 50",
+      "use_proxy": true,
+      "proxy": "socks5://svmavlhdresidential-SA-50:s26hg8fpprfa@p.webshare.io:1080",
+      "proxy_url": "socks5://svmavlhdresidential-SA-50:s26hg8fpprfa@p.webshare.io:1080",
+      "task_scope": "account"
     }
   ]
 }

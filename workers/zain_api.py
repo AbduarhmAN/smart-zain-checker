@@ -122,7 +122,7 @@ def query_contract_due_amount(
         return "error", None, "Invalid lookup number"
     if num_clean.startswith("2"):
         from .stealth_service_engine import query_service_stealth
-        kwargs = {"timeout_seconds": float(timeout if timeout is not None else 12), "proxy_url": proxy_url}
+        kwargs = {"timeout_seconds": float(timeout if timeout is not None else 35.0), "proxy_url": proxy_url}
         if on_verification is not None:
             kwargs["on_verification"] = on_verification
         return query_service_stealth(num_clean, **kwargs)

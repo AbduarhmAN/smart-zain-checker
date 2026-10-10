@@ -131,9 +131,18 @@ def _get_or_create_socks5_bridge(proxy_url: str) -> Optional[str]:
 
 
 class StealthServiceWorker(threading.Thread):
-    def __init__(self, headless: bool = False, proxy_url: Optional[str] = None):
+    def __init__(self, headless: Optional[bool] = None, proxy_url: Optional[str] = None):
         super().__init__(daemon=True, name="ServiceBrowserThread")
-        self.headless = headless
+        if headless is None:
+            import os
+            if os.environ.get("HEADLESS", "").lower() in ("true", "1", "yes"):
+                self.headless = True
+            elif os.name != "nt" and not os.environ.get("DISPLAY"):
+                self.headless = True
+            else:
+                self.headless = False
+        else:
+            self.headless = headless
         self.proxy_url = proxy_url
         self.work_queue: queue.Queue = queue.Queue()
         self.is_ready_event = threading.Event()
