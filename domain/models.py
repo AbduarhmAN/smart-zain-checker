@@ -154,6 +154,8 @@ class QueueJob:
     mismatches: int = 0
     errors: int = 0
 
+    pricing: Optional[dict[str, Any]] = None
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
@@ -174,4 +176,5 @@ class QueueJob:
             "matches": self.matches,
             "mismatches": self.mismatches,
             "errors": self.errors,
+            "pricing": self.pricing,
         }

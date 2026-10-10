@@ -115,6 +115,7 @@ class AsyncExcelWriterThread(threading.Thread):
         wal_path: Path,
         batch_size: int = 50,
         flush_interval_seconds: float = 2.0,
+        wal_already_persisted: bool = False,
     ):
         super().__init__(name="Dedicated-Excel-Writer", daemon=True)
         self.result_queue = result_queue
@@ -122,6 +123,7 @@ class AsyncExcelWriterThread(threading.Thread):
         self.wal_path = wal_path
         self.batch_size = batch_size
         self.flush_interval_seconds = flush_interval_seconds
+        self.wal_already_persisted = wal_already_persisted
 
         self.wb: Optional[Workbook] = None
         self.ws: Optional[Any] = None
@@ -131,6 +133,11 @@ class AsyncExcelWriterThread(threading.Thread):
         self.unflushed_count = 0
         self.last_flush_time = time.time()
         self.is_stopping = False
+        self.save_failed = False
+        self.save_error: Optional[str] = None
+        self.completed_successfully = False
+        self.fatal_error: Optional[str] = None
+        self.initialized = False
 
     def _init_workbook_and_wal(self):
         """Initializes or loads workbook into memory and opens WAL log."""
@@ -149,7 +156,8 @@ class AsyncExcelWriterThread(threading.Thread):
             self._create_header()
 
         # Open append-only WAL stream
-        self.wal_file = open(self.wal_path, "a", encoding="utf-8")
+        if not self.wal_already_persisted:
+            self.wal_file = open(self.wal_path, "a", encoding="utf-8")
 
     def _create_header(self):
         self.ws.title = "الفروقات الصافية للمحصلين"
@@ -163,46 +171,95 @@ class AsyncExcelWriterThread(threading.Thread):
             cell.border = THIN_BORDER
 
     def run(self):
-        self._init_workbook_and_wal()
-        logger.info(f"Writer Thread started. Batch size: {self.batch_size}, Flush interval: {self.flush_interval_seconds}s")
+        try:
+            self._init_workbook_and_wal()
+            self.initialized = True
+            logger.info(f"Writer Thread started. Batch size: {self.batch_size}, Flush interval: {self.flush_interval_seconds}s")
 
-        while True:
-            try:
-                # Wait for next item with short timeout so we can trigger time-based flushes
-                item = self.result_queue.get(timeout=0.3)
-            except queue.Empty:
-                item = None
+            while True:
+                try:
+                    # Wait for next item with short timeout
+                    item = self.result_queue.get(timeout=0.2)
+                except queue.Empty:
+                    item = None
 
-            # Handle Sentinel (End of work)
-            if item is None and self.is_stopping:
-                break
-
-            if item is not None:
-                if item == "STOP_SENTINEL":
-                    self.is_stopping = True
+                # Handle Sentinel (End of work)
+                if item is None and self.is_stopping:
                     break
 
-                self._process_single_record(item)
+                if item is not None:
+                    if item == "STOP_SENTINEL":
+                        self.is_stopping = True
+                        break
 
-            # Check Flush Triggers (Batch Size or Time Interval)
-            now = time.time()
-            time_since_flush = now - self.last_flush_time
-            if self.unflushed_count >= self.batch_size or (self.unflushed_count > 0 and time_since_flush >= self.flush_interval_seconds):
-                self._flush_to_disk()
+                    if isinstance(item, list):
+                        for rec in item:
+                            self._process_single_record(rec)
+                    else:
+                        self._process_single_record(item)
 
-        # Drain any remaining items before clean exit
-        self._drain_remaining()
-        self._flush_to_disk()
-        if self.wal_file:
-            self.wal_file.close()
-        logger.info(f"Writer Thread finished. Total rows saved: {self.total_saved}")
+                    # Rapidly burst-drain pending items into RAM in chunks of up to 500
+                    while not self.result_queue.empty() and self.unflushed_count < 1000:
+                        try:
+                            queued_item = self.result_queue.get_nowait()
+                            if queued_item == "STOP_SENTINEL":
+                                self.is_stopping = True
+                                break
+                            elif isinstance(queued_item, list):
+                                for rec in queued_item:
+                                    self._process_single_record(rec)
+                            elif queued_item is not None:
+                                self._process_single_record(queued_item)
+                        except queue.Empty:
+                            break
+
+                if self.is_stopping:
+                    break
+
+                # Check Flush Triggers:
+                # ONLY save to disk if:
+                # 1. We accumulated a large batch (>= 1000 rows), OR
+                # 2. Queue is completely empty AND at least 30 seconds have elapsed since last save
+                now = time.time()
+                time_since_flush = now - self.last_flush_time
+                q_empty = self.result_queue.empty()
+
+                if self.unflushed_count >= 1000 or (q_empty and self.unflushed_count >= 100 and time_since_flush >= 30.0):
+                    self._flush_to_disk()
+
+            # Drain any remaining items in RAM first (takes milliseconds)
+            self._drain_remaining()
+            # Single final flush to disk
+            self._flush_to_disk()
+            if self.wal_file:
+                try:
+                    self.wal_file.close()
+                except Exception:
+                    pass
+
+            if not self.save_failed:
+                self.completed_successfully = True
+                logger.info(f"Writer Thread finished cleanly. Total rows saved: {self.total_saved}")
+            else:
+                self.completed_successfully = False
+                logger.error(f"Writer Thread finished with save failure: {self.save_error}")
+        except Exception as fatal_exc:
+            self.fatal_error = str(fatal_exc)
+            self.completed_successfully = False
+            logger.error(f"Fatal error in Writer Thread: {fatal_exc}", exc_info=True)
+            if self.wal_file:
+                try:
+                    self.wal_file.close()
+                except Exception:
+                    pass
 
     def _process_single_record(self, row_data: Dict[str, Any]):
         """Writes record to WAL and appends to in-memory Excel sheet."""
         # 1. Instant WAL disk log (Atomic & crash-proof)
         try:
-            self.wal_file.write(json.dumps(row_data, ensure_ascii=False) + "\n")
-            self.wal_file.flush()
+            if not self.wal_already_persisted:
+                self.wal_file.write(json.dumps(row_data, ensure_ascii=False) + "\n")
+                self.wal_file.flush()
         except Exception as exc:
             logger.error(f"WAL write error: {exc}")
 
@@ -265,11 +322,14 @@ class AsyncExcelWriterThread(threading.Thread):
             duration = round(time.time() - t0, 3)
             q_depth = self.result_queue.qsize()
             print(f"[💾 عامل الحفظ] تم حفظ دفعة من {flushed_num} سطر ({duration}s) | المتبقي بالطابور: {q_depth} | الإجمالي المحفوظ: {self.total_saved}")
+            self.unflushed_count = 0
+            self.last_flush_time = time.time()
+            self.save_failed = False
+            self.save_error = None
         except Exception as exc:
+            self.save_failed = True
+            self.save_error = str(exc)
             logger.error(f"Error saving Excel workbook to disk: {exc}")
-
-        self.unflushed_count = 0
-        self.last_flush_time = time.time()
 
     def _drain_remaining(self):
         """Drains any leftover records in queue during shutdown."""
@@ -277,7 +337,11 @@ class AsyncExcelWriterThread(threading.Thread):
             try:
                 item = self.result_queue.get_nowait()
                 if item and item != "STOP_SENTINEL":
-                    self._process_single_record(item)
+                    if isinstance(item, list):
+                        for rec in item:
+                            self._process_single_record(rec)
+                    else:
+                        self._process_single_record(item)
             except queue.Empty:
                 break
 

@@ -1476,6 +1476,7 @@ def _append_collector_row_with_bottom_total(
         round(sum_sheet_amt, 2),
         round(sum_live_amt, 2),
         round(sum_diff_amt, 2),
+        "",
     ]
     for col_idx, val in enumerate(total_values, start=1):
         tcell = sheet.cell(total_row, col_idx, val)
@@ -1520,8 +1521,9 @@ def _ensure_strictly_three_collector_sheets(workbook: Workbook) -> None:
         "المبلغ المسجل بالشيت",
         "المبلغ الحالي في موقع زين",
         "الفرق (ريال)",
+        "الزمن",
     ]
-    col_widths_12 = {1: 24, 2: 32, 3: 22, 4: 32, 5: 16, 6: 22, 7: 24, 8: 18}
+    col_widths_12 = {1: 24, 2: 32, 3: 22, 4: 32, 5: 16, 6: 22, 7: 24, 8: 18, 9: 20}
     for s_name, h_color in [
         ("الفروقات الصافية للمحصلين", "1B5E20"),
         ("جميع الفروقات (شامل المسدد)", "0D47A1"),
@@ -1614,7 +1616,14 @@ def append_mismatch(
             "المبلغ المسجل بالشيت",
             "المبلغ الحالي في موقع زين",
             "الفرق (ريال)",
+            "الزمن",
         ]
+        time_str = getattr(mismatch, "detected_at", None)
+        if time_str and hasattr(time_str, "strftime"):
+            time_val = time_str.strftime("%Y-%m-%d %H:%M:%S")
+        else:
+            time_val = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
         collector_row = [
             search_method,
             display_num,
@@ -1624,6 +1633,7 @@ def append_mismatch(
             file_num,
             zain_num,
             0.0,
+            time_val,
         ]
 
         # 1. Update Sheet 1: الفروقات الصافية للمحصلين (only if NOT marked paid in sheet)

@@ -1,4 +1,5 @@
 """Offline validation of explicitly mapped workbook columns and populated rows."""
+from pathlib import Path
 from domain.workbook import parse_excel_column, parse_account_and_service, is_empty_input_row
 from domain.money import parse_money_to_halalas
 
@@ -12,6 +13,15 @@ MODES = {"smart_hybrid": "حساب أو خدمة", "account_only": "حسابات
 
 def validate_sheet(sheet, mapping, mode="smart_hybrid", amount_target="remaining"):
     """Check every populated row; blank/invalid money must never silently become zero."""
+    if isinstance(sheet, (str, Path)):
+        from domain.workbook import load_fast_workbook
+        wb = load_fast_workbook(sheet)
+        try:
+            ws = wb.worksheets[0]
+            return validate_sheet(ws, mapping, mode=mode, amount_target=amount_target)
+        finally:
+            wb.close()
+
     problems = []
     has_headers = mapping.get("has_headers", True)
     if not isinstance(has_headers, bool):
@@ -70,10 +80,10 @@ def validate_sheet(sheet, mapping, mode="smart_hybrid", amount_target="remaining
                     raw_number = cell("service_col") if mode == "service_only" else cell("lookup_col")
                     if mode == "smart_hybrid" and (raw_number is None or not str(raw_number).strip()):
                         raw_number = cell("service_col")
-                    if mode == "account_only" and (service or separate_service):
-                        reasons.append("الرقم يبدأ بـ٢؛ اختر «العقود والخدمات» لفحصه")
-                    elif mode == "service_only" and (account or service_account):
-                        reasons.append("الرقم يبدأ بـ١؛ اختر «العقود والخدمات» لفحصه")
+                    if mode == "account_only" and not (account or service_account) and (service or separate_service):
+                        reasons.append("الرقم يبدأ بـ٢ ولا يوجد رقم عقد (١)؛ اختر «العقود والخدمات» لفحصه")
+                    elif mode == "service_only" and not (service or separate_service) and (account or service_account):
+                        reasons.append("الرقم يبدأ بـ١ ولا يوجد رقم خدمة (٢)؛ اختر «العقود والخدمات» لفحصه")
                     elif raw_number is None or not str(raw_number).strip():
                         reasons.append("رقم البحث فارغ")
                     else:

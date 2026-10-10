@@ -45,18 +45,42 @@ def query_app_zain_web_engine(
 def query_direct_business_api(
     num_clean: str,
     timeout: float = 15.0,
+    proxy_url: Optional[str] = None,
 ) -> Tuple[str, Optional[float], str]:
-    """Direct connection via manage.business.zain.sa REST API."""
+    """Direct connection via manage.business.zain.sa REST API with optional proxy support."""
     num_clean = normalize_number(num_clean)
     if not re.fullmatch(r"[0-9]+", num_clean):
         return "error", None, "Invalid lookup number"
     if num_clean.startswith("2"):
-        return query_contract_due_amount(num_clean, timeout=int(timeout))
+        return query_contract_due_amount(num_clean, proxy_url=proxy_url, timeout=int(timeout))
     url = f"{API_BASE_URL}/{num_clean}"
     req = urllib.request.Request(url, headers=DEFAULT_HEADERS)
 
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
+        if proxy_url and str(proxy_url).strip():
+            from urllib.parse import urlparse
+            parsed = urlparse(str(proxy_url).strip())
+            if parsed.scheme.startswith("socks"):
+                import socks
+                from sockshandler import SocksiPyHandler
+                opener = urllib.request.build_opener(
+                    SocksiPyHandler(
+                        socks.SOCKS5 if "5" in parsed.scheme else socks.SOCKS4,
+                        parsed.hostname,
+                        parsed.port or 1080,
+                        True,
+                        parsed.username,
+                        parsed.password,
+                    )
+                )
+            else:
+                opener = urllib.request.build_opener(
+                    urllib.request.ProxyHandler({"http": str(proxy_url).strip(), "https": str(proxy_url).strip()})
+                )
+        else:
+            opener = urllib.request.build_opener()
+
+        with opener.open(req, timeout=timeout) as resp:
             data = json.loads(resp.read().decode("utf-8"))
             if data.get("is_successful"):
                 bill_data = data.get("data", {})
@@ -98,11 +122,9 @@ def query_contract_due_amount(
         return "error", None, "Invalid lookup number"
     if num_clean.startswith("2"):
         from .stealth_service_engine import query_service_stealth
-        kwargs = {"timeout_seconds": float(timeout if timeout is not None else 45), "proxy_url": proxy_url}
+        kwargs = {"timeout_seconds": float(timeout if timeout is not None else 12), "proxy_url": proxy_url}
         if on_verification is not None:
             kwargs["on_verification"] = on_verification
         return query_service_stealth(num_clean, **kwargs)
-    if proxy_url and str(proxy_url).strip():
-        return query_app_zain_web_engine(num_clean, proxy_url=str(proxy_url).strip(), timeout=float(timeout if timeout is not None else 15))
-    return query_direct_business_api(num_clean, timeout=timeout if timeout is not None else 15)
+    return query_direct_business_api(num_clean, timeout=timeout if timeout is not None else 12, proxy_url=proxy_url)
 

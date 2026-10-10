@@ -5,14 +5,175 @@ Pure domain logic: completely decoupled from UI and browser processes.
 from __future__ import annotations
 
 import re
+import threading
 from pathlib import Path
 from typing import Any, Optional
 from urllib.parse import parse_qs, urlsplit
+
 from openpyxl import load_workbook
 from openpyxl.utils import get_column_letter
 
 from domain.models import Customer
 from domain.money import parse_money_to_halalas
+
+
+class CalamineCell:
+    __slots__ = ("value",)
+
+    def __init__(self, value: Any):
+        self.value = value
+
+    def __str__(self) -> str:
+        return str(self.value) if self.value is not None else ""
+
+
+class CalamineSheetAdapter:
+    """High-performance in-memory adapter that mimics openpyxl Worksheet for read operations."""
+
+    def __init__(self, data: list[list[Any]], title: str = "Sheet1"):
+        self.data = data
+        self.title = title
+        self._max_col = max((len(r) for r in data), default=0)
+        self._max_row = len(data)
+
+    @property
+    def max_column(self) -> int:
+        return self._max_col
+
+    @property
+    def max_row(self) -> int:
+        return self._max_row
+
+    def cell(self, row: int, column: int) -> CalamineCell:
+        r_idx = row - 1
+        c_idx = column - 1
+        if 0 <= r_idx < len(self.data) and 0 <= c_idx < len(self.data[r_idx]):
+            return CalamineCell(self.data[r_idx][c_idx])
+        return CalamineCell(None)
+
+    def iter_rows(
+        self,
+        min_row: int = 1,
+        max_row: Optional[int] = None,
+        min_col: int = 1,
+        max_col: Optional[int] = None,
+        values_only: bool = True,
+    ):
+        start_r = max(0, min_row - 1)
+        end_r = min(len(self.data), max_row) if max_row is not None else len(self.data)
+        start_c = max(0, min_col - 1)
+
+        for r_idx in range(start_r, end_r):
+            row = self.data[r_idx]
+            end_c = min(len(row), max_col) if max_col is not None else len(row)
+            if start_c >= len(row):
+                row_slice = ()
+            else:
+                row_slice = row[start_c:end_c]
+
+            if values_only:
+                yield tuple(row_slice)
+            else:
+                yield tuple(CalamineCell(v) for v in row_slice)
+
+
+class FastWorkbook:
+    """Fast in-memory workbook wrapper backed by Rust python-calamine with lazy worksheet loading."""
+
+    def __init__(self, calamine_wb: Any):
+        self._calamine_wb = calamine_wb
+        self.sheetnames = list(calamine_wb.sheet_names)
+        self._sheets: dict[int, CalamineSheetAdapter] = {}
+        self._lock = threading.Lock()
+
+    @property
+    def worksheets(self) -> list[CalamineSheetAdapter]:
+        return [self.get_sheet(i) for i in range(len(self.sheetnames))]
+
+    def get_sheet(self, index: int) -> CalamineSheetAdapter:
+        with self._lock:
+            if index not in self._sheets:
+                title = self.sheetnames[index] if 0 <= index < len(self.sheetnames) else f"Sheet{index+1}"
+                raw_sheet = self._calamine_wb.get_sheet_by_index(index)
+                # Retain physical 1:1 row coordinates with Excel
+                data = raw_sheet.to_python(skip_empty_area=False)
+                # Fast trim of trailing phantom rows (e.g. 1M ghost rows created by Excel formatting or overflow)
+                # Trimming from the end never alters 1-based coordinates of any preceding data rows.
+                last_idx = len(data)
+                while last_idx > 0 and not any(data[last_idx - 1]):
+                    last_idx -= 1
+                if last_idx < len(data):
+                    data = data[:last_idx]
+                self._sheets[index] = CalamineSheetAdapter(data, title=title)
+            return self._sheets[index]
+
+    def __getitem__(self, name_or_idx: int | str) -> CalamineSheetAdapter:
+        if isinstance(name_or_idx, int):
+            return self.get_sheet(name_or_idx)
+        idx = self.sheetnames.index(name_or_idx)
+        return self.get_sheet(idx)
+
+    def close(self) -> None:
+        pass
+
+
+def get_workbook_sheet_names(workbook_path: Path | str) -> list[str]:
+    """Retrieves sheet names instantly via Calamine Rust engine with openpyxl fallback."""
+    path_str = str(workbook_path)
+    try:
+        import python_calamine
+        wb = python_calamine.CalamineWorkbook.from_path(path_str)
+        return list(wb.sheet_names)
+    except Exception:
+        from openpyxl import load_workbook
+        wb = load_workbook(path_str, read_only=True)
+        try:
+            return list(wb.sheetnames)
+        finally:
+            wb.close()
+
+
+_FAST_WB_CACHE: dict[tuple[str, float], FastWorkbook] = {}
+_CACHE_LOCK = threading.Lock()
+
+
+def clear_fast_workbook_cache() -> None:
+    with _CACHE_LOCK:
+        _FAST_WB_CACHE.clear()
+
+
+def load_fast_workbook(workbook_path: Path | str) -> Any:
+    """Opens an Excel file with ultra-fast Calamine engine, falling back to openpyxl.
+    Maintains a thread-safe, mtime-sensitive in-memory cache of parsed FastWorkbook instances
+    to prevent repetitive 16MB file unzipping across consecutive API calls (inspect, validate, start).
+    """
+    path_obj = Path(workbook_path).resolve()
+    path_str = str(path_obj)
+    try:
+        mtime = path_obj.stat().st_mtime
+    except Exception:
+        mtime = 0.0
+
+    cache_key = (path_str, mtime)
+    with _CACHE_LOCK:
+        cached = _FAST_WB_CACHE.get(cache_key)
+        if cached is not None:
+            return cached
+
+    try:
+        import python_calamine
+        cal_wb = python_calamine.CalamineWorkbook.from_path(path_str)
+        wb = FastWorkbook(cal_wb)
+        with _CACHE_LOCK:
+            if len(_FAST_WB_CACHE) >= 8:
+                _FAST_WB_CACHE.clear()
+            _FAST_WB_CACHE[cache_key] = wb
+        return wb
+    except Exception:
+        from openpyxl import load_workbook
+        return load_workbook(path_str, read_only=True, data_only=True)
+
+
 
 HEADER_ROW_NUMBER = 1
 
@@ -163,7 +324,7 @@ def get_sheet_header_columns(sheet, has_headers: bool = True) -> list[dict[str, 
     return headers
 
 
-def detect_smart_sheet_columns(sheet, has_headers: bool = True) -> dict[str, Any]:
+def detect_smart_sheet_columns(sheet: Any, has_headers: bool = True) -> dict[str, Any]:
     """Analyzes Row 1 of an Excel sheet and discovers all critical columns:
     - رقم الحساب (lookup_col)
     - رقم الخدمة (service_col)
@@ -173,6 +334,14 @@ def detect_smart_sheet_columns(sheet, has_headers: bool = True) -> dict[str, Any
     - المحصل (collector_col)
     - رقم الصف الأصلي (source_row_col)
     """
+    if isinstance(sheet, (str, Path)):
+        wb = load_fast_workbook(sheet)
+        try:
+            ws = wb.worksheets[0]
+            return detect_smart_sheet_columns(ws, has_headers=has_headers)
+        finally:
+            wb.close()
+
     header_row = next(
         sheet.iter_rows(min_row=HEADER_ROW_NUMBER, max_row=HEADER_ROW_NUMBER, values_only=True),
         (),
@@ -397,8 +566,16 @@ def detect_smart_sheet_columns(sheet, has_headers: bool = True) -> dict[str, Any
     return {"indices": detected, "letters": letters}
 
 
-def inspect_sheet_schema(sheet, has_headers: bool = True, count_rows: bool = True) -> dict[str, Any]:
+def inspect_sheet_schema(sheet: Any, has_headers: bool = True, count_rows: bool = True) -> dict[str, Any]:
     """Provides complete schema analysis, detected columns, and mode compatibility."""
+    if isinstance(sheet, (str, Path)):
+        wb = load_fast_workbook(sheet)
+        try:
+            ws = wb.worksheets[0]
+            return inspect_sheet_schema(ws, has_headers=has_headers, count_rows=count_rows)
+        finally:
+            wb.close()
+
     header_cols = get_sheet_header_columns(sheet, has_headers)
     smart_info = detect_smart_sheet_columns(sheet, has_headers)
     indices = smart_info["indices"]
@@ -559,7 +736,7 @@ def inspect_sheet_schema(sheet, has_headers: bool = True, count_rows: bool = Tru
 
 
 def extract_customer_records(
-    sheet,
+    sheet: Any,
     lookup_col: int,
     amount_col: int,
     amount_col_2: Optional[int] = None,
@@ -574,10 +751,36 @@ def extract_customer_records(
     target_collector: str = "",
     record_type: str = "mixed",
     has_headers: bool = True,
+    clean_dedup: bool = True,
 ) -> list[Customer]:
     """Constructs Customer objects, preserving row 1 in files without headers.
     Supports raw portfolios, previously exported results sheets, and errors sheets.
     """
+    if isinstance(sheet, (str, Path)):
+        wb = load_fast_workbook(sheet)
+        try:
+            ws = wb.worksheets[0]
+            return extract_customer_records(
+                sheet=ws,
+                lookup_col=lookup_col,
+                amount_col=amount_col,
+                amount_col_2=amount_col_2,
+                service_col=service_col,
+                customer_col=customer_col,
+                collector_col=collector_col,
+                case_status_col=case_status_col,
+                main_status_col=main_status_col,
+                sub_status_col=sub_status_col,
+                notes_col=notes_col,
+                source_row_col=source_row_col,
+                target_collector=target_collector,
+                record_type=record_type,
+                has_headers=has_headers,
+                clean_dedup=clean_dedup,
+            )
+        finally:
+            wb.close()
+
     cols_to_read = []
     for c in (lookup_col, amount_col, amount_col_2, service_col, customer_col, collector_col,
               case_status_col, main_status_col, sub_status_col, notes_col, source_row_col):
@@ -598,6 +801,9 @@ def extract_customer_records(
 
     norm_target_collector = normalize_header_text(target_collector) if target_collector else ""
     customers: list[Customer] = []
+    seen_non2_account_row: set[str] = set()
+    seen_service_row: set[str] = set()
+    seen_account_row: set[str] = set()
 
     for row_num, values in enumerate(rows_iter, start=2 if has_headers else 1):
         if is_empty_input_row(values, cols_to_read):
@@ -662,21 +868,63 @@ def extract_customer_records(
         sup_name = str(values[20] or "") if len(values) >= 21 else ""
         f_date = str(values[24] or "") if len(values) >= 25 else ""
 
-        # Determine effective search number and record type
-        if clean_serv.startswith("2"):
-            primary_search = clean_serv
-            rec_type = "wallet"
-        elif clean_lookup:
-            primary_search = clean_lookup
-            rec_type = "account"
-        else:
-            primary_search = clean_serv
-            rec_type = "wallet" if clean_serv.startswith("2") else "account"
+        # Determine effective search number and record type based on requested mode/record_type
+        acc_num = extracted_acc
+        if not acc_num and clean_lookup and not clean_lookup.startswith("2"):
+            acc_num = clean_lookup
 
-        if record_type != "mixed":
-            effective_rec_type = record_type
+        srv_num = extracted_srv
+        if not srv_num and clean_serv and clean_serv.startswith("2"):
+            srv_num = clean_serv
+        if not srv_num and clean_lookup and clean_lookup.startswith("2"):
+            srv_num = clean_lookup
+
+        if record_type == "account":
+            if not acc_num:
+                continue
+            primary_search = acc_num
+            effective_rec_type = "account"
+        elif record_type == "wallet":
+            if not srv_num:
+                continue
+            primary_search = srv_num
+            effective_rec_type = "wallet"
         else:
+            if clean_serv.startswith("2"):
+                primary_search = clean_serv
+                rec_type = "wallet"
+            elif clean_lookup:
+                primary_search = clean_lookup
+                rec_type = "account"
+            else:
+                primary_search = clean_serv
+                rec_type = "wallet" if clean_serv.startswith("2") else "account"
             effective_rec_type = rec_type
+
+        if clean_dedup:
+            if record_type == "account":
+                if acc_num and acc_num in seen_account_row:
+                    continue
+                if acc_num:
+                    seen_account_row.add(acc_num)
+            elif record_type == "wallet":
+                if srv_num and srv_num in seen_service_row:
+                    continue
+                if srv_num:
+                    seen_service_row.add(srv_num)
+            else:
+                starts_with_2 = bool(srv_num and srv_num.startswith("2"))
+                if starts_with_2:
+                    if srv_num in seen_service_row:
+                        continue
+                    seen_service_row.add(srv_num)
+                else:
+                    if acc_num and acc_num in seen_non2_account_row:
+                        continue
+                    if acc_num:
+                        seen_non2_account_row.add(acc_num)
+                    if srv_num:
+                        seen_service_row.add(srv_num)
 
         customers.append(Customer(
             row_number=final_row_num,

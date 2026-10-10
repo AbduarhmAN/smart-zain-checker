@@ -13,6 +13,15 @@ from workers.launcher import launch_worker_chrome, terminate_worker_process
 from workers.proxy import verify_proxy_connectivity
 
 
+def normalize_task_scope(val: Any) -> str:
+    s = str(val or "").strip().lower()
+    if s in ("account", "accounts", "1", "contract", "contracts"):
+        return "account"
+    if s in ("service", "services", "2", "wallet", "wallets"):
+        return "service"
+    return "both"
+
+
 @dataclass
 class WorkerActor:
     worker_id: str
@@ -23,6 +32,7 @@ class WorkerActor:
     proxy_url: Optional[str] = None
     target_url: str = "https://business.zain.sa/dashboard/quick-pay"
     use_direct_api: bool = True  # Headless Direct REST API mode (No Chrome browser)
+    task_scope: str = "both"  # 'both', 'account' (starts with 1), 'service' (starts with 2)
 
     status: str = "idle"  # 'idle', 'launching', 'ready', 'processing', 'cooldown', 'stopped', 'error'
     status_reason: str = ""
@@ -35,6 +45,17 @@ class WorkerActor:
     match_count: int = 0
     mismatch_count: int = 0
     error_count: int = 0
+
+    def __post_init__(self) -> None:
+        self.task_scope = normalize_task_scope(self.task_scope)
+
+    @property
+    def can_check_accounts(self) -> bool:
+        return self.task_scope in ("both", "account")
+
+    @property
+    def can_check_services(self) -> bool:
+        return self.task_scope in ("both", "service")
 
     @property
     def ip_group(self) -> str:
@@ -121,6 +142,14 @@ class WorkerActor:
         # Service numbers (starting with 2) use stealth browser with proxy support.
         # Contracts (starting with 1) always use direct Business API for fast, zero-CAPTCHA inquiries.
         is_service = clean_num.startswith("2")
+        if not self.can_check_accounts and not is_service:
+            raise PermissionError(
+                f"STRICT SCOPE GUARD: Worker '{self.worker_id}' is restricted to services only and is strictly forbidden from checking account numbers ({contract_number})!"
+            )
+        if not self.can_check_services and is_service:
+            raise PermissionError(
+                f"STRICT SCOPE GUARD: Worker '{self.worker_id}' is restricted to accounts only and is strictly forbidden from checking service numbers ({contract_number})!"
+            )
         if self.use_proxy and is_service and (not self.proxy_url or not str(self.proxy_url).strip()):
             return "error", None, "Proxy worker requires a valid proxy URL"
         if self.use_proxy and is_service:
@@ -129,12 +158,12 @@ class WorkerActor:
                 connection_group(self.proxy_url)
             except ValueError:
                 return "error", None, "Proxy worker requires a valid proxy URL"
-        effective_proxy = self.proxy_url if (self.use_proxy and is_service) else None
+        effective_proxy = self.proxy_url if self.use_proxy else None
         res = query_contract_due_amount(contract_number, proxy_url=effective_proxy,
                                          on_verification=getattr(self, "on_verification", None))
         status, amount, msg = res
         if "TargetClosed" in str(msg) or "TargetClosed" in str(status):
-            return "blocked", None, "حظر جدار الحماية أو انقطاع المتصفح (TargetClosedError) - جاري التبريد والمحاولة"
+            return "network_error", None, "أُغلقت جلسة المتصفح؛ يجري استعادتها (TargetClosedError)"
         return res
 
     def restart(self) -> bool:
@@ -187,6 +216,16 @@ class WorkerActor:
 
     def assign_task(self, task: dict[str, Any]) -> None:
         """Assigns an account verification task to this worker."""
+        search_num = str(task.get("search_number", "")).strip()
+        is_service = search_num.startswith("2")
+        if not self.can_check_accounts and not is_service:
+            raise PermissionError(
+                f"STRICT SCOPE GUARD: Worker '{self.worker_id}' cannot be assigned account {search_num}!"
+            )
+        if not self.can_check_services and is_service:
+            raise PermissionError(
+                f"STRICT SCOPE GUARD: Worker '{self.worker_id}' cannot be assigned service {search_num}!"
+            )
         self.current_task = task
         self.status = "processing"
         self.status_reason = f"Checking row {task.get('row')}: {task.get('search_number')}"
@@ -226,5 +265,8 @@ class WorkerActor:
             "matches": self.match_count,
             "mismatches": self.mismatch_count,
             "errors": self.error_count,
+            "task_scope": self.task_scope,
+            "can_check_accounts": self.can_check_accounts,
+            "can_check_services": self.can_check_services,
             "last_active": time.strftime("%H:%M:%S", time.localtime(self.last_active_time)),
         }
