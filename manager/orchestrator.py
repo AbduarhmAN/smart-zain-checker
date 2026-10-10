@@ -817,6 +817,24 @@ class Orchestrator:
             self.writer_thread.join(timeout=timeout_sec)
         EVENT_BUS.publish("session_cancelled", {})
 
+    @staticmethod
+    def _is_retryable_transient_error(status: str, msg: Any) -> bool:
+        if status in ("blocked", "session_expired", "network_error"):
+            return True
+        s_msg = str(msg or "")
+        msg_lower = s_msg.lower()
+        retry_codes = ("403", "429", "433", "500", "502", "503", "504", "408")
+        if any(code in msg_lower for code in retry_codes):
+            return True
+        retry_keywords = (
+            "رفض الطلب", "rejected", "حظر", "timeout", "timed out",
+            "targetclosed", "المتصفح", "connection", "reset", "closed",
+            "econnreset", "econnrefused", "temporary", "مؤقت", "fail"
+        )
+        if any(kw in msg_lower for kw in retry_keywords):
+            return True
+        return False
+
     def _run_worker_api_loop(self, worker_id: str, session_token: Optional[str] = None) -> None:
         """Execute leased tasks, keeping active leases alive and results fenced."""
         actor = self.supervisor.get_worker(worker_id)
@@ -866,25 +884,27 @@ class Orchestrator:
                 self.record_task_outcome(task_id, amount, "match", worker_id=worker_id)
             elif status == "verification_required":
                 self.handle_verification_required(task_id, message, worker_id)
+            elif status == "not_found":
+                self.record_task_outcome(task_id, None, "not_found", message, worker_id)
             elif status == 'network_error' and ('TargetClosed' in str(message) or 'المتصفح' in str(message)):
                 actor.status_reason = 'استعادة جلسة المتصفح لهذا المسار'
                 self.defer_task_to_end(task_id, message, worker_id=worker_id,
-                    retry_after=SERVICE_INTERVAL, category='browser_recovery', max_attempts=2)
-            elif status in ("blocked", "session_expired"):
-                effective_status = status
-                if effective_status == "blocked":
+                    retry_after=SERVICE_INTERVAL, category='browser_recovery', max_attempts=getattr(self, "max_block_retries", 3))
+            elif status in ("blocked", "session_expired") or self._is_retryable_transient_error(status, message):
+                msg_lower = str(message).lower()
+                is_blocked = "block" in msg_lower or status == "blocked" or "403" in msg_lower or "رفض الطلب" in str(message)
+                effective_status = "blocked" if is_blocked else (status if status in ("blocked", "session_expired", "network_error") else "transient_error")
+                if is_blocked:
                     set_ip_service_cooldown(actor.ip_group, 3.0)
                     if not actor.use_proxy:
                         actor.set_cooldown(3.0, "حظر مؤقت - جاري التبريد والانتظار...")
                     else:
-                        actor.status_reason = "حظر مؤقت على البروكسي - جاري الانتظار والتبريد..."
-                delay = max(SERVICE_INTERVAL, get_ip_service_retry_after(actor.ip_group), 3.0 if effective_status == "blocked" else 0.0)
+                        actor.status_reason = "حظر مؤقت على المسار - جاري الانتظار والتبريد..."
+                delay = max(SERVICE_INTERVAL, get_ip_service_retry_after(actor.ip_group), 3.0 if is_blocked else 1.0)
                 self.defer_task_to_end(
                     task_id, message, worker_id=worker_id, retry_after=delay,
-                    category=effective_status, max_attempts=getattr(self, "max_block_retries", 2)
+                    category=effective_status, max_attempts=getattr(self, "max_block_retries", 3)
                 )
-            elif status == "not_found":
-                self.record_task_outcome(task_id, None, "not_found", message, worker_id)
             elif status in ("unknown_response", "error"):
                 self.record_task_outcome(task_id, None, "needs_review", message, worker_id)
             else:
