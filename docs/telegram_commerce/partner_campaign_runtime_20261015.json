@@ -1,0 +1,32 @@
+{
+  "health": {
+    "status": "ok",
+    "currency": "EGP",
+    "schema_version": 29
+  },
+  "partner_contexts": [
+    {
+      "state": "active",
+      "policy": {
+        "rules": {
+          "max_redemptions": 100,
+          "max_checks_per_user": 3,
+          "max_duration_seconds": 2592000,
+          "max_wallet_credit_minor": 5000,
+          "max_percent_basis_points": 5000,
+          "max_total_discount_minor": 300000,
+          "max_discount_minor_per_user": 3000
+        },
+        "version": 5
+      },
+      "funding": "current_order_original_share",
+      "is_partner": true,
+      "basis_points": 3000,
+      "terms_version": "3e185391-48f3-463a-a99d-2b568990204a"
+    }
+  ],
+  "ordinary_nonpartner": {
+    "is_partner": false
+  },
+  "production_financial_writes": false
+}

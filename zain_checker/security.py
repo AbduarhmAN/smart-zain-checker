@@ -8,7 +8,12 @@ Clear-text hardware signatures are NEVER stored in source code.
 import os
 import sys
 import hashlib
-import winreg
+
+try:
+    import winreg
+except ImportError:
+    winreg = None
+
 import ctypes
 
 # Authorized SHA-256 signatures for THIS device (AM / Latitude E5570)
@@ -21,13 +26,17 @@ _AUTHORIZED_SIGNATURES = {
 
 def _check_anti_debug():
     """Detect if execution is running under a debugger or monitoring tool."""
+    if sys.platform != "win32":
+        return
     try:
-        if ctypes.windll.kernel32.IsDebuggerPresent():
+        if hasattr(ctypes, "windll") and ctypes.windll.kernel32.IsDebuggerPresent():
             os._exit(1)
     except Exception:
         pass
 
 def _get_reg_val(root, subkey, name):
+    if not winreg:
+        return ""
     try:
         with winreg.OpenKey(root, subkey) as k:
             val, _ = winreg.QueryValueEx(k, name)
@@ -55,6 +64,8 @@ def _compute_hashes():
 
 def enforce_hardware_lock(silent=False):
     """Enforces that the current runtime matches an authorized hardware signature."""
+    if sys.platform != "win32":
+        return True
     _check_anti_debug()
 
     current_hashes = _compute_hashes()

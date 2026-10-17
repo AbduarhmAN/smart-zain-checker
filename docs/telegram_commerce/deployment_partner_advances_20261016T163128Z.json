@@ -1,0 +1,26 @@
+{
+  "at": "2026-10-16T16:31:28.885107+00:00",
+  "migration": "202610160038_commerce_partner_advances",
+  "sha256": "4b80e5f8243273097525d448bf6a9562c3b48e29e647bbef06d293bb2c7280db",
+  "status": "applied",
+  "verification": [
+    {
+      "advance_records": 0,
+      "repayment_records": 0,
+      "server_can_record": true,
+      "public_can_record": false,
+      "direct_debt_updates": false,
+      "wallet_bypass": false,
+      "protected_tables": true
+    }
+  ],
+  "real_payouts_recorded": false,
+  "notifications_sent": false,
+  "python_tests": {
+    "passed": true,
+    "tests": 121,
+    "retained": "E:\\Projects\\smart_zainchecker_gemini\\scratch\\partner-advance-tests-876e02e926fd4351b5362f2834cb9197"
+  },
+  "sql_acceptance": "acceptance_commerce_acceptance_48e3075f8801.json",
+  "concurrency_acceptance": "acceptance_advance_acceptance_a4ed22ff7e26.json"
+}

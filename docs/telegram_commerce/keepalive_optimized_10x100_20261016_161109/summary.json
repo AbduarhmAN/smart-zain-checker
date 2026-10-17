@@ -1,0 +1,22 @@
+{
+  "logical_queries": 1000,
+  "completed_results": 1000,
+  "outcomes": {
+    "ok": 715,
+    "not_found": 285
+  },
+  "fatal_errors": [],
+  "total_bytes": 2465052,
+  "sent_bytes": 512701,
+  "received_bytes": 1952351,
+  "tcp_connections": 10,
+  "wire_requests": 1000,
+  "stale_retries": 0,
+  "gzip_responses": 715,
+  "duration_seconds": 150.54913980000038,
+  "min_gap_seconds": 0.5001342999994449,
+  "reused_completed_results": 990,
+  "mean_bytes_reused_completed": 2424.7060606060604,
+  "projected_MB_200k_reused_completed": 484.9412121212121,
+  "payload_bytes_reconcile": true
+}

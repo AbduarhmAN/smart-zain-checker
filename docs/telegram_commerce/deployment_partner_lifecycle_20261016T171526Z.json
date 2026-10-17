@@ -1,0 +1,17 @@
+{
+  "at": "2026-10-16T17:15:26.747782+00:00",
+  "migration": "202610160039_commerce_partner_lifecycle",
+  "sha256": "bc65a25ffd5b013df1785e446852514ce2b096beba6993d463678e3f1517bcd1",
+  "status": "applied",
+  "verification": [
+    {
+      "lifecycle_events": 0,
+      "lifecycle_notifications": 0,
+      "server_can_end": true,
+      "public_can_end": false,
+      "server_can_claim": true,
+      "public_can_claim": false,
+      "protected_tables": true
+    }
+  ]
+}

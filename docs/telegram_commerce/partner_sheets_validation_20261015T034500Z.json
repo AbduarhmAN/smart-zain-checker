@@ -1,0 +1,16 @@
+{
+  "at": "2026-10-15T03:45:00.912534+00:00",
+  "isolated_database": "partner_sheets_903ff92b5d",
+  "sql_result": "BEGIN\nDO\nROLLBACK",
+  "offline_ui_tests_passed": 12,
+  "full_sql_regression_evidence": "acceptance_commerce_acceptance_2ea728580716.json",
+  "broader_python_regression_tests_passed": 97,
+  "live_restricted_rpc_reads_verified": true,
+  "real_notifications_sent": false,
+  "files": {
+    "supabase/migrations/202610150035_commerce_partner_cost_sheets.sql": "cd8f742afa558d098b5fc45f340647db79f10ca36ff292b81c04bfc51c83404b",
+    "supabase/tests/commerce_partner_cost_sheets.sql": "742c875d157bb644e8400e53036dc352fda669883b0fad00cebd0076bacc88d8",
+    "telegram_bot/commerce/partner_sheets.py": "8828687340fcd336a9f07eeae79f546b7bf381bf5379637f891837df96a15490",
+    "tests/test_partner_cost_sheets.py": "d5bd20402de5bfbb5ef9cb874b4495c42e5707064e051488d55e3567457c2456"
+  }
+}

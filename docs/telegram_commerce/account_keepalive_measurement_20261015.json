@@ -1,0 +1,163 @@
+{
+  "at_utc": "2026-10-15T16:33:45.237628+00:00",
+  "production_code_changed": false,
+  "method": "Same urllib3 transport, configured proxy routes, identity encoding and request headers; compare Connection close against keep-alive. Count actual TCP connections and opaque payload in both directions.",
+  "limits": "Small sample; TCP/IP headers, retransmissions, DNS and retries excluded. Long-term idle timeouts and provider billing are not measured.",
+  "privacy": "No account numbers, proxy URLs, credentials, response bodies or amounts retained.",
+  "routes": [
+    {
+      "route": 1,
+      "fresh": {
+        "connections": 3,
+        "samples": [
+          {
+            "index": 1,
+            "reuse_enabled": false,
+            "status": "JSONDecodeError",
+            "sent_bytes": 1175,
+            "received_bytes": 11921,
+            "total_bytes": 13096,
+            "new_connections": 1,
+            "seconds": 1.329
+          },
+          {
+            "index": 2,
+            "reuse_enabled": false,
+            "status": "JSONDecodeError",
+            "sent_bytes": 1175,
+            "received_bytes": 11915,
+            "total_bytes": 13090,
+            "new_connections": 1,
+            "seconds": 1.503
+          },
+          {
+            "index": 3,
+            "reuse_enabled": false,
+            "status": "JSONDecodeError",
+            "sent_bytes": 1175,
+            "received_bytes": 11913,
+            "total_bytes": 13088,
+            "new_connections": 1,
+            "seconds": 1.228
+          }
+        ]
+      },
+      "persistent": {
+        "connections": 3,
+        "samples": [
+          {
+            "index": 1,
+            "reuse_enabled": true,
+            "status": "JSONDecodeError",
+            "sent_bytes": 1180,
+            "received_bytes": 11913,
+            "total_bytes": 13093,
+            "new_connections": 1,
+            "seconds": 1.068
+          },
+          {
+            "index": 2,
+            "reuse_enabled": true,
+            "status": "JSONDecodeError",
+            "sent_bytes": 1180,
+            "received_bytes": 11907,
+            "total_bytes": 13087,
+            "new_connections": 1,
+            "seconds": 1.011
+          },
+          {
+            "index": 3,
+            "reuse_enabled": true,
+            "status": "JSONDecodeError",
+            "sent_bytes": 1180,
+            "received_bytes": 11918,
+            "total_bytes": 13098,
+            "new_connections": 1,
+            "seconds": 1.001
+          }
+        ]
+      }
+    },
+    {
+      "route": 2,
+      "fresh": {
+        "connections": 3,
+        "samples": [
+          {
+            "index": 1,
+            "reuse_enabled": false,
+            "status": "JSONDecodeError",
+            "sent_bytes": 1175,
+            "received_bytes": 11919,
+            "total_bytes": 13094,
+            "new_connections": 1,
+            "seconds": 1.44
+          },
+          {
+            "index": 2,
+            "reuse_enabled": false,
+            "status": "JSONDecodeError",
+            "sent_bytes": 1175,
+            "received_bytes": 11910,
+            "total_bytes": 13085,
+            "new_connections": 1,
+            "seconds": 1.315
+          },
+          {
+            "index": 3,
+            "reuse_enabled": false,
+            "status": "JSONDecodeError",
+            "sent_bytes": 1175,
+            "received_bytes": 11916,
+            "total_bytes": 13091,
+            "new_connections": 1,
+            "seconds": 1.293
+          }
+        ]
+      },
+      "persistent": {
+        "connections": 3,
+        "samples": [
+          {
+            "index": 1,
+            "reuse_enabled": true,
+            "status": "JSONDecodeError",
+            "sent_bytes": 1180,
+            "received_bytes": 11914,
+            "total_bytes": 13094,
+            "new_connections": 1,
+            "seconds": 1.359
+          },
+          {
+            "index": 2,
+            "reuse_enabled": true,
+            "status": "JSONDecodeError",
+            "sent_bytes": 1180,
+            "received_bytes": 11918,
+            "total_bytes": 13098,
+            "new_connections": 1,
+            "seconds": 1.493
+          },
+          {
+            "index": 3,
+            "reuse_enabled": true,
+            "status": "JSONDecodeError",
+            "sent_bytes": 1180,
+            "received_bytes": 11913,
+            "total_bytes": 13093,
+            "new_connections": 1,
+            "seconds": 1.342
+          }
+        ]
+      }
+    }
+  ],
+  "summary": {
+    "fresh_successes": 0,
+    "steady_reused_successes": 0,
+    "persistent_connection_counts": [
+      3,
+      3
+    ]
+  }
+}

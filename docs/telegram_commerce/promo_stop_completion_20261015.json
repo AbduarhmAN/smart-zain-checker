@@ -1,0 +1,51 @@
+{
+  "at": "2026-10-15T04:09:57.997867+00:00",
+  "implemented": true,
+  "legacy_free_and_discounted_checkouts_have_owned_confirmed_stop": true,
+  "sheet_or_single_use_promotion_remains_consumed": true,
+  "per_check_commerce_offer_policy_unchanged": true,
+  "legacy_paid_checkout_cash_settlement": "administration review required; no fabricated refund",
+  "customer_stop_was_not_requested_by_agent": true,
+  "same_existing_job": {
+    "id": "job_1792036160_4bdddf",
+    "running": true,
+    "completed": 2286,
+    "remaining": 82
+  },
+  "commerce_tests": {
+    "tests_run": 300,
+    "passed": true,
+    "failures": 0,
+    "errors": 0,
+    "fixtures_retained_at": "C:\\Users\\DELLHQ~1\\AppData\\Local\\Temp\\commerce-suite-retained-l2ehhv_v",
+    "network": "blocked",
+    "filesystem_deletion": "blocked; XML fixture files retained"
+  },
+  "telegram_tests": {
+    "tests_run": 267,
+    "passed": true,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "fixture": "E:\\Projects\\smart_zainchecker_gemini\\outputs\\telegram_audit_20261007\\isolated_run_urkcwi8q",
+    "patterns": [
+      "test_access_boundaries.py",
+      "test_customer_commerce_runtime.py",
+      "test_telegram_order_history.py",
+      "test_telegram_transport_reliability.py",
+      "test_telegram_queue_durability.py",
+      "test_telegram_workflow_reliability.py",
+      "test_telegram_payment_reliability.py",
+      "test_telegram_notifier_reliability.py",
+      "test_telegram_ui.py",
+      "test_sheet_workflow.py",
+      "test_dashboard_controls.py",
+      "test_pricing.py"
+    ],
+    "real_network": "external I/O blocked; isolated loopback HTTP fixtures allowed",
+    "filesystem_deletion": "blocked; fixture XML retained"
+  },
+  "acceptance": "docs/telegram_commerce/legacy_promo_stop_acceptance_20261015.json",
+  "resume": "docs/telegram_commerce/legacy_promo_existing_request_20261015.json",
+  "database_changes": false
+}

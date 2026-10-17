@@ -1,0 +1,34 @@
+{
+  "document_version": "1.0",
+  "date": "2026-10-11",
+  "scope": "وثيقة تخطيط ومراجعة؛ ليست تقرير تنفيذ أو نشر",
+  "markdown_path": "E:/Projects/smart_zainchecker_gemini/docs/zain_delivery_book_2026-10-11/zain_delivery_book_ar.md",
+  "html_path": "E:/Projects/smart_zainchecker_gemini/docs/zain_delivery_book_2026-10-11/zain_delivery_book_ar.html",
+  "lines": 2116,
+  "nonempty_lines": 1681,
+  "chapters": 36,
+  "tasks": 108,
+  "first_task": "T001",
+  "last_task": "T108",
+  "duplicate_task_ids": 0,
+  "missing_local_references": [],
+  "html_rtl": true,
+  "html_task_headings": 108,
+  "html_navigation_chapters": 36,
+  "validation_type": "تحقق بنيوي وعدّ أسطر وفحص وجود الروابط المحلية؛ لم ينفذ اختبار بصري أو اختبارات التطبيق",
+  "markdown_sha256": "F5020B719200448CD635F08A1446B1CB47A6FB10B47431AE3E0E9FFAFB7A6632",
+  "html_sha256": "605B4F0F068E17F5534ABFAC7F189605775BF581A9FB2BD89B44146747DFCF78",
+  "performed": [
+    "قراءة ملفات وتقارير محلية",
+    "قراءة مراجع تقنية رسمية",
+    "إنشاء كتاب Markdown وHTML",
+    "فحص البنية والروابط والبصمات"
+  ],
+  "not_performed": [
+    "حذف ملفات أو مجلدات",
+    "تجميع أو بناء مشاريع",
+    "تشغيل اختبارات التطبيق",
+    "اتصال بالـVPS",
+    "نشر أو تغيير خدمة الإنتاج"
+  ]
+}

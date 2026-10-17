@@ -1,0 +1,27 @@
+{
+  "at": "2026-10-14T17:18:44.192164+00:00",
+  "source_thread_id": "01a13790-58de-77f2-b550-7d764121ea7b",
+  "source_recovered_from_second_local_profile": true,
+  "schema_version": 27,
+  "commerce_tables": 35,
+  "backend_rpcs": 74,
+  "commerce_tests": 248,
+  "telegram_tests": 247,
+  "concurrent_note_attempts": 32,
+  "denied_other_quote_attempts": 16,
+  "synthetic_payments": 1,
+  "new_production_payments": 0,
+  "old_wallets_imported": false,
+  "app_restarted": false,
+  "bot_intake_enabled": false,
+  "binance_note_live_echo_verified": false,
+  "binance_note_public_enabled": false,
+  "live_probe": "471d7d4a5303e3827b993462.json",
+  "new_unbounded_goal_created": false,
+  "proofs": [
+    "runtime_verification_20261014T171557Z.json",
+    "acceptance_commerce_acceptance_4ef26f28cb70.json",
+    "acceptance_customer_commerce_379be492bce6.json",
+    "acceptance_binance_note_fbc4eaab7284.json"
+  ]
+}

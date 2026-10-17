@@ -2,18 +2,22 @@
 Serves static assets, templates, and provides JSON endpoints.
 """
 from __future__ import annotations
+from contextlib import nullcontext
 
-import json
+from domain import decimal_json as json
 import logging
 import mimetypes
 from http.server import BaseHTTPRequestHandler
 from pathlib import Path
 from typing import Any, Optional
 from urllib.parse import urlparse
+from urllib.parse import unquote
+from server.access import local_request,workspace_file,MAX_JSON_BODY,MAX_UPLOAD_BYTES
 
 from domain.workbook import inspect_sheet_schema
 from manager.orchestrator import Orchestrator
 from manager.queue import QueueService
+from manager.pricing import billing_summary
 
 logger = logging.getLogger("WebAPI")
 
@@ -24,33 +28,64 @@ class WebApiHandler(BaseHTTPRequestHandler):
     web_ui_dir: Path
     project_root: Path
 
+    def _local_access(self):
+        if local_request(self):return True
+        self.send_json(403,{'status':'error','message':'واجهة الإدارة متاحة محليًا من مصدر البرنامج فقط'})
+        return False
+
+    def _workbook_path(self,value):
+        try:
+            candidate=Path(value)
+            if candidate.is_absolute():
+                candidate=candidate.resolve()
+                if candidate.parent!=self.project_root.resolve():raise ValueError('Outside workspace')
+                value=candidate.name
+            return workspace_file(self.project_root,value,suffixes={'.xlsx','.xls'},flat=True)
+        except (TypeError,ValueError):
+            self.send_json(403,{'status':'error','message':'اختر ملف إكسل من مجلد البرنامج'})
+            raise ValueError('Workbook path not allowed') from None
+
+    def do_OPTIONS(self):
+        if not self._local_access():return
+        self.send_response(204);self.send_header('Allow','GET, POST, OPTIONS');self.end_headers()
+
     def log_message(self, format: str, *args: Any) -> None:
         # Suppress noisy standard HTTP access logs
         pass
 
     def send_json(self, status_code: int, data: dict[str, Any]) -> None:
-        raw = json.dumps(data, ensure_ascii=False).encode("utf-8")
-        self.send_response(status_code)
-        self.send_header("Content-Type", "application/json; charset=utf-8")
-        self.send_header("Content-Length", str(len(raw)))
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.end_headers()
-        self.wfile.write(raw)
+        try:
+            raw = json.dumps(data, ensure_ascii=False).encode("utf-8")
+            self.send_response(status_code)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(raw)))
+            self.send_header('Cache-Control','no-store')
+            self.send_header('X-Content-Type-Options','nosniff')
+            self.end_headers()
+            self.wfile.write(raw)
+        except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
+            pass
 
     def send_file_response(self, file_path: Path) -> None:
         if not file_path.exists() or not file_path.is_file():
             self.send_error(404, "File Not Found")
             return
-        mime_type, _ = mimetypes.guess_type(str(file_path))
-        mime_type = mime_type or "application/octet-stream"
-        raw = file_path.read_bytes()
-        self.send_response(200)
-        self.send_header("Content-Type", f"{mime_type}; charset=utf-8" if "text" in mime_type or "javascript" in mime_type else mime_type)
-        self.send_header("Content-Length", str(len(raw)))
-        self.end_headers()
-        self.wfile.write(raw)
+        try:
+            mime_type, _ = mimetypes.guess_type(str(file_path))
+            mime_type = mime_type or "application/octet-stream"
+            raw = file_path.read_bytes()
+            self.send_response(200)
+            self.send_header("Content-Type", f"{mime_type}; charset=utf-8" if "text" in mime_type or "javascript" in mime_type else mime_type)
+            self.send_header("Content-Length", str(len(raw)))
+            self.send_header('X-Content-Type-Options','nosniff')
+            self.send_header('X-Frame-Options','DENY')
+            self.end_headers()
+            self.wfile.write(raw)
+        except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
+            pass
 
     def do_GET(self) -> None:
+        if not self._local_access():return
         parsed = urlparse(self.path)
         path = parsed.path
 
@@ -62,7 +97,10 @@ class WebApiHandler(BaseHTTPRequestHandler):
 
         if path.startswith("/static/"):
             rel_path = path[len("/static/"):]
-            target = self.web_ui_dir / "static" / rel_path
+            try:target=workspace_file(self.web_ui_dir/'static',unquote(rel_path))
+            except ValueError:
+                self.send_json(403,{'status':'error','message':'الملف خارج ملفات الواجهة المسموحة'})
+                return
             self.send_file_response(target)
             return
 
@@ -89,6 +127,8 @@ class WebApiHandler(BaseHTTPRequestHandler):
                 self.wfile.write(raw)
         elif path == "/api/queue":
             self.handle_get_queue()
+        elif path == "/api/pricing":
+            self.send_json(200, {"status":"ok", "settings":self.queue_service.pricing_settings.get()})
         elif path == "/api/telegram/status":
             self.handle_telegram_status()
         elif path == "/api/check-sheet-status":
@@ -106,8 +146,34 @@ class WebApiHandler(BaseHTTPRequestHandler):
             is_current = query_params.get("current", ["0"])[0] == "1"
 
             if is_current:
+                if getattr(self.orchestrator, 'is_running', False) or getattr(self.orchestrator, 'is_finalizing', False):
+                    self.send_json(409, {'status':'error', 'message':'الفحص قيد التشغيل حالياً. أوقف الفحص أولاً لتحميل النتائج.'})
+                    return
                 res_file = self.orchestrator.result_path
                 download_name = res_file.name
+                try:
+                    records = list(getattr(self.orchestrator, "all_completed_records", {}).values())
+                    if not records:
+                        wb_stem = getattr(self.orchestrator, 'workbook_stem', '') or (Path(self.orchestrator.workbook_name).stem if getattr(self.orchestrator, 'workbook_name', None) else '')
+                        if wb_stem:
+                            wal_candidates = [
+                                self.project_root / f".wal_{wb_stem}.jsonl",
+                                self.project_root / f".wal_repair_{wb_stem}.jsonl",
+                            ]
+                            for wal_cand in wal_candidates:
+                                if wal_cand.exists():
+                                    import json
+                                    with open(wal_cand, "r", encoding="utf-8") as f:
+                                        for line in f:
+                                            if line.strip():
+                                                records.append(json.loads(line.strip()))
+                    if records and (not res_file.exists() or getattr(self.orchestrator, 'result_ready', False) is False):
+                        from zain_checker.executive_reporter import export_executive_workbook
+                        mawarid = getattr(self.orchestrator, "mawarid_format", False) or any(bool(r.get("mawarid_format")) for r in records if isinstance(r, dict))
+                        export_executive_workbook(records, res_file, mawarid_format=mawarid)
+                        self.orchestrator.result_ready = True
+                except Exception as exp_err:
+                    logger.warning(f"On-demand export error: {exp_err}")
             elif job_id:
                 jobs = self.queue_service.get_jobs()
                 for j in jobs:
@@ -115,34 +181,60 @@ class WebApiHandler(BaseHTTPRequestHandler):
                         rf_name = j.get("result_file")
                         if rf_name:
                             candidate = Path(self.project_root) / rf_name
+                            if not candidate.exists() and j.get("completed", 0) > 0:
+                                wb_stem = Path(j.get("filename", "")).stem
+                                for wal_cand in self.project_root.glob(f".wal*{wb_stem}*.jsonl"):
+                                    try:
+                                        import json
+                                        recs = []
+                                        with open(wal_cand, "r", encoding="utf-8") as f:
+                                            for line in f:
+                                                if line.strip():
+                                                    recs.append(json.loads(line.strip()))
+                                        if recs:
+                                            from zain_checker.executive_reporter import export_executive_workbook
+                                            col_map = j.get("column_mapping") or {}
+                                            mawarid = bool(col_map.get("mawarid_format"))
+                                            export_executive_workbook(recs, candidate, mawarid_format=mawarid)
+                                            break
+                                    except Exception:
+                                        pass
                             if candidate.exists():
                                 res_file = candidate
                                 download_name = rf_name
                         break
             elif requested_file:
-                candidate = Path(self.project_root) / requested_file
+                try:candidate=workspace_file(self.project_root,requested_file,suffixes={'.xlsx','.xls'},flat=True)
+                except ValueError:
+                    self.send_json(403,{'status':'error','message':'اختر ملف نتيجة إكسل من مجلد البرنامج'})
+                    return
                 if candidate.exists():
                     res_file = candidate
                     download_name = requested_file
 
             if not res_file or not res_file.exists():
+                if is_current or job_id or requested_file:
+                    self.send_json(404, {'status':'error', 'message':'ملف نتيجة الشيت المحدد غير موجود.'})
+                    return
                 res_file = Path(self.project_root).resolve() / "نتائج فحص زين.xlsx"
                 download_name = "نتائج فحص زين.xlsx"
 
-            try:
-                if (is_current or not job_id and not requested_file) and hasattr(self.orchestrator, "all_completed_records") and self.orchestrator.all_completed_records:
-                    from zain_checker.executive_reporter import export_executive_workbook
-                    export_executive_workbook(list(self.orchestrator.all_completed_records.values()), res_file)
-            except Exception as e:
-                logger.warning(f"On-demand export warning: {e}")
-
             if res_file.exists():
+                try:
+                    res_file=Path(res_file).resolve()
+                    if not res_file.is_relative_to(self.project_root.resolve()) or res_file.suffix.lower() not in {'.xlsx','.xls'}:
+                        raise ValueError('Result is outside workspace')
+                except ValueError:
+                    self.send_json(403,{'status':'error','message':'مسار النتيجة غير مسموح'})
+                    return
                 raw = res_file.read_bytes()
                 encoded_name = quote(download_name.encode('utf-8'))
                 self.send_response(200)
                 self.send_header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
                 self.send_header("Content-Disposition", f"attachment; filename*=UTF-8''{encoded_name}")
                 self.send_header("Content-Length", str(len(raw)))
+                self.send_header('Cache-Control','no-store')
+                self.send_header('X-Content-Type-Options','nosniff')
                 self.end_headers()
                 self.wfile.write(raw)
             else:
@@ -152,20 +244,29 @@ class WebApiHandler(BaseHTTPRequestHandler):
             self.send_json(404, {"status": "error", "message": f"Endpoint {path} not found"})
 
     def do_POST(self) -> None:
+        if not self._local_access():return
         parsed = urlparse(self.path)
         path = parsed.path
-        if path.startswith("/api/telegram/"):
+        if path.startswith("/api/telegram/") or path in ("/api/pricing", "/api/queue/pricing"):
             origin = self.headers.get("Origin")
             if origin and urlparse(origin).netloc != self.headers.get("Host"):
                 self.send_json(403, {"status": "error", "message": "مصدر الطلب غير مسموح"})
                 return
 
-        content_length = int(self.headers.get("Content-Length", 0))
-        body = self.rfile.read(content_length).decode("utf-8") if content_length > 0 else "{}"
+        try:content_length=int(self.headers.get('Content-Length',0))
+        except (ValueError,TypeError):
+            self.send_json(400,{'status':'error','message':'حجم الطلب غير صالح'});return
+        if content_length<0 or content_length>MAX_JSON_BODY or self.headers.get('Transfer-Encoding'):
+            self.send_json(413,{'status':'error','message':'الطلب أكبر من الحد المسموح أو غير صالح'});return
+        if self.headers.get('Content-Type','').split(';',1)[0].strip().lower()!='application/json':
+            self.send_json(415,{'status':'error','message':'نوع الطلب غير مسموح'});return
         try:
+            body = self.rfile.read(content_length).decode("utf-8") if content_length > 0 else "{}"
             payload = json.loads(body) if body.strip() else {}
-        except Exception:
-            payload = {}
+        except (ValueError,UnicodeError):
+            self.send_json(400,{'status':'error','message':'بيانات الطلب غير صالحة'});return
+        if not isinstance(payload,dict):
+            self.send_json(400,{'status':'error','message':'أرسل بيانات طلب صحيحة'});return
 
         if path == "/api/upload-workbook":
             self.handle_upload_workbook(payload)
@@ -175,12 +276,16 @@ class WebApiHandler(BaseHTTPRequestHandler):
             self.orchestrator.pause_session()
             self.send_json(200, {"status": "ok", "message": "Session paused"})
         elif path == "/api/resume-session":
-            from workers.stealth_service_engine import pending_verifications
-            if pending_verifications():
-                self.send_json(409, {"status": "error", "message": "أكمل التحقق الظاهر قبل استئناف الفحص"})
-                return
             self.orchestrator.resume_session()
             self.send_json(200, {"status": "ok", "message": "Session resumed"})
+        elif path == "/api/service-route/resume":
+            origin = self.headers.get('Origin')
+            if origin and urlparse(origin).netloc != self.headers.get('Host'):
+                self.send_json(403, {'status':'error', 'message':'مصدر الطلب غير مسموح'})
+                return
+            resumed = self.orchestrator.resume_service_route(str(payload.get('worker_id', '')))
+            self.send_json(200 if resumed else 409, {'status':'ok' if resumed else 'error',
+                'message':'أُعيدت إتاحة مسار الخدمة' if resumed else 'أكمل التحقق الجاري، أو حدّث حالة المسار'})
         elif path == "/api/service-verification-submit":
             origin = self.headers.get("Origin")
             if origin and urlparse(origin).netloc != self.headers.get("Host"):
@@ -191,6 +296,9 @@ class WebApiHandler(BaseHTTPRequestHandler):
             self.send_json(200 if accepted else 409, {"status": "ok" if accepted else "error",
                             "message": "تم إرسال الرمز؛ انتظر نتيجة زين" if accepted else "التحدي منتهٍ أو سبق إرسال الرمز"})
         elif path == "/api/cancel-session":
+            if getattr(self.orchestrator, 'is_finalizing', False):
+                self.send_json(409, {'status':'error', 'message':'يجري حفظ النتائج. انتظر اكتمال الحفظ.'})
+                return
             self.orchestrator.cancel_session()
             self.send_json(200, {"status": "ok", "message": "Session cancelled"})
         elif path == "/api/inspect-sheet-columns":
@@ -198,7 +306,7 @@ class WebApiHandler(BaseHTTPRequestHandler):
         elif path == "/api/validate-sheet":
             wb_name = str(payload.get("workbook", ""))
             try:
-                checked = self._validate_input_sheet(self.project_root/wb_name, int(payload.get("sheet_index",0)),
+                checked = self._validate_input_sheet(workspace_file(self.project_root,wb_name,suffixes={'.xlsx','.xls'},flat=True), int(payload.get("sheet_index",0)),
                     payload.get("column_mapping") or {}, payload.get("mode","smart_hybrid"), payload.get("amount_target","remaining"))
             except (TypeError,ValueError):
                 self.send_json(400,{"status":"error","message":"حدد ورقة عمل صحيحة."})
@@ -207,6 +315,8 @@ class WebApiHandler(BaseHTTPRequestHandler):
                 self.send_json(200,{"status":"ok","validation":{"ok":True,"rows":checked[2],"problems":[]}})
         elif path == "/api/queue/add":
             self.handle_queue_add(payload)
+        elif path in ("/api/pricing", "/api/queue/pricing"):
+            self.handle_pricing(path, payload)
         elif path == "/api/queue/remove":
             self.handle_queue_remove(payload)
         elif path == "/api/queue/restart":
@@ -214,7 +324,7 @@ class WebApiHandler(BaseHTTPRequestHandler):
         elif path == "/api/queue/restart-all":
             self.handle_queue_restart_all(payload)
         elif path == "/api/queue/start":
-            self.handle_queue_start()
+            self.handle_queue_start(payload)
         elif path == "/api/telegram/test-ping":
             self.handle_telegram_ping()
         elif path in ("/api/telegram/check-connection", "/api/telegram/toggle", "/api/telegram/send-results"):
@@ -230,7 +340,9 @@ class WebApiHandler(BaseHTTPRequestHandler):
             except (ValueError, TypeError):
                 row_val = None
             wb_name = payload.get("workbook")
-            wb_path = self.project_root / wb_name if wb_name else None
+            try:wb_path=workspace_file(self.project_root,wb_name,suffixes={'.xlsx','.xls'},flat=True) if wb_name else None
+            except ValueError:
+                self.send_json(403,{'status':'error','message':'مسار الملف غير مسموح'});return
             sheet_idx = int(payload.get("sheet_index", 0))
             res = self.orchestrator.repair_errors(row=row_val, workbook_path=wb_path, sheet_index=sheet_idx)
             code = 200 if res.get("status") in ("ok", "info") else 400
@@ -250,10 +362,8 @@ class WebApiHandler(BaseHTTPRequestHandler):
         default_sheets = []
         if xlsx_files:
             try:
-                from openpyxl import load_workbook
-                wb = load_workbook(self.project_root / xlsx_files[0], read_only=True)
-                default_sheets = wb.sheetnames
-                wb.close()
+                from domain.workbook import get_workbook_sheet_names
+                default_sheets = get_workbook_sheet_names(self.project_root / xlsx_files[0])
             except Exception:
                 pass
 
@@ -267,22 +377,24 @@ class WebApiHandler(BaseHTTPRequestHandler):
         from urllib.parse import parse_qs
         qs = parse_qs(parsed.query)
         wb_name = qs.get("workbook", ["2.xlsx"])[0]
-        wb_path = self.project_root / Path(wb_name).name
+        try:wb_path=self._workbook_path(wb_name)
+        except ValueError:return
         if not wb_path.exists():
             self.send_json(404, {"status": "error", "message": f"Workbook not found: {wb_name}"})
             return
         try:
-            from openpyxl import load_workbook
-            wb = load_workbook(wb_path, read_only=True)
-            sheets = wb.sheetnames
-            wb.close()
+            from domain.workbook import get_workbook_sheet_names
+            sheets = get_workbook_sheet_names(wb_path)
             self.send_json(200, {"status": "ok", "workbook": wb_name, "sheets": sheets})
         except Exception as exc:
             self.send_json(500, {"status": "error", "message": str(exc)})
 
     def handle_upload_workbook(self, payload: dict[str, Any]) -> None:
-        filename = payload.get("filename", "").strip()
-        data_base64 = payload.get("data_base64", "").strip()
+        filename = payload.get("filename", "")
+        data_base64 = payload.get("data_base64", "")
+        if not isinstance(filename,str) or not isinstance(data_base64,str):
+            self.send_json(400,{'status':'error','message':'اسم الملف وبياناته غير صالحين'});return
+        filename=filename.strip();data_base64=data_base64.strip()
         if not filename or not data_base64:
             self.send_json(400, {"status": "error", "message": "Missing filename or file data"})
             return
@@ -291,37 +403,64 @@ class WebApiHandler(BaseHTTPRequestHandler):
         clean_name = Path(filename).name
         if not clean_name.lower().endswith((".xlsx", ".xls")):
             clean_name += ".xlsx"
-        target_path = self.project_root / clean_name
         try:
-            raw_bytes = base64.b64decode(data_base64)
-            target_path.write_bytes(raw_bytes)
-            from openpyxl import load_workbook
-            wb = load_workbook(target_path, read_only=True)
-            sheets = wb.sheetnames
-            wb.close()
-            self.send_json(200, {"status": "ok", "filename": clean_name, "sheets": sheets})
+            import uuid
+            target_path=workspace_file(self.project_root,clean_name,suffixes={'.xlsx','.xls'},flat=True)
+            raw_bytes = base64.b64decode(data_base64,validate=True)
+            if len(raw_bytes)>MAX_UPLOAD_BYTES or not (raw_bytes.startswith(b'PK\x03\x04') or raw_bytes.startswith(b'\xd0\xcf\x11\xe0')):
+                raise ValueError('Invalid Excel upload')
+            if target_path.exists():target_path=target_path.with_name(target_path.stem+'_'+uuid.uuid4().hex[:12]+target_path.suffix)
+            with target_path.open('xb') as stream:stream.write(raw_bytes)
+            from domain.workbook import get_workbook_sheet_names
+            sheets = get_workbook_sheet_names(target_path)
+            self.send_json(200, {"status": "ok", "filename": target_path.name, "sheets": sheets})
         except Exception as exc:
-            self.send_json(500, {"status": "error", "message": str(exc)})
+            self.send_json(400, {"status": "error", "message": 'تعذر قراءة ملف إكسل صالح. أعد حفظه وأرسله من جديد.'})
 
     def handle_live_status(self) -> None:
-        status = self.orchestrator.get_live_status()
+        with getattr(self.orchestrator, 'lock', nullcontext()):
+            status = self.orchestrator.get_live_status()
+            job_id = getattr(self.orchestrator, 'current_job_id', None)
+            status['current_job_id'] = job_id
+            job = self.queue_service.get_job(job_id) if job_id else None
+            status['billing'] = billing_summary(job.pricing, status['kpis']['total'],
+                status['kpis']['completed'], 'completed' if not status['running'] and
+                status['kpis']['completed'] >= status['kpis']['total'] else 'active') if job else None
         self.send_json(200, status)
 
     def handle_get_queue(self) -> None:
         jobs = self.queue_service.get_jobs()
+        for job in jobs:
+            job['billing'] = billing_summary(job.get('pricing'), job.get('total_records', 0),
+                job.get('completed', 0), job.get('status', 'pending'))
         self.send_json(200, {"status": "ok", "jobs": jobs})
+
+    def handle_pricing(self, path, payload):
+        try:
+            if path == '/api/pricing':
+                settings = self.queue_service.pricing_settings.save(payload)
+                self.send_json(200, {'status':'ok', 'settings':settings})
+            elif self.queue_service.update_job_pricing(str(payload.get('job_id', '')), payload):
+                self.send_json(200, {'status':'ok'})
+            else:
+                self.send_json(409, {'status':'error', 'message':'يمكن تعديل سعر شيت ينتظر الفحص ولم يبدأ بعد فقط.'})
+        except ValueError as exc:
+            self.send_json(400, {'status':'error', 'message':str(exc)})
+        except OSError:
+            self.send_json(500, {'status':'error', 'message':'تعذر حفظ السعر. تحقق من صلاحيات مجلد البرنامج.'})
 
     def handle_inspect_sheet_columns(self, payload: dict[str, Any]) -> None:
         wb_name = payload.get("workbook", "2.xlsx")
-        wb_path = self.project_root / wb_name if not Path(wb_name).is_absolute() else Path(wb_name)
+        try:wb_path=self._workbook_path(wb_name)
+        except ValueError:return
         sheet_idx = int(payload.get("sheet_index", 0))
 
         if not wb_path.exists():
             self.send_json(404, {"status": "error", "message": f"File not found: {wb_name}"})
             return
 
-        from openpyxl import load_workbook
-        wb = load_workbook(wb_path, read_only=True, data_only=True)
+        from domain.workbook import load_fast_workbook
+        wb = load_fast_workbook(wb_path)
         try:
             ws = wb.worksheets[sheet_idx] if 0 <= sheet_idx < len(wb.worksheets) else wb.worksheets[0]
             has_headers = payload.get("has_headers", True)
@@ -337,13 +476,18 @@ class WebApiHandler(BaseHTTPRequestHandler):
 
     def handle_start_session(self, payload: dict[str, Any]) -> None:
         wb_name = payload.get("workbook", "2.xlsx")
-        wb_path = self.project_root / wb_name if not Path(wb_name).is_absolute() else Path(wb_name)
+        try:wb_path=self._workbook_path(wb_name)
+        except ValueError:return
         sheet_idx = int(payload.get("sheet_index", 0))
         mapping = payload.get("column_mapping") or payload.get("custom_config") or {}
         mode = payload.get("mode") or payload.get("scope") or "smart_hybrid"
         amount_target = payload.get("amount_target", "contract")
         target_url = payload.get("target_url", "https://business.zain.sa/dashboard/quick-pay")
         result_file = payload.get("result_file")
+        if result_file:
+            try:workspace_file(self.project_root,result_file,suffixes={'.xlsx'},flat=True)
+            except ValueError:
+                self.send_json(403,{'status':'error','message':'اسم ملف النتيجة غير مسموح'});return
         force_restart = bool(payload.get("force_restart", False))
 
         # Check if queue has a saved job with full mapping for this workbook
@@ -377,7 +521,8 @@ class WebApiHandler(BaseHTTPRequestHandler):
 
     def handle_queue_add(self, payload: dict[str, Any]) -> None:
         wb_name = payload.get("workbook", "2.xlsx")
-        wb_path = self.project_root / wb_name if not Path(wb_name).is_absolute() else Path(wb_name)
+        try:wb_path=self._workbook_path(wb_name)
+        except ValueError:return
         sheet_idx = int(payload.get("sheet_index", 0))
         sheet_name = str(payload.get("sheet_name", f"Sheet {sheet_idx+1}"))
         mode = str(payload.get("mode", "smart_hybrid"))
@@ -387,10 +532,31 @@ class WebApiHandler(BaseHTTPRequestHandler):
         target_url = str(payload.get("target_url", "https://business.zain.sa/dashboard/quick-pay"))
         force_clean = bool(payload.get("force_clean", False) or payload.get("force_restart", False))
 
+        try:
+            self.queue_service.pricing_settings.quote(payload.get('pricing'))
+        except ValueError as exc:
+            self.send_json(400, {'status':'error', 'message':str(exc)})
+            return
+
         checked = self._validate_input_sheet(wb_path, sheet_idx, col_mapping, mode, amount_target)
         if not checked:
             return
         col_mapping, sheet_name, total_records = checked
+        previous_id = str(payload.get('recovery_job_id') or '')
+        previous = self.queue_service.get_job(previous_id) if previous_id else None
+        if previous_id:
+            if not previous or previous.filename != wb_path.name or previous.sheet_index != sheet_idx or previous.status == 'active':
+                self.send_json(409, {'status':'error', 'message':'تغيرت حالة الفحص السابق. حدّث مراجعة الملف.'})
+                return
+            if payload.get('recovery_choice') == 'resume':
+                same_mapping = all((col_mapping.get(key) or '') == (value or '') for key,value in previous.column_mapping.items())
+                if previous.status not in {'pending', 'failed'} or not same_mapping or previous.mode != mode or previous.amount_target != amount_target:
+                    self.send_json(409, {'status':'error', 'message':'للمتابعة، احتفظ باختيار الأعمدة وطريقة الفحص السابقة، أو اختر فحصًا جديدًا.'})
+                    return
+                previous.status = 'pending'
+                self.queue_service._save_to_disk()
+                self.send_json(200, {'status':'ok', 'job':previous.to_dict(), 'resumed':True})
+                return
         job = self.queue_service.add_job(
             file_path=wb_path,
             sheet_index=sheet_idx,
@@ -401,14 +567,30 @@ class WebApiHandler(BaseHTTPRequestHandler):
             column_mapping=col_mapping,
             total_records=total_records,
             force_clean=force_clean,
+            pricing=payload.get('pricing'),
         )
+        if payload.get('recovery_legacy') and payload.get('recovery_choice') == 'resume':
+            legacy = self.project_root / f'.checkpoint_{wb_path.stem}_{sheet_idx}.json'
+            if legacy.exists() or legacy.with_suffix(legacy.suffix+'.bak').exists():
+                job.checkpoint_file = legacy.name
+                from manager.checkpoint import CheckpointManager
+                saved = CheckpointManager(legacy).load()
+                job.completed = len(saved.get('completed_indices', []))
+                job.remaining = max(0,job.total_records-job.completed)
+                self.queue_service._save_to_disk()
+        if previous:
+            previous.status = 'archived'
+            self.queue_service._save_to_disk()
         self.send_json(200, {"status": "ok", "job": job.to_dict(), "jobs": self.queue_service.get_jobs()})
 
     def _validate_input_sheet(self, path, index, mapping, mode, amount_target):
-        from openpyxl import load_workbook
+        from domain.workbook import load_fast_workbook, inspect_sheet_schema
         from domain.workbook_validation import validate_sheet
         try:
-            wb = load_workbook(path, read_only=True, data_only=True)
+            path=Path(path).resolve()
+            if not path.is_relative_to(self.project_root.resolve()) or path.suffix.lower() not in {'.xlsx','.xls'}:
+                raise ValueError('Input is outside the workspace')
+            wb = load_fast_workbook(path)
             try:
                 if index < 0 or index >= len(wb.worksheets):
                     raise ValueError("Unknown worksheet")
@@ -441,23 +623,30 @@ class WebApiHandler(BaseHTTPRequestHandler):
             return
         self.send_json(200, {"status": "ok", "removed": removed, "jobs": self.queue_service.get_jobs()})
 
-    def handle_queue_start(self) -> None:
-        with self.orchestrator.lock:
-            jobs = self.queue_service.get_jobs()
-            if self.orchestrator.is_running or any(job.get("status") == "active" for job in jobs):
-                self.send_json(409, {"status":"error","message":"هناك جولة نشطة. تابع الحالة أو استأنف الفحص المتوقف مؤقتًا."})
+    def handle_queue_start(self, payload=None) -> None:
+        job_id = str((payload or {}).get('job_id') or '')
+        jobs = self.queue_service.get_jobs()
+        is_run = getattr(self.orchestrator, 'is_running', False)
+        is_fin = getattr(self.orchestrator, 'is_finalizing', False)
+        if (is_run is True) or (is_fin is True) or any(job.get("status") == "active" for job in jobs):
+            self.send_json(409, {"status":"error","message":"هناك جولة نشطة. تابع الحالة أو استأنف الفحص المتوقف مؤقتًا."})
+            return
+        pending = [job for job in jobs if (not job_id and job.get('status') == 'pending') or (job_id and job['id'] == job_id and job['status'] in {'pending','failed'})]
+        if not pending:
+            self.send_json(400, {"status":"error","message":"تحقق من ملف وأضفه إلى الجولة أولًا."})
+            return
+        for job in pending:
+            if not self._validate_input_sheet(self.project_root/job["filename"], job["sheet_index"],
+                job.get("column_mapping",{}), job.get("mode","smart_hybrid"), job.get("amount_target","remaining")):
                 return
-            pending = [job for job in jobs if job.get("status") == "pending"]
-            if not pending:
-                self.send_json(400, {"status":"error","message":"تحقق من ملف وأضفه إلى الجولة أولًا."})
-                return
-            for job in pending:
-                if not self._validate_input_sheet(self.project_root/job["filename"], job["sheet_index"],
-                    job.get("column_mapping",{}), job.get("mode","smart_hybrid"), job.get("amount_target","remaining")):
-                    return
-            success = self.orchestrator.start_queue()
+        if job_id:
+            selected = self.queue_service.get_job(job_id)
+            if selected:
+                selected.status = 'pending'
+                self.queue_service._save_to_disk()
+        success = self.orchestrator.start_queue(job_id=job_id) if job_id else self.orchestrator.start_queue()
         self.send_json(200 if success else 409, {"status":"ok" if success else "error",
-            "message":"بدأت الجولة. تُفحص الملفات بالتتابع والنتائج بعد اكتمالها." if success else "تعذر البدء. حدّث الحالة والطابور."})
+            "message":"بدأت الجولة. تُفحص الملفات بالتتابع والنتائج بعد اكتمالها." if success else getattr(self.orchestrator,'start_error','') or "تعذر البدء. حدّث الحالة والطابور."})
 
     def handle_telegram_status(self) -> None:
         integration = getattr(self.orchestrator, "telegram_integration", None)
@@ -504,6 +693,9 @@ class WebApiHandler(BaseHTTPRequestHandler):
                 self.send_json(409, {"status": "error", "message": "فعّل التلقرام قبل إرسال النتائج"})
                 return
             with self.orchestrator.lock:
+                if getattr(self.orchestrator,'is_running',False) or getattr(self.orchestrator,'is_finalizing',False):
+                    self.send_json(409, {'status':'error','message':'انتظر اكتمال تجهيز نتائج الجلسة قبل إرسال الملف النهائي'})
+                    return
                 records = list(self.orchestrator.all_completed_records.values())
                 target = self.orchestrator.result_path
             if not records:
@@ -511,7 +703,8 @@ class WebApiHandler(BaseHTTPRequestHandler):
                 return
             try:
                 from zain_checker.executive_reporter import export_executive_workbook
-                export_executive_workbook(records, target)
+                mawarid = getattr(self.orchestrator, "mawarid_format", False) or any(bool(r.get("mawarid_format")) for r in records if isinstance(r, dict))
+                export_executive_workbook(records, target, mawarid_format=mawarid)
                 accepted = integration.notifier.send_excel_document(target, caption="نتائج الجلسة من لوحة تشيك", wait=True)
                 self.send_json(200 if accepted else 502, {"status": "ok" if accepted else "error",
                     "message": "أكد تلقرام استلام ملف النتائج" if accepted else "لم يؤكد تلقرام إرسال الملف"})
@@ -527,12 +720,13 @@ class WebApiHandler(BaseHTTPRequestHandler):
         except (ValueError, TypeError):
             sheet_idx = 0
 
-        wb_path = self.project_root / wb_name if not Path(wb_name).is_absolute() else Path(wb_name)
+        try:wb_path=self._workbook_path(wb_name)
+        except ValueError:return
         wb_stem = wb_path.stem
 
         job = self.queue_service.get_job_by_file_and_sheet(wb_path.name, sheet_idx)
-        chk_path = self.project_root / f".checkpoint_{wb_stem}_{sheet_idx}.json"
-        has_checkpoint = chk_path.exists()
+        chk_path = self.project_root / (job.checkpoint_file if job and job.checkpoint_file else f".checkpoint_{wb_stem}_{sheet_idx}.json")
+        has_checkpoint = chk_path.exists() or chk_path.with_suffix(chk_path.suffix+'.bak').exists()
         completed_count = 0
         matches = 0
         mismatches = 0
@@ -548,15 +742,16 @@ class WebApiHandler(BaseHTTPRequestHandler):
             errors = job.errors
             total_records = job.total_records
             sheet_name = job.sheet_name
-            is_completed = (job.status == "completed" or (total_records > 0 and completed_count >= total_records))
+            is_completed = job.status in {'completed', 'archived'}
 
         if has_checkpoint and completed_count == 0:
             try:
-                raw_chk = json.loads(chk_path.read_text(encoding="utf-8"))
+                from manager.checkpoint import CheckpointManager
+                raw_chk = CheckpointManager(chk_path).load()
                 completed_count = len(raw_chk.get("completed_indices", []))
                 mismatches = len(raw_chk.get("mismatches", []))
                 matches = max(0, completed_count - mismatches)
-                if total_records > 0 and completed_count >= total_records:
+                if not job and total_records > 0 and completed_count >= total_records:
                     is_completed = True
             except Exception:
                 pass
@@ -573,6 +768,11 @@ class WebApiHandler(BaseHTTPRequestHandler):
             "filename": wb_path.name,
             "sheet_name": sheet_name,
             "job_id": job.id if job else None,
+            "column_mapping": job.column_mapping if job else None,
+            "pricing": job.pricing if job else None,
+            "mode": job.mode if job else None,
+            "amount_target": job.amount_target if job else None,
+            "can_resume": job.status in {'pending','failed'} if job else not is_completed,
         })
 
     def handle_queue_restart(self, payload: dict[str, Any]) -> None:
@@ -620,15 +820,15 @@ class WebApiHandler(BaseHTTPRequestHandler):
             self.send_json(400, {"status": "error", "message": "Missing workbook name"})
             return
 
-        wb_path = self.project_root / wb_name if not Path(wb_name).is_absolute() else Path(wb_name)
+        try:wb_path=self._workbook_path(wb_name)
+        except ValueError:return
         if not wb_path.exists():
             self.send_json(404, {"status": "error", "message": f"Workbook not found: {wb_name}"})
             return
 
-        from openpyxl import load_workbook
-        from domain.workbook import inspect_sheet_schema, extract_customer_records
+        from domain.workbook import load_fast_workbook, inspect_sheet_schema, extract_customer_records
 
-        wb = load_workbook(wb_path, read_only=True, data_only=True)
+        wb = load_fast_workbook(wb_path)
         try:
             target_ws = None
             target_idx = sheet_idx
@@ -705,7 +905,8 @@ class WebApiHandler(BaseHTTPRequestHandler):
             self.send_json(400, {"status": "error", "message": "Missing workbook name"})
             return
 
-        wb_path = self.project_root / wb_name if not Path(wb_name).is_absolute() else Path(wb_name)
+        try:wb_path=self._workbook_path(wb_name)
+        except ValueError:return
         if not wb_path.exists():
             self.send_json(404, {"status": "error", "message": f"Workbook not found: {wb_name}"})
             return

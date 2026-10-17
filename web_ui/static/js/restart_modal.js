@@ -24,7 +24,7 @@ const RestartModal = {
     if (confirmBtn) {
       confirmBtn.onclick = async () => {
         const origText = confirmBtn.innerHTML;
-        confirmBtn.innerHTML = '⏳ جاري تصفير البيانات والبدء...';
+        confirmBtn.innerHTML = 'جارٍ تجهيز الجولة الجديدة…';
         confirmBtn.disabled = true;
         try {
           if (this.currentCallback) {

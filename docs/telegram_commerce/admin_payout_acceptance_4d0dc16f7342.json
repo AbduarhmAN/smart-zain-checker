@@ -1,0 +1,13 @@
+{
+  "at": "2026-10-16T15:06:50.500339+00:00",
+  "database": "commerce_admin_payout_4d0dc16f7342",
+  "isolated": true,
+  "transactional_sql_cases_passed": true,
+  "concurrent_requests": 8,
+  "unique_paid_withdrawals": 1,
+  "exact_amount_preserved": true,
+  "held_funds_unchanged": true,
+  "partner_ack_no_financial_write": true,
+  "production_financial_records_modified": false,
+  "partner_messages_sent": false
+}

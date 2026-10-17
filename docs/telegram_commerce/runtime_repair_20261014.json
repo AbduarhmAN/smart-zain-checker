@@ -1,0 +1,47 @@
+{
+  "at": "2026-10-14T19:19:54.776526+00:00",
+  "workspace": "E:\\Projects\\smart_zainchecker_gemini",
+  "app_pids": [
+    10352
+  ],
+  "financial_files_unchanged": {
+    "user_wallets.json": true,
+    "pending_payments.json": true
+  },
+  "bot_enabled": true,
+  "polling": true,
+  "last_bot_error": null,
+  "runtime_guard_tests": 3,
+  "access_tests": 19,
+  "commerce_tests": 258,
+  "actual_app_readback": {
+    "pid": 10352,
+    "credential_source": "dpapi",
+    "credential_file_exists": true,
+    "reads": [
+      {
+        "rpc": "health",
+        "ok": true,
+        "type": "dict"
+      },
+      {
+        "rpc": "customer_pricing",
+        "ok": true,
+        "type": "dict"
+      },
+      {
+        "rpc": "list_campaigns",
+        "ok": true,
+        "type": "list"
+      },
+      {
+        "rpc": "list_withdrawals",
+        "ok": true,
+        "type": "list"
+      }
+    ]
+  },
+  "customer_funding_operations_performed": false,
+  "legacy_wallets_imported": false,
+  "automatic_queue_enabled": false
+}

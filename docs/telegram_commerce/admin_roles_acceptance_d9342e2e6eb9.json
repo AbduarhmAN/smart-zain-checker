@@ -1,0 +1,12 @@
+{
+  "at": "2026-10-16T18:29:13.378370+00:00",
+  "database": "commerce_admin_roles_d9342e2e6eb9",
+  "production": false,
+  "native_review_before_grant": true,
+  "grant_waits_for_backend_ack": true,
+  "revoke_denies_immediately": true,
+  "lost_grant_and_revoke_acknowledgments_recovered": true,
+  "other_admins_preserved": true,
+  "no_financial_records_written": true,
+  "real_telegram_messages_sent": false
+}

@@ -1,0 +1,242 @@
+{
+  "run_at": "2026-10-14T02:02:14.889479+00:00",
+  "database": "commerce_acceptance_37ec27c7c90f",
+  "instance_directory": "E:\\Projects\\smart_zainchecker_gemini\\scratch\\commerce_pg_20261014\\data",
+  "production": false,
+  "checks": [
+    {
+      "test": "commerce_agreed_policies.sql",
+      "passed": true,
+      "stdout": "BEGIN\nDO\nCOMMIT",
+      "stderr": "psql:E:/Projects/smart_zainchecker_gemini/supabase/tests/commerce_agreed_policies.sql:33: NOTICE:  PASS: 30 EGP/check, wallet consent, checks/duration/forever and invalid terms rejection"
+    },
+    {
+      "test": "commerce_campaigns.sql",
+      "passed": true,
+      "stdout": "BEGIN\nDO\nROLLBACK",
+      "stderr": ""
+    },
+    {
+      "test": "commerce_cash_topups.sql",
+      "passed": true,
+      "stdout": "BEGIN\nDO\nROLLBACK",
+      "stderr": ""
+    },
+    {
+      "test": "commerce_checkout.sql",
+      "passed": true,
+      "stdout": "BEGIN\nDO\nROLLBACK",
+      "stderr": ""
+    },
+    {
+      "test": "commerce_commissions.sql",
+      "passed": true,
+      "stdout": "BEGIN\nDO\nROLLBACK",
+      "stderr": ""
+    },
+    {
+      "test": "commerce_foundation.sql",
+      "passed": true,
+      "stdout": "BEGIN\nDO\nCOMMIT",
+      "stderr": "psql:E:/Projects/smart_zainchecker_gemini/supabase/tests/commerce_foundation.sql:77: NOTICE:  PASS: identity, wallet separation, event replay/conflict, job ownership, settlement gate, single refund destination, cash proof, RLS and grants"
+    },
+    {
+      "test": "commerce_journal_integrity.sql",
+      "passed": true,
+      "stdout": "BEGIN\nDO\nCOMMIT",
+      "stderr": "psql:E:/Projects/smart_zainchecker_gemini/supabase/tests/commerce_journal_integrity.sql:32: NOTICE:  PASS: balanced journal, unique operation, immutable entry, rejected imbalance and atomic failure"
+    },
+    {
+      "test": "commerce_order_quotes.sql",
+      "passed": true,
+      "stdout": "BEGIN\nDO\nCOMMIT",
+      "stderr": "psql:E:/Projects/smart_zainchecker_gemini/supabase/tests/commerce_order_quotes.sql:38: NOTICE:  PASS: per-check pricing, atomic rows, frozen quote, conflicting replay, user ownership, duplicate/missing row and overflow"
+    },
+    {
+      "test": "commerce_partner_controls.sql",
+      "passed": true,
+      "stdout": "BEGIN\nDO\nCOMMIT",
+      "stderr": "psql:E:/Projects/smart_zainchecker_gemini/supabase/tests/commerce_partner_controls.sql:39: NOTICE:  PASS: partner modes, activation, version freeze, replay, invalid terms and profile/health"
+    },
+    {
+      "test": "commerce_payment_claims.sql",
+      "passed": true,
+      "stdout": "BEGIN\nSET\nDO\nROLLBACK",
+      "stderr": ""
+    },
+    {
+      "test": "commerce_payment_requests.sql",
+      "passed": true,
+      "stdout": "BEGIN\nSET\nDO\nROLLBACK",
+      "stderr": ""
+    },
+    {
+      "test": "commerce_referrals.sql",
+      "passed": true,
+      "stdout": "BEGIN\nDO\nCOMMIT",
+      "stderr": "psql:E:/Projects/smart_zainchecker_gemini/supabase/tests/commerce_referrals.sql:47: NOTICE:  PASS: unique partner code, shared link/manual attribution, first source, self-referral, new customer topup and prior paid eligibility"
+    },
+    {
+      "test": "commerce_wallet_settlement.sql",
+      "passed": true,
+      "stdout": "BEGIN\nDO\nCOMMIT",
+      "stderr": "psql:E:/Projects/smart_zainchecker_gemini/supabase/tests/commerce_wallet_settlement.sql:87: NOTICE:  PASS: funding isolation, reservation, consent, delivery gate, valid results charged, failed refund, full direct refund, replay and balanced journals"
+    },
+    {
+      "test": "16 concurrent registrations and 16 concurrent event replays",
+      "passed": true,
+      "users": 1,
+      "wallets": 2,
+      "events": 1
+    },
+    {
+      "test": "16 competing link/manual referrals preserve one first source",
+      "passed": true
+    },
+    {
+      "test": "16 concurrent order quotes preserve one order and two rows",
+      "passed": true
+    },
+    {
+      "test": "16 receipt replays, 16 competing reservations and 16 settlement replays",
+      "passed": true,
+      "payments": 1,
+      "funded_orders": 1,
+      "refunds": 1
+    },
+    {
+      "test": "16 quote issues and 16 bound-transfer confirmations",
+      "passed": true,
+      "quotes": 1,
+      "payments": 1,
+      "credited_minor": 3000
+    },
+    {
+      "test": "16 manual claim submissions and 16 approvals",
+      "passed": true,
+      "reviews": 1,
+      "payments": 1,
+      "credited_minor": 3000
+    },
+    {
+      "test": "16 authenticated cash receipt approvals",
+      "passed": true,
+      "receipts": 1,
+      "credited_minor": 3001
+    },
+    {
+      "test": "16 commission settlements, 16 competing withdrawals and 16 payout replays",
+      "passed": true,
+      "commissions": 1,
+      "commission_minor": 1200,
+      "paid_check_count": 1,
+      "held_withdrawals": 1,
+      "paid_minor": 800,
+      "ending_available_minor": 400
+    },
+    {
+      "test": "16 competing grants, 16 grant replays, 16 competing free quotes and cancellation reuse",
+      "passed": true,
+      "global_grants": 3,
+      "classified_promotional_minor": 9000,
+      "free_quotes": 2,
+      "released_quota_reused": true
+    },
+    {
+      "test": "actual client role denial and service role RPC",
+      "passed": true
+    }
+  ],
+  "files": [
+    {
+      "path": "supabase\\migrations\\202610140001_commerce_foundation.sql",
+      "sha256": "1c2357fcdc4179b2665c16292b7646af2152c34923278a85d7baa6e5be45381f",
+      "stdout": "BEGIN\nCREATE SCHEMA\nCREATE SCHEMA\nREVOKE\nGRANT\nALTER DEFAULT PRIVILEGES\nALTER DEFAULT PRIVILEGES\nALTER DEFAULT PRIVILEGES\nCREATE TABLE\nCREATE TABLE\nCREATE TABLE\nCREATE TABLE\nCREATE TABLE\nCREATE TABLE\nCREATE TABLE\nCREATE TABLE\nCREATE TABLE\nCREATE TABLE\nCREATE TABLE\nCREATE TABLE\nCREATE TABLE\nCREATE TABLE\nCREATE TABLE\nCREATE TABLE\nCREATE TABLE\nCREATE TABLE\nCREATE TABLE\nCREATE TABLE\nCREATE INDEX\nCREATE INDEX\nCREATE INDEX\nCREATE INDEX\nDO\nCOMMIT",
+      "stderr": ""
+    },
+    {
+      "path": "supabase\\migrations\\202610140002_commerce_identity_events.sql",
+      "sha256": "99b5ffc58f349f5db5aab42c3fbf9cc4b34d50ab6406abb976a26a94d44297d5",
+      "stdout": "BEGIN\nCREATE FUNCTION\nCREATE FUNCTION\nREVOKE\nREVOKE\nGRANT\nGRANT\nCOMMIT",
+      "stderr": ""
+    },
+    {
+      "path": "supabase\\migrations\\202610140003_commerce_journal_integrity.sql",
+      "sha256": "ee40c67a664854d8e05f4cb8063849ac141c91c8bdfaee94ba75593fb19225bb",
+      "stdout": "BEGIN\nCREATE FUNCTION\nCREATE TRIGGER\nCREATE TRIGGER\nCREATE FUNCTION\nCREATE TRIGGER\nCREATE TRIGGER\nREVOKE\nCOMMIT",
+      "stderr": ""
+    },
+    {
+      "path": "supabase\\migrations\\202610140004_commerce_agreed_policies.sql",
+      "sha256": "5458867ca8df113362c343bcc13f85225022338af12359ea711bb259b3e1e156",
+      "stdout": "BEGIN\nALTER TABLE\nCREATE TABLE\nALTER TABLE\nREVOKE\nREVOKE\nINSERT 0 1\nCOMMIT",
+      "stderr": ""
+    },
+    {
+      "path": "supabase\\migrations\\202610140005_commerce_referrals.sql",
+      "sha256": "6ac60f928909e44e5faf41c89d98abb1688474f40ef554ce3fa0f0b5fdb3bcbe",
+      "stdout": "BEGIN\nCREATE INDEX\nCREATE FUNCTION\nCREATE FUNCTION\nREVOKE\nGRANT\nCOMMIT",
+      "stderr": ""
+    },
+    {
+      "path": "supabase\\migrations\\202610140006_commerce_partner_controls.sql",
+      "sha256": "76a06d82dbc7e25eac01a5a667ca03819e64a2bc3940181985a9d0a2265a07bc",
+      "stdout": "BEGIN\nCREATE TABLE\nALTER TABLE\nREVOKE\nCREATE FUNCTION\nCREATE FUNCTION\nCREATE FUNCTION\nCREATE FUNCTION\nREVOKE\nGRANT\nCOMMIT",
+      "stderr": ""
+    },
+    {
+      "path": "supabase\\migrations\\202610140007_commerce_order_quotes.sql",
+      "sha256": "dcb9fae437912642089b99f269d4b61a948aa2725f7ba1de23d33e2a865f6ec2",
+      "stdout": "BEGIN\nALTER TABLE\nCREATE FUNCTION\nCREATE FUNCTION\nREVOKE\nGRANT\nCOMMIT",
+      "stderr": ""
+    },
+    {
+      "path": "supabase\\migrations\\202610140008_commerce_funding_reservations.sql",
+      "sha256": "da15cd7dd3164ffd02b0233e21beefc1bb8ff709e24df8cffdf6943caf3f203d",
+      "stdout": "BEGIN\nALTER TABLE\nCREATE FUNCTION\nREVOKE\nCREATE FUNCTION\nCREATE FUNCTION\nCREATE FUNCTION\nREVOKE\nGRANT\nCOMMIT",
+      "stderr": ""
+    },
+    {
+      "path": "supabase\\migrations\\202610140009_commerce_terminal_settlement.sql",
+      "sha256": "aa66fab840a6d8fa6e093c7c4692f6aeac068960b791f3373d45c88661560ee5",
+      "stdout": "BEGIN\nALTER TABLE\nALTER TABLE\nCREATE FUNCTION\nCREATE FUNCTION\nCREATE FUNCTION\nCREATE FUNCTION\nREVOKE\nGRANT\nCREATE FUNCTION\nCOMMIT",
+      "stderr": ""
+    },
+    {
+      "path": "supabase\\migrations\\202610140010_commerce_payment_requests.sql",
+      "sha256": "30f967006329c82ee1147e11e62972d68fbeaf949b595924ab38a05b7b70b8e0",
+      "stdout": "BEGIN\nCREATE TABLE\nALTER TABLE\nREVOKE\nCREATE FUNCTION\nCREATE FUNCTION\nCREATE FUNCTION\nCREATE FUNCTION\nCREATE FUNCTION\nREVOKE\nGRANT\nNOTIFY\nCOMMIT",
+      "stderr": ""
+    },
+    {
+      "path": "supabase\\migrations\\202610140011_commerce_checkout.sql",
+      "sha256": "e021ccd0c34a455047eeaa84fb06003ac6be1fee273be95f48f36d8da9d73285",
+      "stdout": "BEGIN\nCREATE FUNCTION\nCREATE FUNCTION\nALTER FUNCTION\nREVOKE\nCREATE FUNCTION\nCREATE FUNCTION\nREVOKE\nGRANT\nNOTIFY\nCOMMIT",
+      "stderr": ""
+    },
+    {
+      "path": "supabase\\migrations\\202610140012_commerce_payment_claims.sql",
+      "sha256": "19996a070f9c7adbf9407982e23f3792dc93420b853ad9527a85b4ff058032a6",
+      "stdout": "BEGIN\nALTER TABLE\nCREATE TABLE\nCREATE INDEX\nALTER TABLE\nREVOKE\nALTER FUNCTION\nREVOKE\nCREATE FUNCTION\nCREATE FUNCTION\nCREATE FUNCTION\nCREATE FUNCTION\nCREATE FUNCTION\nCREATE FUNCTION\nCREATE FUNCTION\nCREATE FUNCTION\nREVOKE\nGRANT\nNOTIFY\nCOMMIT",
+      "stderr": ""
+    },
+    {
+      "path": "supabase\\migrations\\202610140013_commerce_cash_topups.sql",
+      "sha256": "0d04b27190dc634ca7337915abdc4abb2caa0d393597f975ef7773090b162062",
+      "stdout": "BEGIN\nCREATE FUNCTION\nREVOKE\nGRANT\nCREATE FUNCTION\nNOTIFY\nCOMMIT",
+      "stderr": ""
+    },
+    {
+      "path": "supabase\\migrations\\202610140014_commerce_commissions.sql",
+      "sha256": "9fc25ee436c000d56a070bcf902f9afa4a97abf24ea68a208b527405eddd3444",
+      "stdout": "BEGIN\nDO\nALTER TABLE\nALTER TABLE\nALTER TABLE\nALTER TABLE\nALTER TABLE\nALTER TABLE\nALTER TABLE\nALTER TABLE\nALTER TABLE\nALTER TABLE\nALTER TABLE\nALTER TABLE\nALTER TABLE\nALTER TABLE\nCREATE FUNCTION\nCREATE FUNCTION\nCREATE TRIGGER\nREVOKE\nALTER FUNCTION\nREVOKE\nCREATE FUNCTION\nALTER FUNCTION\nREVOKE\nCREATE FUNCTION\nCREATE FUNCTION\nCREATE FUNCTION\nCREATE FUNCTION\nCREATE FUNCTION\nCREATE FUNCTION\nCREATE FUNCTION\nCREATE FUNCTION\nCREATE FUNCTION\nCREATE FUNCTION\nREVOKE\nGRANT\nCREATE FUNCTION\nNOTIFY\nCOMMIT",
+      "stderr": ""
+    },
+    {
+      "path": "supabase\\migrations\\202610140015_commerce_platform_campaigns.sql",
+      "sha256": "69ef112e690ee7aab050dd9bf48631674e7915adc3a7e657d3aed55fef8f33b3",
+      "stdout": "BEGIN\nALTER TABLE\nALTER TABLE\nALTER TABLE\nALTER TABLE\nALTER TABLE\nCREATE TABLE\nALTER TABLE\nREVOKE\nALTER TABLE\nALTER TABLE\nALTER TABLE\nALTER TABLE\nALTER TABLE\nALTER TABLE\nALTER TABLE\nALTER TABLE\nALTER TABLE\nALTER TABLE\nUPDATE 0\nCREATE FUNCTION\nCREATE FUNCTION\nCREATE FUNCTION\nCREATE INDEX\nCREATE FUNCTION\nCREATE FUNCTION\nCREATE FUNCTION\nCREATE FUNCTION\nALTER FUNCTION\nREVOKE\nCREATE FUNCTION\nCREATE FUNCTION\nREVOKE\nALTER FUNCTION\nALTER FUNCTION\nREVOKE\nCREATE FUNCTION\nREVOKE\nGRANT\nALTER FUNCTION\nALTER FUNCTION\nREVOKE\nCREATE FUNCTION\nCREATE FUNCTION\nCREATE FUNCTION\nCREATE FUNCTION\nCREATE FUNCTION\nREVOKE\nGRANT\nCREATE FUNCTION\nNOTIFY\nCOMMIT",
+      "stderr": ""
+    }
+  ]
+}

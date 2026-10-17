@@ -1,0 +1,26 @@
+{
+  "production_read_only": true,
+  "telegram_messages_sent": false,
+  "menus": [
+    {
+      "menu": "cg:list:0",
+      "rendered": true,
+      "error_panel": false
+    },
+    {
+      "menu": "oa:list:0",
+      "rendered": true,
+      "error_panel": false
+    },
+    {
+      "menu": "cp:list:0",
+      "rendered": true,
+      "error_panel": false
+    },
+    {
+      "menu": "pr:home:0",
+      "rendered": true,
+      "error_panel": false
+    }
+  ]
+}

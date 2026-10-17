@@ -5,7 +5,7 @@ Eliminates all floating-point rounding errors.
 from __future__ import annotations
 
 import re
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from typing import Any, Optional, Tuple
 
 TOLERANCE_HALALAS = 20  # 0.20 SAR acceptable tolerance threshold
@@ -19,7 +19,7 @@ def sanitize_amount_string(raw: Any) -> str:
     if not text:
         return ""
 
-    # Translate Arabic-Indic numerals (٠١٢٣٤٥٦٧٨٩) to standard ASCII
+    # Translate Arabic-Indic numerals (٠١٢٣٤٥٦٧٨٩٫) to standard ASCII
     arabic_to_ascii = str.maketrans("٠١٢٣٤٥٦٧٨٩٫", "0123456789.")
     text = text.translate(arabic_to_ascii)
 
@@ -27,12 +27,26 @@ def sanitize_amount_string(raw: Any) -> str:
     for noise in ("ر.س", "ر.س.", "ريال", "SAR", "sar", "SR", "sr", "%"):
         text = text.replace(noise, "")
 
-    # Remove thousands separators and extra whitespace
-    text = text.replace(",", "").replace(" ", "").strip()
+    text = text.replace(" ", "").strip()
 
     # Handle accounting parentheses: (123.45) -> -123.45
     if text.startswith("(") and text.endswith(")"):
         text = "-" + text[1:-1].strip()
+
+    # Detect European formatting vs standard:
+    if "." in text and "," in text:
+        if text.rfind(",") > text.rfind("."):
+            # European: 1.234,56 -> 1234.56
+            text = text.replace(".", "").replace(",", ".")
+        else:
+            # Standard: 1,234.56 -> 1234.56
+            text = text.replace(",", "")
+    elif "," in text and "." not in text:
+        # Check if comma is followed by 3 digits (thousand separator) or 1-2 digits (decimal)
+        if re.search(r",\d{3}$", text):
+            text = text.replace(",", "")
+        else:
+            text = text.replace(",", ".")
 
     return text
 
@@ -47,7 +61,7 @@ def parse_money_to_halalas(raw: Any) -> Optional[int]:
     if isinstance(raw, (int, float)):
         try:
             dec = Decimal(str(raw))
-            return int((dec * Decimal(100)).to_integral_value())
+            return int((dec * Decimal(100)).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
         except (InvalidOperation, ValueError, OverflowError):
             return None
 
@@ -57,7 +71,7 @@ def parse_money_to_halalas(raw: Any) -> Optional[int]:
 
     try:
         dec = Decimal(cleaned)
-        return int((dec * Decimal(100)).to_integral_value())
+        return int((dec * Decimal(100)).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
     except (InvalidOperation, ValueError, OverflowError):
         return None
 

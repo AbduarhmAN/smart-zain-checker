@@ -1,0 +1,36 @@
+{
+  "started_at": "2026-10-16T14:40:50.472483+00:00",
+  "threads": 10,
+  "queries_per_thread": 100,
+  "pause_seconds": 0.5,
+  "timeout_seconds": 30,
+  "sample_accounts": 1000,
+  "same_first_10_configured_routes_as_baseline": true,
+  "production_api_used": true,
+  "body_compression": "gzip accepted",
+  "automatic_retry": "at most one idempotent GET retry only after a reused connection reset/EOF, same proxy",
+  "measurement": "Opaque TCP payload in both directions, including SOCKS/TLS; excludes TCP/IP headers, DNS and TCP retransmissions.",
+  "privacy": "No lookup numbers, balances, response bodies, proxy endpoints or credentials stored.",
+  "source": {
+    "source_filename": "\u0627\u064a\u062c\u0627\u0628\u064a + \u0628\u0644\u0627\u0646\u0643 .xlsx",
+    "source_sha256": "64f0dc7975e90fbc3b04959566a80a9d4489010872f8bc83b371d50ea71a16f2",
+    "source_sheet": "Sheet1",
+    "source_account_column": 11,
+    "source_header": "\u0631\u0642\u0645 \u0627\u0644\u062d\u0633\u0627\u0628",
+    "source_rows": [
+      2,
+      1001
+    ],
+    "selected_rows": 1000,
+    "unique_accounts": 1000,
+    "blank_rows": [],
+    "prefix_counts": {
+      "1": 1000
+    },
+    "length_counts": {
+      "10": 1000
+    },
+    "all_account_format": true
+  },
+  "selection": "First 1000 source data rows, original order, each queried once"
+}

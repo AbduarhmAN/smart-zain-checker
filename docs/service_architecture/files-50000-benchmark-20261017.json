@@ -1,0 +1,28 @@
+{
+  "synthetic_data_only": true,
+  "external_requests": false,
+  "platform": "win32",
+  "python": "3.14.0",
+  "actual_file_process": true,
+  "input_records": 50000,
+  "original_row_range": [
+    2,
+    50001
+  ],
+  "exact_integer_halalas": true,
+  "parse_ipc_seconds": 5.012,
+  "export_ipc_seconds": 185.885,
+  "peak_rss_bytes": 888967168,
+  "workbook": {
+    "sheet_count": 4,
+    "first_expected_amount": 12.34,
+    "first_live_amount": 10.01,
+    "first_difference_formula": "=F2-G2",
+    "summary_formula": "=SUM(F2:F50001)",
+    "bold_header": true,
+    "rtl": true,
+    "data_rows_first_sheet": 50000
+  },
+  "output_bytes": 6777542,
+  "retained_artifacts": "outputs\\service_files_50k_20261017\\b1ff3e64aa"
+}

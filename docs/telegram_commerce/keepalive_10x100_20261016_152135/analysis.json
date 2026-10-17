@@ -1,0 +1,193 @@
+{
+  "http_responses_received": 786,
+  "http_status_counts": {
+    "200": 561,
+    "400": 225
+  },
+  "successful_queries_on_reused_connections": 547,
+  "successful_queries_on_new_connections": 14,
+  "reused_success_mean_bytes": 2916.27239488117,
+  "fresh_success_mean_bytes": 6946.928571428572,
+  "transport_error_counts": {
+    "TimeoutError": 175,
+    "GeneralProxyError": 35,
+    "RemoteDisconnected": 4
+  },
+  "proxy_tcp_upstream_connected": 224,
+  "connections_with_any_http_response": 24,
+  "outcomes_by_sample": {
+    "1": {
+      "transport_error": 30,
+      "ok": 113
+    },
+    "2": {
+      "transport_error": 32,
+      "ok": 112
+    },
+    "3": {
+      "transport_error": 35,
+      "ok": 109
+    },
+    "4": {
+      "transport_error": 30,
+      "http_error": 113
+    },
+    "5": {
+      "transport_error": 30,
+      "http_error": 112
+    },
+    "6": {
+      "transport_error": 28,
+      "ok": 114
+    },
+    "7": {
+      "transport_error": 29,
+      "ok": 113
+    }
+  },
+  "peak_simultaneous_queries": 10,
+  "stalled_previously_responding_connections": [
+    {
+      "thread": 1,
+      "connection": 20,
+      "http_responses_before_stall": 24,
+      "failed_request": 44,
+      "last_http_elapsed_seconds": 29.705572,
+      "error_kind": "TimeoutError",
+      "close_reason": "client_eof"
+    },
+    {
+      "thread": 2,
+      "connection": 14,
+      "http_responses_before_stall": 23,
+      "failed_request": 37,
+      "last_http_elapsed_seconds": 30.397981,
+      "error_kind": "TimeoutError",
+      "close_reason": "client_eof"
+    },
+    {
+      "thread": 3,
+      "connection": 8,
+      "http_responses_before_stall": 21,
+      "failed_request": 29,
+      "last_http_elapsed_seconds": 28.881968,
+      "error_kind": "TimeoutError",
+      "close_reason": "client_eof"
+    },
+    {
+      "thread": 4,
+      "connection": 1,
+      "http_responses_before_stall": 21,
+      "failed_request": 22,
+      "last_http_elapsed_seconds": 29.15239,
+      "error_kind": "TimeoutError",
+      "close_reason": "client_eof"
+    },
+    {
+      "thread": 4,
+      "connection": 5,
+      "http_responses_before_stall": 23,
+      "failed_request": 49,
+      "last_http_elapsed_seconds": 29.915086,
+      "error_kind": "TimeoutError",
+      "close_reason": "client_eof"
+    },
+    {
+      "thread": 4,
+      "connection": 8,
+      "http_responses_before_stall": 22,
+      "failed_request": 74,
+      "last_http_elapsed_seconds": 29.413664,
+      "error_kind": "TimeoutError",
+      "close_reason": "client_eof"
+    },
+    {
+      "thread": 6,
+      "connection": 9,
+      "http_responses_before_stall": 21,
+      "failed_request": 30,
+      "last_http_elapsed_seconds": 29.803818,
+      "error_kind": "TimeoutError",
+      "close_reason": "client_eof"
+    },
+    {
+      "thread": 6,
+      "connection": 14,
+      "http_responses_before_stall": 23,
+      "failed_request": 58,
+      "last_http_elapsed_seconds": 30.092432,
+      "error_kind": "TimeoutError",
+      "close_reason": "client_eof"
+    },
+    {
+      "thread": 6,
+      "connection": 18,
+      "http_responses_before_stall": 22,
+      "failed_request": 84,
+      "last_http_elapsed_seconds": 28.923354,
+      "error_kind": "TimeoutError",
+      "close_reason": "client_eof"
+    },
+    {
+      "thread": 7,
+      "connection": 1,
+      "http_responses_before_stall": 22,
+      "failed_request": 23,
+      "last_http_elapsed_seconds": 29.699716,
+      "error_kind": "TimeoutError",
+      "close_reason": "client_eof"
+    },
+    {
+      "thread": 7,
+      "connection": 8,
+      "http_responses_before_stall": 22,
+      "failed_request": 52,
+      "last_http_elapsed_seconds": 29.61536,
+      "error_kind": "TimeoutError",
+      "close_reason": "client_eof"
+    },
+    {
+      "thread": 7,
+      "connection": 10,
+      "http_responses_before_stall": 21,
+      "failed_request": 75,
+      "last_http_elapsed_seconds": 29.887749,
+      "error_kind": "TimeoutError",
+      "close_reason": "client_eof"
+    },
+    {
+      "thread": 8,
+      "connection": 12,
+      "http_responses_before_stall": 22,
+      "failed_request": 34,
+      "last_http_elapsed_seconds": 30.601778,
+      "error_kind": "TimeoutError",
+      "close_reason": "client_eof"
+    },
+    {
+      "thread": 8,
+      "connection": 17,
+      "http_responses_before_stall": 18,
+      "failed_request": 57,
+      "last_http_elapsed_seconds": 30.786219,
+      "error_kind": "TimeoutError",
+      "close_reason": "client_eof"
+    }
+  ],
+  "longest_connection_http_response_count": 77,
+  "connections_open_until_test_end": 10,
+  "upstream_eof_after_http_response": 0,
+  "close_reasons": {
+    "client_eof": 203,
+    "upstream_eof": 20,
+    "socket_error": 1
+  },
+  "close_phases": {
+    "client_read": 204,
+    "upstream_read": 20
+  },
+  "payload_accounting_delta_bytes": 0,
+  "min_gap_seconds": 0.5001985999999761,
+  "max_gap_seconds": 1.1045513000001392,
+  "successful_reused_projected_GB_200k": 0.583254478976234
+}

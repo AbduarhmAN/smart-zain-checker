@@ -1,0 +1,13 @@
+{
+  "passed": true,
+  "production": false,
+  "database": "binance_note_fbc4eaab7284",
+  "concurrent_attempts": 32,
+  "owned_attempts": 16,
+  "unauthorized_copy_attempts_denied": 16,
+  "payments": 1,
+  "owner_available_minor": 3000,
+  "other_available_minor": 0,
+  "private_note_reused_for_another_request": false,
+  "real_money_transferred": false
+}

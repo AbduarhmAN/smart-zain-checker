@@ -62,16 +62,19 @@ def test_executive_reporter_all_records_tab(tmp_path: Path):
 
     assert out_file.exists()
     wb = openpyxl.load_workbook(out_file, data_only=True)
-    assert "جميع السجلات المفحوصة" in wb.sheetnames
+    assert "جميع السجلات المفحوصة" not in wb.sheetnames
+    assert "الفروقات الايجابيه" in wb.sheetnames
+    assert "فروقات سالبه" in wb.sheetnames
+    assert "فروقات شامله" in wb.sheetnames
+    assert "الأخطاء والملاحظات للمحصل" in wb.sheetnames
 
-    ws1 = wb["جميع السجلات المفحوصة"]
-    # 1 header + 2 data rows + 1 summary row = 4 rows
-    assert ws1.max_row == 4
-    assert ws1.cell(2, 4).value == "عميل مطابق 1"
-    assert ws1.cell(2, 6).value == 150.0
-    assert ws1.cell(2, 7).value == 150.0
-    assert ws1.cell(2, 9).value == "تطابق تام"
-    assert ws1.cell(3, 4).value == "عميل مطابق 2"
+    ws1 = wb["الفروقات الايجابيه"]
+    # Verify column 12 is 'الزمن'
+    assert ws1.cell(1, 12).value == "الزمن"
+    ws2 = wb["فروقات سالبه"]
+    assert ws2.cell(1, 12).value == "الزمن"
+    ws3 = wb["فروقات شامله"]
+    assert ws3.cell(1, 12).value == "الزمن"
 
 
 def test_executive_reporter_repair_mode(tmp_path: Path):
@@ -333,3 +336,155 @@ def test_update_raw_portfolio_sheet(tmp_path: Path):
     assert ws_res.cell(3, 7).value == "فرق رصيد"
 
     wb_res.close()
+
+
+def test_deliverable_tabs_and_timestamp_and_positive_sum(tmp_path: Path):
+    """Verifies that:
+    1. 'جميع السجلات المفحوصة' is completely removed from the results workbook.
+    2. 'الزمن' is present as column 12 in 'الفروقات الايجابيه', 'فروقات سالبه', and 'فروقات شامله'.
+    3. Timestamps are written correctly into column 12 for all records.
+    4. Positive mismatch sum calculation excludes negative differences.
+    """
+    records = [
+        {
+            "row": 101,
+            "name": "عميل مدفوع جزئي (موجب)",
+            "account": "1001111111",
+            "service": "2001111111",
+            "contract": "1001111111",
+            "expected_sar": 500.0,
+            "live_sar": 200.0,
+            "diff_sar": 300.0,
+            "status": "mismatch",
+            "status_label": "سداد جزئي",
+            "main_status": "متابعة",
+            "sub_status": "وعد سداد",
+            "follow_notes": "وعد سداد",
+            "timestamp": "2026-10-03 14:30:15",
+        },
+        {
+            "row": 102,
+            "name": "عميل مديونية زائدة (سالب)",
+            "account": "1002222222",
+            "service": "2002222222",
+            "contract": "1002222222",
+            "expected_sar": 100.0,
+            "live_sar": 450.0,
+            "diff_sar": -350.0,
+            "status": "mismatch",
+            "status_label": "زيادة مديونية",
+            "main_status": "عدم توصل",
+            "sub_status": "مغلق",
+            "follow_notes": "لا يرد",
+            "timestamp": "2026-10-03 14:32:00",
+        },
+    ]
+
+    report_path = tmp_path / "نتائج_الفحص_النهائي.xlsx"
+    export_executive_workbook(records, report_path, is_repair=False)
+
+    assert report_path.exists()
+    wb = openpyxl.load_workbook(report_path, data_only=True)
+
+    # 1. Master sheet MUST NOT exist
+    assert "جميع السجلات المفحوصة" not in wb.sheetnames
+
+    # 2. Approved sheets MUST exist
+    assert "الفروقات الايجابيه" in wb.sheetnames
+    assert "فروقات سالبه" in wb.sheetnames
+    assert "فروقات شامله" in wb.sheetnames
+    assert "الأخطاء والملاحظات للمحصل" in wb.sheetnames
+
+    # 3. Check 'الفروقات الايجابيه'
+    ws_pos = wb["الفروقات الايجابيه"]
+    assert ws_pos.cell(1, 12).value == "الزمن"
+    assert ws_pos.cell(2, 4).value == "عميل مدفوع جزئي (موجب)"
+    assert ws_pos.cell(2, 12).value == "2026-10-03 14:30:15"
+
+    # 4. Check 'فروقات سالبه'
+    ws_neg = wb["فروقات سالبه"]
+    assert ws_neg.cell(1, 12).value == "الزمن"
+    assert ws_neg.cell(2, 4).value == "عميل مديونية زائدة (سالب)"
+    assert ws_neg.cell(2, 12).value == "2026-10-03 14:32:00"
+
+    # 5. Check 'فروقات شامله'
+    ws_all = wb["فروقات شامله"]
+    assert ws_all.cell(1, 12).value == "الزمن"
+    # Row 2 is positive diff, Row 3 is negative diff
+    assert ws_all.cell(2, 12).value == "2026-10-03 14:30:15"
+    assert ws_all.cell(3, 12).value == "2026-10-03 14:32:00"
+
+    wb.close()
+
+
+def test_executive_reporter_mawarid_mode(tmp_path: Path):
+    """Verifies that Mawarid template replaces customer name with collector name,
+
+    and removes service number leaving only account number in column 2.
+    """
+    records = [
+        {
+            "row": 2,
+            "name": "العميل سعيد",
+            "collector": "أحمد المحصل",
+            "account": "1009876543",
+            "service": "2009876543",
+            "contract": "1009876543",
+            "expected_sar": 500.0,
+            "live_sar": 200.0,
+            "diff_sar": 300.0,
+            "status": "mismatch",
+            "status_label": "فرق رصيد",
+            "main_status": "متابعة",
+            "sub_status": "وعد بالسداد",
+            "follow_notes": "سيتم السداد غدا",
+            "timestamp": "2026-10-03 16:00:00",
+            "mawarid_format": True,
+        },
+        {
+            "row": 3,
+            "name": "العميل فهد",
+            "collector": "سارة المحصلة",
+            "account": "1001234567",
+            "service": "2001234567",
+            "contract": "1001234567",
+            "expected_sar": 100.0,
+            "live_sar": None,
+            "diff_sar": 0.0,
+            "status": "not_found",
+            "status_label": "غير موجود",
+            "error": "رقم الحساب غير مسجل في نظام زين",
+            "main_status": "تعذر",
+            "sub_status": "رقم ملغي",
+            "follow_notes": "لا يوجد رقم",
+            "timestamp": "2026-10-03 16:05:00",
+            "mawarid_format": True,
+        },
+    ]
+
+    report_path = tmp_path / "نتائج_فحص_الموارد.xlsx"
+    export_executive_workbook(records, report_path, is_repair=False, mawarid_format=True)
+
+    assert report_path.exists()
+    wb = openpyxl.load_workbook(report_path, data_only=True)
+
+    # Check diff tab: الفروقات الايجابيه
+    ws_pos = wb["الفروقات الايجابيه"]
+    assert ws_pos.cell(1, 2).value == "رقم الحساب"
+    assert ws_pos.cell(1, 4).value == "اسم المحصل"
+    # Row 2 values
+    assert ws_pos.cell(2, 2).value == "1009876543"  # Only clean account number, no service number
+    assert "خدمة" not in str(ws_pos.cell(2, 2).value)
+    assert ws_pos.cell(2, 4).value == "أحمد المحصل"  # Collector name instead of customer name
+
+    # Check notes tab: الأخطاء والملاحظات للمحصل
+    ws_notes = wb["الأخطاء والملاحظات للمحصل"]
+    assert ws_notes.cell(1, 2).value == "اسم المحصل"
+    assert ws_notes.cell(1, 3).value == "رقم الحساب"
+    assert ws_notes.cell(2, 2).value == "سارة المحصلة"
+    assert ws_notes.cell(2, 3).value == "1001234567"
+    assert "خدمة" not in str(ws_notes.cell(2, 3).value)
+
+    wb.close()
+
+

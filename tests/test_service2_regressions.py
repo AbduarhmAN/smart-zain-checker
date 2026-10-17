@@ -150,16 +150,18 @@ class ServiceRegressions(unittest.TestCase):
         body = '<script>const message = "Request Rejected Support ID not found";</script><script>var quickpayData = {"amount": 0};</script>'
         self.assertEqual(transport.classify_web_response(200, {}, body, "https://app.sa.zain.com/ar/quickpay?account=20001")[:2], ("ok", 0.0))
 
-    def test_human_verification_pauses_and_preserves_row_without_retries(self):
+    def test_human_verification_stops_only_its_route_and_preserves_row(self):
         obj, actors = state([service(), service(1)])
         task = obj.lease_next_task_for_worker("worker_3")
         obj.handle_verification_required(task["task_id"], "human check", "worker_1")
         self.assertFalse(obj.is_paused)  # Wrong owner cannot pause the session.
         obj.handle_verification_required(task["task_id"], "human check", "worker_3")
-        self.assertTrue(obj.is_paused)
+        self.assertFalse(obj.is_paused)
+        self.assertIn(actors['worker_3'].ip_group, obj.blocked_service_routes)
         self.assertEqual(obj.verification_notice, "human check")
         self.assertEqual(obj.deferred_indices, [0])
-        self.assertIsNone(obj.lease_next_task_for_worker("worker_1"))
+        self.assertIsNotNone(obj.lease_next_task_for_worker("worker_1"))
+        self.assertIsNone(obj.lease_next_task_for_worker("worker_3"))
         self.assertFalse(actors["worker_3"].is_in_cooldown())
         self.assertEqual(obj.reviews_count, 0)
         self.assertEqual(obj.errors_count, 0)
@@ -170,7 +172,8 @@ class ServiceRegressions(unittest.TestCase):
         obj, _ = state([service(), service(1)])
         task = obj.lease_next_task_for_worker("worker_1")
         obj.notify_pending_verification(task["task_id"], "human check", "worker_1")
-        self.assertTrue(obj.is_paused)
+        self.assertFalse(obj.is_paused)
+        self.assertIn('local_direct', obj.blocked_service_routes)
         obj.record_task_outcome(task["task_id"], 10.0, "match", worker_id="worker_1")
         self.assertFalse(obj.is_paused)
         self.assertEqual(obj.verification_notice, "")
@@ -185,26 +188,31 @@ class ServiceRegressions(unittest.TestCase):
         obj.record_task_outcome(task["task_id"], 10.0, "match", worker_id="worker_1")
         self.assertTrue(obj.is_paused)
 
-    def test_two_routes_resume_only_after_both_verifications_succeed(self):
+    def test_two_routes_recover_independently_after_verification(self):
         obj, _ = state([service(), service(1), service(2)])
         first = obj.lease_next_task_for_worker("worker_1")
         second = obj.lease_next_task_for_worker("worker_3")
         obj.notify_pending_verification(first["task_id"], "direct check", "worker_1")
         obj.notify_pending_verification(second["task_id"], "proxy check", "worker_3")
         obj.record_task_outcome(first["task_id"], 10.0, "match", worker_id="worker_1")
-        self.assertTrue(obj.is_paused)
+        self.assertFalse(obj.is_paused)
+        self.assertNotIn('local_direct', obj.blocked_service_routes)
+        self.assertTrue(obj.blocked_service_routes)
+        self.assertIsNotNone(obj.lease_next_task_for_worker('worker_2'))
         obj.record_task_outcome(second["task_id"], 10.0, "match", worker_id="worker_3")
         self.assertFalse(obj.is_paused)
+        self.assertFalse(obj.blocked_service_routes)
 
     def test_expired_verification_cannot_leave_a_stale_resume_guard(self):
         obj, _ = state([service()])
         task = obj.lease_next_task_for_worker("worker_1")
         obj.notify_pending_verification(task["task_id"], "human check", "worker_1")
         obj.handle_verification_required(task["task_id"], "expired", "worker_1")
-        self.assertTrue(obj.is_paused)
-        self.assertFalse(obj.verification_pause_tasks)
-        obj.resume_session()
         self.assertFalse(obj.is_paused)
+        self.assertFalse(obj.verification_pause_tasks)
+        self.assertTrue(obj.resume_service_route('worker_1'))
+        self.assertFalse(obj.is_paused)
+        self.assertFalse(obj.blocked_service_routes)
 
     def test_browser_proxy_has_own_lock_and_never_uses_direct_backoff(self):
         clock = Clock()
@@ -248,17 +256,20 @@ class ServiceRegressions(unittest.TestCase):
         self.assertEqual(clock.sleeps, [])
         key = transport.connection_group("socks5://proxy.invalid:1080")
         transport._IP_LAST_QUERY_TIME[key] = clock.now
-        with patch.object(transport, "time", clock), patch.object(transport, "_open_tls_socket", return_value=response()):
+        from workers.account_transport import AccountReply
+        reply=AccountReply(200,b'{"is_successful":true,"data":{"due_amount":10}}',True,1)
+        with patch.object(transport, "time", clock), patch('workers.account_transport.request_account',return_value=reply):
             self.assertEqual(api.query_contract_due_amount("10001", "socks5://proxy.invalid:1080")[0], "ok")
         self.assertEqual(clock.sleeps, [])
 
-    def test_proxy_failure_never_uses_direct_browser_or_business_api(self):
+    def test_proxy_failure_never_switches_to_a_different_route(self):
         with patch.object(api, "query_app_zain_web_engine", return_value=("network_error", None, "mock")), \
-             patch.object(api, "query_direct_business_api", side_effect=AssertionError("Direct API forbidden")), \
+             patch.object(api, "query_direct_business_api", return_value=("network_error",None,"mock")) as account_query, \
              patch.object(browser, "query_service_stealth", return_value=("network_error", None, "mock")) as query:
             for number in ("10001", "20001"):
                 self.assertEqual(api.query_contract_due_amount(number, "socks5://proxy.invalid:1080")[0], "network_error")
-            query.assert_called_once_with("20001", timeout_seconds=45.0, proxy_url="socks5://proxy.invalid:1080")
+            account_query.assert_called_once_with('10001',timeout=30,proxy_url='socks5://proxy.invalid:1080')
+            query.assert_called_once_with("20001", timeout_seconds=12.0, proxy_url="socks5://proxy.invalid:1080")
 
     def test_actual_same_route_requests_are_mutually_exclusive(self):
         barrier = threading.Barrier(3)
@@ -647,6 +658,7 @@ class ServiceRegressions(unittest.TestCase):
         page = FakePage()
         page.content = Mock(return_value='var quickpayData = {"amount": 0};')
         page.wait_for_load_state = Mock(side_effect=TimeoutError("Loading incomplete"))
+        page.wait_for_function = Mock(side_effect=TimeoutError("Bill not ready"))
         worker = browser.StealthServiceWorker()
         with self.assertRaises(TimeoutError):
             worker._do_query(context(page), browser.BrowserJob("20001", 45, time.monotonic() + 50))
@@ -797,6 +809,18 @@ class ServiceRegressions(unittest.TestCase):
         self.assertEqual(obj.reviews_count, 1)
         self.assertEqual(obj.errors_count, 0)
         self.assertFalse(actors["worker_3"].is_in_cooldown())
+
+    def test_account_retry_after_defers_the_row_without_turning_it_into_a_result(self):
+        obj,actors=state([contract()])
+        def execute(number):
+            obj.is_running=False
+            return 'account_backoff',None,'server retry-after'
+        actors['worker_1'].execute_task_api=execute
+        with patch('workers.account_transport.account_retry_after',return_value=120):
+            obj._run_worker_api_loop('worker_1')
+        self.assertEqual(obj.deferred_indices,[0])
+        self.assertEqual(obj.reviews_count,0)
+        self.assertEqual(obj.matches_count,0)
 
 
 if __name__ == "__main__":

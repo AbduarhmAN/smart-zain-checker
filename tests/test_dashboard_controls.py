@@ -78,11 +78,19 @@ class DashboardControls(unittest.TestCase):
         self.assertEqual(handler.send_json.call_args.args[0], 409)
         integration.notifier.send_excel_document.assert_not_called()
 
+    def test_report_endpoint_rechecks_running_session(self):
+        handler,integration=self.handler();handler.orchestrator.is_running=True
+        handler.orchestrator.all_completed_records={1:{'row':1}}
+        handler.handle_telegram_action('/api/telegram/send-results',{})
+        self.assertEqual(handler.send_json.call_args.args[0],409)
+        integration.notifier.send_excel_document.assert_not_called()
+
     def test_duplicate_toggle_does_not_duplicate_subscribers_or_polling(self):
         notifier, runner = Mock(), Mock()
         orchestrator = SimpleNamespace(telegram_enabled=False)
         with patch("telegram_bot.notifier.TelegramNotifier", return_value=notifier), \
-             patch("telegram_bot.bot.TelegramBotRunner", return_value=runner):
+             patch("telegram_bot.bot.TelegramBotRunner", return_value=runner), \
+             patch("telegram_bot.commerce.bridge.CommerceBridge"):
             service = TelegramIntegration(orchestrator, Mock(), Path.cwd())
             service.set_enabled(True)
             service.set_enabled(True)
@@ -129,9 +137,11 @@ class DashboardControls(unittest.TestCase):
         bot = self.bot()
         bot._reply(123, "test")
         payload = bot._api_call.call_args.args[1]
-        self.assertEqual(len(payload["reply_markup"]["keyboard"]), 3)
+        labels=[button['text'] for row in payload['reply_markup']['keyboard'] for button in row]
+        self.assertTrue(any('الشركاء' in label for label in labels))
+        self.assertTrue(any('الرئيسية' in label for label in labels))
         self.assertTrue(payload["reply_markup"]["is_persistent"])
-        self.assertNotIn("parse_mode", payload)
+        self.assertEqual(payload["parse_mode"], "HTML")
 
     def test_status_button_uses_actual_counters(self):
         bot = self.bot()

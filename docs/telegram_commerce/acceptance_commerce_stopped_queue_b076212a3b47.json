@@ -1,0 +1,30 @@
+{
+  "passed": true,
+  "production": false,
+  "database": "commerce_stopped_queue_b076212a3b47",
+  "telegram_delivery": "synthetic; no external messages",
+  "cases": [
+    {
+      "case": "unstarted_full_refund",
+      "rows": 2368,
+      "charged_minor": 0,
+      "refunded_minor": 2368,
+      "available_minor": 5000,
+      "workers_launched_during_stop": 0,
+      "other_order_still_pending": true,
+      "new_checking_enabled": false
+    },
+    {
+      "case": "partial_preserved_refund",
+      "rows": 3,
+      "charged_minor": 1,
+      "refunded_minor": 2,
+      "available_minor": 4999,
+      "workers_launched_during_stop": 0,
+      "other_order_still_pending": true,
+      "new_checking_enabled": false
+    }
+  ],
+  "original_files_retained": true,
+  "deletion": "none"
+}

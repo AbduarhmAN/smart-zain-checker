@@ -2,6 +2,7 @@
 import threading
 import time
 import unittest
+import tempfile
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
@@ -67,7 +68,7 @@ class SheetValidationTests(unittest.TestCase):
         orchestrator.lock=threading.RLock();orchestrator.is_running=False
         mapping={'lookup_col':'A','service_col':'B','amount_col':'C','amount_col_2':None,'customer_col':None}
         for mode,lookup,service in (('account_only',1,None),('service_only',2,2)):
-            with patch('openpyxl.load_workbook',return_value=wb), patch('manager.orchestrator.extract_customer_records',return_value=[]) as extract:
+            with patch('domain.workbook.load_fast_workbook',return_value=wb), patch('domain.workbook.extract_customer_records',return_value=[]) as extract:
                 self.assertFalse(orchestrator.start_session_from_config(Path('unused.xlsx'),sheet_index=0,mapping=mapping,mode=mode))
             self.assertEqual(extract.call_args.kwargs['lookup_col'],lookup)
             self.assertEqual(extract.call_args.kwargs['service_col'],service)
@@ -103,7 +104,8 @@ class WorkflowTests(unittest.TestCase):
         self.orchestrator=Mock(lock=threading.RLock(),session_token='session',current_job_id=None,is_running=False)
         self.orchestrator.get_live_status.side_effect=lambda:self.state.copy()
         self.queue=Mock();self.queue.get_jobs.return_value=[]
-        self.bot=TelegramBotRunner(self.orchestrator,self.queue,Path.cwd(),bot_token='TEST',authorized_id=123)
+        self.fixture_root=Path(tempfile.mkdtemp(prefix='sheet-workflow-retained-')).resolve()
+        self.bot=TelegramBotRunner(self.orchestrator,self.queue,self.fixture_root,bot_token='TEST',authorized_id=123)
         self.bot._api_call=Mock(return_value={'ok':True})
 
     def callback(self, action):
@@ -115,7 +117,7 @@ class WorkflowTests(unittest.TestCase):
         self.patcher.start();self.addCleanup(self.patcher.stop)
         stamp=patch('telegram_bot.sheet_workflow.file_version',return_value=(10,20))
         stamp.start();self.addCleanup(stamp.stop)
-        self.bot._open_sheet_review(Path.cwd()/'sample.xlsx',123)
+        self.bot._open_sheet_review(self.fixture_root/'sample.xlsx',123)
         return next(iter(self.bot._sheet_drafts))
 
     def test_unsuitable_sheet_can_be_mapped_then_explicitly_queued_once(self):
@@ -137,7 +139,7 @@ class WorkflowTests(unittest.TestCase):
 
     def test_old_upload_and_wrong_column_cannot_modify_current_draft(self):
         old=self.open()
-        self.bot._open_sheet_review(Path.cwd()/'new.xlsx',123)
+        self.bot._open_sheet_review(self.fixture_root/'new.xlsx',123)
         current=next(key for key in self.bot._sheet_drafts if key != old)
         original_service_col = self.bot._sheet_drafts[current]['mapping']['service_col']
         self.callback(f'map:{old}:set:service_col:B')
@@ -184,7 +186,7 @@ class WorkflowTests(unittest.TestCase):
 
     def test_multiple_uploaded_files_remain_accessible_for_review(self):
         first=self.open()
-        self.bot._open_sheet_review(Path.cwd()/'second.xlsx',123)
+        self.bot._open_sheet_review(self.fixture_root/'second.xlsx',123)
         panel=self.bot._drafts_panel(123)
         self.assertEqual(len(self.bot._sheet_drafts),2)
         self.assertTrue(any(b['callback_data']==f'zc:map:{first}:review' for row in panel.rows for b in row))
@@ -264,7 +266,7 @@ class WorkflowTests(unittest.TestCase):
 
     def test_web_queue_start_validates_every_file_before_starting(self):
         handler=WebApiHandler.__new__(WebApiHandler);handler.send_json=Mock()
-        handler.orchestrator=self.orchestrator;handler.queue_service=self.queue;handler.project_root=Path.cwd()
+        handler.orchestrator=self.orchestrator;handler.queue_service=self.queue;handler.project_root=self.fixture_root
         jobs=[{'id':str(i),'filename':f'{i}.xlsx','sheet_index':0,'status':'pending','column_mapping':{}} for i in range(2)]
         self.queue.get_jobs.return_value=jobs
         with patch.object(handler,'_validate_input_sheet',side_effect=[({},'Sheet',1),None]) as check:
@@ -278,10 +280,15 @@ class WorkflowTests(unittest.TestCase):
     def test_telegram_notifications_hold_all_result_files_until_round_finishes(self):
         notifier=TelegramNotifier(bot_token='TEST',chat_id=123)
         notifier.send_message=Mock();notifier.send_excel_document=Mock()
+        folder=Path(tempfile.mkdtemp(prefix='round-result-retained-'))
+        files=[folder/'one_result.xlsx',folder/'two_result.xlsx']
+        for file in files: file.write_bytes(b'PK\x03\x04synthetic-result')
         notifier._on_session_completed('session_completed',{'workbook':'one.xlsx','round_pending':1})
         notifier.send_excel_document.assert_not_called()
-        notifier._on_session_completed('session_completed',{'workbook':'two.xlsx','round_pending':0,
-            'round_result_files':['one_result.xlsx','two_result.xlsx']})
+        from unittest.mock import PropertyMock
+        with patch.object(TelegramNotifier,'admin_targets',new_callable=PropertyMock,return_value=[123]):
+            notifier._on_session_completed('session_completed',{'workbook':'two.xlsx','round_pending':0,
+                'round_result_files':[str(file) for file in files]})
         self.assertEqual(notifier.send_excel_document.call_count,2)
         self.assertEqual([call.args[0].name for call in notifier.send_excel_document.call_args_list],
                          ['one_result.xlsx','two_result.xlsx'])
@@ -302,7 +309,7 @@ class QueueAtomicTests(unittest.TestCase):
     def service(self):
         queue=QueueService.__new__(QueueService)
         queue._lock=threading.RLock();queue._save_to_disk=Mock()
-        queue._jobs=[SimpleNamespace(id='one',status='pending',completed=0,total_records=1,
+        queue._jobs=[SimpleNamespace(id='one',status='pending',completed=0,total_records=1,column_mapping={},mode='smart_hybrid',amount_target='contract',
                                     to_dict=lambda:{'id':'one'},remaining=1)]
         return queue
 

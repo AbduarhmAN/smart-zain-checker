@@ -4,13 +4,14 @@ Guarantees 100% JSON responses on ALL methods (GET, POST, OPTIONS, and Errors) t
 """
 from __future__ import annotations
 
-import json
+from domain import decimal_json as json
 import logging
 from http.server import BaseHTTPRequestHandler
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
 from manager.orchestrator import Orchestrator
+from server.bridge_authority import authorized,origin
 
 logger = logging.getLogger("ExtensionBridge")
 
@@ -26,7 +27,10 @@ class ExtensionBridgeHandler(BaseHTTPRequestHandler):
         self.send_response(status_code)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(raw)))
-        self.send_header("Access-Control-Allow-Origin", "*")
+        selected=origin(self)
+        if selected:self.send_header('Access-Control-Allow-Origin',selected)
+        self.send_header('Vary','Origin')
+        self.send_header('Cache-Control','no-store')
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Worker-Id, X-Zain-Bridge-Token")
         self.end_headers()
@@ -41,13 +45,19 @@ class ExtensionBridgeHandler(BaseHTTPRequestHandler):
         })
 
     def do_OPTIONS(self) -> None:
+        selected=origin(self)
+        if selected is None:
+            self.send_cors_json(403,{'status':'error','message':'Bridge request origin is not allowed'});return
         self.send_response(204)
-        self.send_header("Access-Control-Allow-Origin", "*")
+        if selected:self.send_header('Access-Control-Allow-Origin',selected)
+        self.send_header('Vary','Origin')
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Worker-Id, X-Zain-Bridge-Token")
         self.end_headers()
 
     def do_GET(self) -> None:
+        if not authorized(self):
+            self.send_cors_json(401,{'status':'error','message':'Managed worker authorization required'});return
         parsed = urlparse(self.path)
         path = parsed.path
         qs = parse_qs(parsed.query)
@@ -62,15 +72,25 @@ class ExtensionBridgeHandler(BaseHTTPRequestHandler):
             self.send_cors_json(404, {"status": "error", "message": f"Bridge endpoint {path} not found"})
 
     def do_POST(self) -> None:
+        if not authorized(self):
+            self.send_cors_json(401,{'status':'error','message':'Managed worker authorization required'});return
         parsed = urlparse(self.path)
         path = parsed.path
 
-        content_length = int(self.headers.get("Content-Length", 0))
-        body = self.rfile.read(content_length).decode("utf-8") if content_length > 0 else "{}"
+        try:content_length=int(self.headers.get('Content-Length',0))
+        except (TypeError,ValueError):
+            self.send_cors_json(400,{'status':'error','message':'Invalid bridge request length'});return
+        if content_length<0 or content_length>1024*1024 or self.headers.get('Transfer-Encoding'):
+            self.send_cors_json(413,{'status':'error','message':'Bridge request size is not allowed'});return
+        if self.headers.get('Content-Type','').split(';',1)[0].strip().lower()!='application/json':
+            self.send_cors_json(415,{'status':'error','message':'Bridge request must be JSON'});return
         try:
+            body = self.rfile.read(content_length).decode("utf-8") if content_length > 0 else "{}"
             payload = json.loads(body) if body.strip() else {}
-        except Exception:
-            payload = {}
+        except (ValueError,UnicodeError):
+            self.send_cors_json(400,{'status':'error','message':'Invalid bridge JSON'});return
+        if not isinstance(payload,dict):
+            self.send_cors_json(400,{'status':'error','message':'Invalid bridge object'});return
 
         worker_id = payload.get("worker_id") or self.headers.get("X-Worker-Id") or "worker_1"
 

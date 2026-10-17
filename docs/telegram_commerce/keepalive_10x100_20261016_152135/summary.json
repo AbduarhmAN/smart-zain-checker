@@ -1,0 +1,28 @@
+{
+  "planned_attempts": 1000,
+  "completed_attempts": 1000,
+  "successes": 561,
+  "failed_attempts": 439,
+  "all_succeeded": false,
+  "outcomes": {
+    "transport_error": 214,
+    "ok": 561,
+    "http_error": 225
+  },
+  "fatal_thread_errors": [],
+  "total_bytes": 2487144,
+  "sent_bytes": 525348,
+  "received_bytes": 1961796,
+  "total_MB": 2.487144,
+  "total_MiB": 2.3719253540039062,
+  "mean_bytes_per_attempt": 2487.144,
+  "projected_GB_per_200k_attempts": 0.49742879999999995,
+  "tcp_connections": 224,
+  "reconnections": 214,
+  "server_close_header_count": 0,
+  "server_eof_connections": 20,
+  "duration_seconds": 448.8172623999999,
+  "mean_response_seconds": 3.2675505786999985,
+  "p95_response_seconds": 12.848792200000162,
+  "max_response_seconds": 22.34421589999988
+}

@@ -77,6 +77,7 @@ class WorkerSupervisor:
                 extension_dir=self.extension_dir,
                 use_proxy=uses_proxy,
                 proxy_url=cfg.get("proxy_url") or cfg.get("proxy"),
+                task_scope=cfg.get("task_scope", "both"),
             )
             self.workers[w_id] = actor
 

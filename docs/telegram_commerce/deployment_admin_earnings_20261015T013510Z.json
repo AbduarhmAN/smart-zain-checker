@@ -1,0 +1,14 @@
+{
+  "at": "2026-10-15T01:35:10.558435+00:00",
+  "project": "avuzwbmiiavbuaxmnitp",
+  "migration": "202610150033_commerce_admin_earnings",
+  "sha256": "017cb19f722df7557b0ec104dd2e80b97af220050d2a98d2526a0317dea4094d",
+  "status": "applied",
+  "verification": [
+    {
+      "available": true,
+      "public_access_denied": true
+    }
+  ],
+  "financial_records_modified": false
+}

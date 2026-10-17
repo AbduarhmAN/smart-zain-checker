@@ -78,16 +78,16 @@ class TestTargetClosedHealing(unittest.TestCase):
         alive_context = SimpleNamespace(browser=alive_browser, pages=[])
         self.assertTrue(worker._is_context_alive(alive_context))
 
-    def test_actor_normalizes_target_closed_to_blocked(self):
-        """WorkerActor normalizes any TargetClosed error into a 'blocked' status."""
+    def test_actor_normalizes_target_closed_to_network_error(self):
+        """A closed browser is a transport failure, not evidence of an IP ban."""
         actor = WorkerActor("worker_1", "w1", Path("."), Path("."))
         with patch("workers.zain_api.query_contract_due_amount", return_value=("network_error", None, "تعذر استكمال المتصفح: TargetClosedError")):
             status, amount, msg = actor.execute_task_api("20001")
-            self.assertEqual(status, "blocked")
+            self.assertEqual(status, "network_error")
             self.assertIn("TargetClosedError", msg)
 
-    def test_orchestrator_worker_loop_defers_target_closed_with_cooldown(self):
-        """When TargetClosedError occurs in worker loop, orchestrator defers row with cooldown."""
+    def test_orchestrator_worker_loop_defers_target_closed_without_ip_ban(self):
+        """Recover this route without applying the real-ban cooldown policy."""
         obj, actors = create_orchestrator([service(0)])
 
         def execute(number):
@@ -103,8 +103,8 @@ class TestTargetClosedHealing(unittest.TestCase):
             self.assertEqual(obj.errors_count, 0)
             self.assertEqual(obj.deferred_indices, [0])
             # Direct actor must be placed in cooldown for recovery
-            self.assertTrue(actors["worker_1"].is_in_cooldown())
-            self.assertGreater(transport.get_ip_service_retry_after("local_direct"), 0)
+            self.assertFalse(actors["worker_1"].is_in_cooldown())
+            self.assertEqual(transport.get_ip_service_retry_after("local_direct"), 0)
 
     def test_worker_loop_keeps_retrying_blocked_tasks_until_all_completed(self):
         """Deferred blocked tasks can be retried across cooldowns until completed without dropping to needs_review."""
@@ -139,5 +139,47 @@ class TestTargetClosedHealing(unittest.TestCase):
             self.assertEqual(len(obj.deferred_indices), 0)
 
 
+    def test_run_loop_retries_failed_query_with_fresh_healed_context(self):
+        """When a query fails on an existing instance, the worker heals context and retries once."""
+        worker = browser.StealthServiceWorker()
+        pw = Mock()
+        job = browser.BrowserJob("20001", 30.0, time.monotonic() + 35.0)
+
+        # Mock query calls: first attempt fails with unknown_response, retry succeeds with ok
+        call_count = [0]
+        def fake_do_query(ctx, j):
+            call_count[0] += 1
+            if call_count[0] == 1:
+                return "unknown_response", None, "Unsettled page"
+            return "ok", 15.0, "Success"
+
+        worker._do_query = fake_do_query
+        heal_calls = []
+        worker._heal_context = Mock(side_effect=lambda pw_arg, old_ctx: heal_calls.append(old_ctx) or "fresh_context")
+        worker._is_context_alive = Mock(return_value=True)
+
+        # Simulate the worker run loop processing one job
+        context = "initial_context"
+        if not job.cancelled.is_set():
+            try:
+                res = worker._do_query(context, job)
+            except Exception as exc:
+                res = ("network_error", None, str(exc))
+
+            status = res[0] if res else "error"
+            if status not in ("ok", "not_found", "verification_required", "blocked") and not job.cancelled.is_set():
+                context = worker._heal_context(pw, context)
+                if not job.cancelled.is_set():
+                    res = worker._do_query(context, job)
+
+            job.result = res
+
+        self.assertEqual(call_count[0], 2)
+        worker._heal_context.assert_called_once_with(pw, "initial_context")
+        self.assertEqual(context, "fresh_context")
+        self.assertEqual(job.result, ("ok", 15.0, "Success"))
+
+
 if __name__ == "__main__":
     unittest.main()
+

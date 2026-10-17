@@ -1,0 +1,19 @@
+{
+  "at": "2026-10-15T03:43:10.313848+00:00",
+  "migration": "202610150035_commerce_partner_cost_sheets",
+  "sha256": "cd8f742afa558d098b5fc45f340647db79f10ca36ff292b81c04bfc51c83404b",
+  "status": "applied_and_verified",
+  "verification": [
+    {
+      "price_versions": 0,
+      "sheet_requests": 0,
+      "notices": 0,
+      "server_can_decide": true,
+      "public_can_decide": false,
+      "server_can_bypass": false,
+      "protected_tables": true
+    }
+  ],
+  "financial_operations_executed": false,
+  "notifications_sent": false
+}

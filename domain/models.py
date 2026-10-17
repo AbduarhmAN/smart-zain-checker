@@ -153,6 +153,9 @@ class QueueJob:
     matches: int = 0
     mismatches: int = 0
     errors: int = 0
+    cancelled_count: int = 0
+
+    pricing: Optional[dict[str, Any]] = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -174,4 +177,6 @@ class QueueJob:
             "matches": self.matches,
             "mismatches": self.mismatches,
             "errors": self.errors,
+            "cancelled_count": self.cancelled_count,
+            "pricing": self.pricing,
         }

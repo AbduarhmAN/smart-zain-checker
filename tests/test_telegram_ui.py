@@ -26,6 +26,9 @@ class TelegramUiTests(unittest.TestCase):
         self.bot = TelegramBotRunner(self.orchestrator, self.queue, Path.cwd(),
                                       bot_token='test-token', authorized_id=123)
         self.bot._api_call = Mock(return_value={'ok':True})
+        self.bot._commerce_client = Mock()
+        self.bot._commerce_client.rpc.side_effect = lambda name,args: (
+            {'is_partner':False} if name=='partner_sheet_context' else self.fail('Unexpected commerce RPC'))
 
     def callback(self, action, user=123, chat=123):
         self.bot._handle_update({'callback_query':{'id':'query', 'from':{'id':user},
@@ -58,6 +61,28 @@ class TelegramUiTests(unittest.TestCase):
             self.assertEqual(self.bot._api_call.call_count, 1)
             self.assertTrue(self.bot._api_call.call_args.args[1]['show_alert'])
         self.orchestrator.pause_session.assert_not_called()
+
+    def test_customer_wallet_command_is_available_without_exchange_request(self):
+        manager=Mock();manager.get_wallet_balance.return_value=45;manager.get_user_account_id.return_value='customer'
+        manager.get_config.return_value={'sheet_price_egp':30}
+        with patch('telegram_bot.payment_manager.PAYMENT_MGR',manager),patch('telegram_bot.crypto_pay.get_live_usd_egp_rate',side_effect=AssertionError('Display must not request rate')):
+            self.bot._handle_update({'message':{'from':{'id':456},'chat':{'id':456},'text':'/wallet'}})
+        self.assertIn('45.00',self.bot._api_call.call_args.args[1]['text'])
+
+    def test_customer_persistent_menu_drafts_button_routes_to_own_reviews(self):
+        with patch.object(self.bot,'_dispatch_ui') as dispatch:
+            self.bot._handle_update({'message':{'from':{'id':456},'chat':{'id':456},'text':'📋 ملفاتي للمراجعة'}})
+        dispatch.assert_called_once_with('drafts:0',456)
+        self.bot._reply(456,'message')
+        keyboard=self.bot._api_call.call_args.args[1]['reply_markup']['keyboard']
+        self.assertNotIn('📊 حالة الفحص',str(keyboard))
+
+    def test_admin_credit_message_is_bound_to_stable_ledger_reference(self):
+        manager=Mock();manager.find_user_by_account_id.return_value=None;manager.credit_wallet.return_value=45;manager.get_user_account_id.return_value=456
+        update={'message':{'message_id':77,'from':{'id':123},'chat':{'id':123},'text':'/credit_user 456 45'}}
+        with patch('telegram_bot.payment_manager.PAYMENT_MGR',manager):
+            self.bot._handle_update(update)
+        self.assertEqual(manager.credit_wallet.call_args.kwargs['idempotency_key'],'telegram-credit:123:77')
 
     def test_pause_requires_confirmation_and_token_is_single_use(self):
         token = self.confirmation('pause')
@@ -136,10 +161,7 @@ class TelegramUiTests(unittest.TestCase):
 
     def test_upload_opens_review_before_queuing_and_sanitizes_filename(self):
         self.bot._api_call.return_value = {'ok':True,'result':{'file_path':'documents/test.xlsx'}}
-        download = Mock()
-        download.__enter__ = Mock(return_value=SimpleNamespace(read=lambda:b'OFFLINE_TEST'))
-        download.__exit__ = Mock(return_value=False)
-        with patch('urllib.request.urlopen', return_value=download), \
+        with patch.object(self.bot, '_download_file', return_value=b'PK\x03\x04OFFLINE_TEST'), \
              patch('pathlib.Path.exists', return_value=False), \
              patch('pathlib.Path.open', return_value=io.BytesIO()), \
              patch.object(self.bot, '_open_sheet_review') as review:
@@ -155,6 +177,8 @@ class TelegramUiTests(unittest.TestCase):
         self.queue.add_job.assert_not_called()
 
     def test_polling_cursor_survives_disable_enable_and_menu_is_private(self):
+        self.bot._sync_partner_menus=Mock()
+        self.bot._start_partner_sheet_notifications=Mock()
         self.bot._last_update_id = 41
         seen = []
         def api(method, data, **kwargs):
@@ -166,7 +190,11 @@ class TelegramUiTests(unittest.TestCase):
         self.bot._poll_loop()
         self.assertEqual(seen[0][0], 'setMyCommands')
         self.assertEqual(seen[0][1]['scope'], {'type':'chat','chat_id':123})
-        self.assertEqual(seen[1][1]['offset'], 42)
+        self.assertEqual(next(data['offset'] for method,data in seen if method=='getUpdates'),42)
+        customer_menu=next(data for method,data in seen if method=='setMyCommands' and data['scope']=={'type':'all_private_chats'})
+        self.assertNotIn('pause',[item['command'] for item in customer_menu['commands']])
+        self.assertNotIn('ref',[item['command'] for item in customer_menu['commands']])
+        self.assertNotIn('partner_campaigns',[item['command'] for item in customer_menu['commands']])
 
 
 if __name__ == '__main__':

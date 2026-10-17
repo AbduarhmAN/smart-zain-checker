@@ -1,0 +1,42 @@
+{
+  "at": "2026-10-15T04:07:21.851815+00:00",
+  "pid": 5724,
+  "worker_restart": false,
+  "customer_stop_requested": false,
+  "financial_writes": false,
+  "loaded": true,
+  "methods": 7,
+  "modules": [
+    {
+      "module": "telegram_bot.order_history",
+      "methods": [
+        "_history_legacy_stop_allowed",
+        "_history_legacy_stop_note",
+        "_history_order",
+        "_history_callback"
+      ],
+      "sha256": "6139610caa7ceeb1921d9f75f545af22d2f426d9f8573afe4f75512300297d36"
+    },
+    {
+      "module": "manager.continuous_service",
+      "methods": [
+        "tick"
+      ],
+      "sha256": "d67a8582c845c825ed59cce6233b22bf5d9d8909310c823b850eb727b98e1604"
+    },
+    {
+      "module": "manager.orchestrator",
+      "methods": [
+        "_finalize_job"
+      ],
+      "sha256": "5c649849d29c7d8dfecf1939f05df35b143af0dc49c808a46fa608ed1f210910"
+    },
+    {
+      "module": "telegram_bot.notifier",
+      "methods": [
+        "_on_session_completed"
+      ],
+      "sha256": "256de717db515e0b23c3f7fc682ee20004fe991a573d34e50618d031c7dbb0a7"
+    }
+  ]
+}

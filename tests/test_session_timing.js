@@ -37,7 +37,7 @@ assert.equal(timing.estimate(at+35000).seconds,50);
 timing.update(data(50,{paused:true,session_timing:metadata(at+31000)}),at+36000);
 assert.equal(timing.estimate(at+36000).status,'paused');
 timing.update(data(50,{verifications:[{id:'challenge'}],session_timing:metadata(at+32000)}),at+37000);
-assert.equal(timing.estimate(at+37000).status,'paused');
+assert.equal(timing.estimate(at+37000).status,'estimated','One challenge must not pause independent paths');
 timing.offline();assert.equal(timing.estimate(at+38000).status,'offline');
 timing.update(data(60,{session_timing:metadata(at+40000)}),at+45000);
 assert.equal(timing.estimate(at+55001).status,'offline');
@@ -65,18 +65,34 @@ const recent=(now,done,extra={})=>data(done,{session_timing:{...metadata(now,'re
 timing.update(recent(at+100000,90),at+100000);
 assert.equal(timing.estimate(at+100000).seconds,30);
 assert.equal(timing.estimate(at+100000).sample,10);
-// A transition to retries must not reuse regular-row speed.
+// A transition to retries must preserve history while awaiting retry samples.
 timing.update(recent(at+101000,90,{kpis:{total:100,completed:90,deferred:10}}),at+101000);
-assert.equal(timing.estimate(at+101000).status,'sampling');
-timing.update(recent(at+110000,93,{kpis:{total:100,completed:93,deferred:7},session_timing:{
-  ...metadata(at+110000,'recent',at,0),remaining_by_type:{account:0,service:7},
-  recent_completions:[{age_seconds:8,kind:'service'},{age_seconds:4,kind:'service'},{age_seconds:0,kind:'service'}]}}),at+110000);
-assert.equal(timing.estimate(at+110000).seconds,28);
-assert.equal(timing.estimate(at+110000).phase,'retry');
-timing.update(recent(at+111000,93,{kpis:{total:100,completed:93,deferred:7,active_leases:0,next_retry_seconds:420},
-  workers:[{worker_id:'one',status:'cooldown',in_cooldown:true,cooldown_remaining_seconds:420}]}),at+111000);
-assert.equal(timing.estimate(at+111000).status,'cooldown');
-assert.equal(nodes.get('timingFinish').textContent,'—');
+assert.equal(timing.estimate(at+101000).status,'estimated');
+timing.update(recent(at+120000,93,{kpis:{total:100,completed:93,deferred:7},session_timing:{
+  ...metadata(at+120000,'recent',at,0),remaining_by_type:{account:0,service:7},
+  recent_completions:[{age_seconds:8,kind:'service'},{age_seconds:4,kind:'service'},{age_seconds:0,kind:'service'}]}}),at+120000);
+assert.equal(timing.estimate(at+120000).seconds,28);
+assert.equal(timing.estimate(at+120000).phase,'retry');
+timing.update(recent(at+121000,93,{kpis:{total:100,completed:93,deferred:7,active_leases:0,next_retry_seconds:420},
+  workers:[{worker_id:'one',status:'cooldown',in_cooldown:true,cooldown_remaining_seconds:420}]}),at+121000);
+assert.equal(timing.estimate(at+121000).status,'cooldown');
+assert.ok(nodes.get('timingFinish').textContent.includes('آخر تقدير'),'Recovery must not erase the last clearly labeled prediction');
+// Real seven-minute gaps survive worker changes and fast contract traffic.
+const longNow=at+2000000;
+const longData=(now,extra={})=>data(94,{kpis:{total:100,completed:94,active_leases:1},workers:[{worker_id:'direct',status:'ready'}],
+  session_timing:{...metadata(now,'long-waits',at,0),window_id:'unchanged',remaining_by_type:{account:0,service:6},
+    recent_completions:Array.from({length:11},(_,i)=>({age_seconds:10-i,kind:'account'})),
+    recent_by_type:{service:[1260,840,420,0].map(age=>({age_seconds:age+(now-longNow)/1000,kind:'service'}))}},...extra});
+timing.update(longData(longNow),longNow);
+assert.equal(timing.estimate(longNow).seconds,2520,'Six rows at seven-minute intervals must mean 42 minutes');
+const finish=timing.estimate(longNow).endsAt;
+timing.update(longData(longNow+1000,{workers:[{worker_id:'direct',status:'error'},{worker_id:'proxy',status:'ready'}]}),longNow+1000);
+assert.equal(timing.estimate(longNow+1000).endsAt,finish,'A browser restart must not erase or move the prediction on every poll');
+timing.update(longData(longNow+2000),longNow+2000);
+assert.equal(timing.estimate(longNow+2000).endsAt,finish);
+assert.equal(timing.state.startedAt,at);
+timing.update(longData(longNow+420000),longNow+420000);
+assert.ok(nodes.get('timingFinish').textContent!=='—','Long waits keep a clearly labeled last prediction');
 // Old runtimes use only the existing progress snapshots, not the entire results.
 for(let i=0;i<200;i++){
   const legacy=data(i,{kpis:{total:1000,completed:i},session_timing:metadata(at+200000+i*1000,'legacy',at,0)});

@@ -1,0 +1,18 @@
+{
+  "at": "2026-10-17T05:10:09.534409+00:00",
+  "database": "commerce_admin_payout_1d024b02f582",
+  "isolated": true,
+  "transactional_sql_cases_passed": true,
+  "concurrent_requests": 8,
+  "unique_paid_withdrawals": 1,
+  "exact_amount_preserved": true,
+  "held_funds_unchanged": true,
+  "partner_ack_no_financial_write": true,
+  "durable_partner_channel_notifications": true,
+  "replay_does_not_duplicate_notices": true,
+  "known_rejections_bounded": true,
+  "uncertain_sends_not_retried_blindly": true,
+  "concurrent_notification_claims_are_exclusive": true,
+  "production_financial_records_modified": false,
+  "partner_messages_sent": false
+}

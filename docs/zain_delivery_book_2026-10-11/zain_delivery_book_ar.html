@@ -1,0 +1,1996 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>كتاب تنفيذ مشروع Zain Checker حتى النشر</title>
+<style>
+:root{color-scheme:light;--ink:#152634;--muted:#526674;--line:#d9e2e8;--blue:#174f70;--paper:#fff;--bg:#f2f5f6}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.9 "Segoe UI",Tahoma,Arial,sans-serif}
+aside{position:fixed;right:0;top:0;width:300px;height:100vh;overflow:auto;background:#142f41;color:white;padding:24px 20px;border-left:1px solid var(--line)}
+aside h2{font-size:20px;margin:0 0 8px}
+aside p{font-size:13px;color:#c6d8e4;margin:0 0 20px}
+aside a{display:block;color:#dbe8ef;text-decoration:none;font-size:14px;padding:7px 2px;border-bottom:1px solid #294657}
+aside a:hover{color:white;background:#21455e}
+aside a b{display:inline-block;width:28px;color:#99c8dc}
+main{margin-right:300px;padding:36px 5vw 70px}
+article{max-width:1080px;margin:auto;background:var(--paper);padding:42px 52px;border:1px solid var(--line);box-shadow:0 8px 25px #14304709}
+h1{font-size:34px;line-height:1.5;margin:0 0 18px;color:#142f41}
+h2{font-size:25px;color:var(--blue);border-bottom:2px solid var(--line);padding-bottom:12px;margin:40px 0 18px}
+h3{font-size:23px;color:#143c54;border-top:1px solid var(--line);padding-top:24px;margin:36px 0 16px}
+h4{font-size:20px;color:var(--blue);margin:28px 0 12px;background:#f0f6f9;padding:12px 16px;border-right:4px solid #4a91b4}
+p{margin:8px 0 12px}
+ul{padding-right:26px;margin:10px 0 20px}
+li{padding:3px 0}
+strong{font-weight:650}
+a{color:#125b8c;text-underline-offset:4px}
+code{direction:ltr;unicode-bidi:isolate;font:13px/1.6 Consolas,monospace;background:#f0f3f6;padding:2px 5px;border-radius:3px}
+.path{display:block;overflow-wrap:anywhere;margin-top:4px;color:var(--muted)}
+.local-ref{font-weight:600;color:#125b8c}
+.table-wrap{overflow:auto;margin:18px 0}
+table{width:100%;border-collapse:collapse;font-size:14px;line-height:1.7}
+th,td{padding:10px 12px;border:1px solid var(--line);text-align:right;vertical-align:top}
+th{background:#e9f1f5;color:#173e56}
+tr:nth-child(even){background:#f8fafb}
+[id]{scroll-margin-top:22px}
+.reader-note{background:#e9f1f5;padding:12px 18px;margin:0 0 24px;color:#32576a;font-size:14px}
+@media(max-width:1050px){aside{position:static;width:auto;height:auto;max-height:300px}main{margin-right:0;padding:16px}article{padding:25px}h1{font-size:27px}}
+@media print{body{background:white;font:11pt/1.7 Tahoma,Arial,sans-serif}aside,.reader-note{display:none}main{margin:0;padding:0}article{border:0;box-shadow:none;padding:0;max-width:none}h1{font-size:22pt}h2{font-size:18pt}h3{break-before:page;font-size:16pt}h4{break-after:avoid;font-size:13pt}li{break-inside:avoid}table{font-size:9pt}thead{display:table-header-group}a{color:inherit}.path{font-size:8pt}@page{size:A4;margin:18mm 16mm}}
+</style>
+</head>
+<body>
+<aside aria-label="فهرس الكتاب"><h2>خطة التنفيذ حتى النشر</h2><p>36 فصلًا · 108 مهام<br>نسخة 1.0 · 11 أكتوبر 2026<br>للبحث استخدم Ctrl+F، وللطباعة Ctrl+P.</p>
+<a href="#chapter-01"><b>01</b> حدود المشروع وتعريف النجاح</a>
+<a href="#chapter-02"><b>02</b> سجل الأدلة وتصحيح الادعاءات</a>
+<a href="#chapter-03"><b>03</b> المرجع الحقيقي للإنتاج</a>
+<a href="#chapter-04"><b>04</b> توحيد النسخ المعزولة</a>
+<a href="#chapter-05"><b>05</b> عقود البيانات وحالة المهمة</a>
+<a href="#chapter-06"><b>06</b> قراءة الصفوف وتحليل الأرقام</a>
+<a href="#chapter-07"><b>07</b> تثبيت القاعدة المالية</a>
+<a href="#chapter-08"><b>08</b> الصفوف المكررة وصحة التقارير المالية</a>
+<a href="#chapter-09"><b>09</b> قراءة الملف مرة واحدة والكاش</a>
+<a href="#chapter-10"><b>10</b> سقف الكاش ولقطة المدخلات</a>
+<a href="#chapter-11"><b>11</b> API وهوية الجلسة والطلبات المتأخرة</a>
+<a href="#chapter-12"><b>12</b> واجهة الخيارات والعرض المستقر</a>
+<a href="#chapter-13"><b>13</b> WAL والمتانة ونقاط الاستئناف</a>
+<a href="#chapter-14"><b>14</b> الاستعادة بعد التعطل والإصلاح</a>
+<a href="#chapter-15"><b>15</b> دورة حياة الكاتب وانتشار الفشل</a>
+<a href="#chapter-16"><b>16</b> عقد محركات Excel وسلامة النشر المحلي</a>
+<a href="#chapter-17"><b>17</b> Rust والمنصات دون تجميع</a>
+<a href="#chapter-18"><b>18</b> OpenXML وصلاحية الملف البديل</a>
+<a href="#chapter-19"><b>19</b> التقرير التنفيذي متعدد الأوراق</a>
+<a href="#chapter-20"><b>20</b> تحديث المصدر مع الحفاظ على المحتوى</a>
+<a href="#chapter-21"><b>21</b> قياس الأداء حتى 100 ألف صف</a>
+<a href="#chapter-22"><b>22</b> الذاكرة والطوابير والضغط العكسي</a>
+<a href="#chapter-23"><b>23</b> JobSession وعزل الملفات المتزامنة</a>
+<a href="#chapter-24"><b>24</b> الجدولة العادلة عبر الطابور</a>
+<a href="#chapter-25"><b>25</b> حجز المهام والالتزام والإلغاء</a>
+<a href="#chapter-26"><b>26</b> صحة المسارات وCircuit Breaker</a>
+<a href="#chapter-27"><b>27</b> التأجيل وميزانية المحاولات</a>
+<a href="#chapter-28"><b>28</b> تشخيص CPU في Chrome</a>
+<a href="#chapter-29"><b>29</b> دورة حياة المتصفح والجلسة</a>
+<a href="#chapter-30"><b>30</b> الرصد والتفسير التشغيلي</a>
+<a href="#chapter-31"><b>31</b> مصفوفة القبول الوظيفي المتكامل</a>
+<a href="#chapter-32"><b>32</b> اختبارات الأعطال والحمل الممتد</a>
+<a href="#chapter-33"><b>33</b> حزمة الإصدار وتجربة Linux</a>
+<a href="#chapter-34"><b>34</b> الجاهزية ومراجعة قرار النشر</a>
+<a href="#chapter-35"><b>35</b> النشر الموازي والتحويل والرجوع</a>
+<a href="#chapter-36"><b>36</b> التحقق بعد النشر والتسليم النهائي</a>
+</aside>
+<main><article>
+<div class="reader-note">هذه خطة قابلة للمراجعة، وليست تقرير إنجاز. الروابط المحلية تظهر بمساراتها؛ نسخة Markdown تحتفظ بروابط الملفات القابلة للنقر داخل Codex.</div>
+<h1>كتاب تنفيذ وإغلاق مشروع Zain Checker حتى النشر</h1>
+<p>نسخة التخطيط: 1.0 — تاريخ إعداد الوثيقة: 2026-10-11 — المنطقة الزمنية: Asia/Baghdad.</p>
+<h2>1. <strong>Direct Answer</strong></h2>
+<p>هذا الكتاب يحوّل العمل المتبقي إلى 108 مهام موزعة على 36 فصلًا.</p>
+<p>يغطي تصحيح الأدلة، توحيد النسخ، المال، الكاش، واجهة المستخدم، WAL، Excel، الجدولة، المسارات، المتصفح، الاختبارات، النشر والرجوع.</p>
+<p>الوثيقة خطة تنفيذ ومراجعة؛ إنشاء هذه الوثيقة لا يعني تنفيذ الإصلاحات أو نشرها.</p>
+<p>تُقرأ المهام بالترتيب مع احترام تبعيات كل فصل.</p>
+<p>لكل مهمة هدف ومدخلات وأربع خطوات واختبار قبول ومخرج وشرط إغلاق.</p>
+<p>لا تغلق مهمة لمجرد أن ملفًا أنشئ أو اختبارًا طبع كلمة نجاح.</p>
+<p>النسخة المستهدفة يجب أن تكون موحدة ومحددة ببصمات قبل الاعتماد.</p>
+<p>لا يوجد وعد مثبت الآن بإنهاء جميع مخرجات 100 ألف صف خلال دقيقة.</p>
+<p>هدف الدقيقة يختبر على الإنهاء المحلي الكامل؛ زمن الاستعلام الخارجي له قياس وحدود مختلفة.</p>
+<p>الأداء لا يُقبل مقابل فقد صيغ أو أوراق أو نتائج مالية أو هوية جلسة.</p>
+<p>الـVPS الحالي يبقى عاملًا؛ لا تتضمن هذه الخطة أمرًا لإيقافه أو إعادة تشغيله.</p>
+<p>النشر المقترح يستعمل نسخة موازية فقط عندما تسمح البنية وملكية المهام بذلك.</p>
+<p>إذا لم تسمح البنية بالتحويل دون قطع العمل، يذكر القيد ويُحل قبل النشر.</p>
+<p>منع البناء والتجميع والحذف يسري على كل مرحلة، بما فيها الاختبارات والملفات المؤقتة.</p>
+<p>لا تُنفذ هذه الوثيقة بناء Rust جديدًا؛ إن لم تكف الثنائية الموجودة، يستعمل بديل متحقق أو يسجل العائق.</p>
+<p>لا تُفترض صلاحية Windows exe على Linux.</p>
+<p>الأعمال التي تحتاج وصول البيئة ينفذها العامل صاحب الوصول ضمن النطاق المصرح.</p>
+<p>المراجعة الحالية قراءة ملفات وإعداد وثيقة فقط؛ لا اتصال إنتاج ولا اختبارات تطبيق منفذة من الكاتب.</p>
+<h2>2. <strong>Reasoning</strong></h2>
+<h3>كيف تستخدم هذا الكتاب</h3>
+<ul>
+<li>حدّد معرف الإصدار المحلي قبل البدء.</li>
+<li>أنشئ سجل مهمة لكل معرف T001 إلى T108.</li>
+<li>استخدم الحالات: مخطط، قيد التنفيذ، بحاجة تصحيح، متحقق، معلق على قرار، خارج الإصدار.</li>
+<li>لا تستخدم حالة «متحقق» دون مسار دليل وبصمة نسخة الاختبار.</li>
+<li>اربط كل تقرير بمجلد تشغيل جديد؛ لا تكتب فوق دليل سابق.</li>
+<li>اقرأ تبعيات الفصل قبل العمل على مهامه.</li>
+<li>لا توقف المسارات المستقلة بسبب سؤال يمكن تأجيله، لكن لا تتجاوز قرارًا ماليًا أو تشغيليًا لازمًا.</li>
+<li>بعد أي تغيير مصدر حساس، حدّد الاختبارات التي أصبحت نتائجها قديمة.</li>
+<li>احتفظ بقائمة الملفات المعدلة وسبب كل تعديل.</li>
+<li>عند فشل اختبار، سجّل المتوقع والمشاهد والسبب المثبت والخطوة التصحيحية.</li>
+<li>لا تفترض سبب CPU أو 403 أو فقد البيانات من اسم حقل في JSON.</li>
+<li>أرسل للمراجع نتائج ملموسة: ملفات، بصمات، قياسات خام، مقارنة بيانات وموانع.</li>
+<li>لا تطلب قرار نشر قبل اكتمال الحزمة وخطة الرجوع والمخرجات القابلة للمراجعة.</li>
+<li>إصدار جديد يعني manifest جديدًا؛ لا تجمع نجاحات تخص مصادر مختلفة.</li>
+<li>كل وقت أو حجم تاريخي في الكتاب له نطاق؛ لا تنقله إلى بيئة أخرى كضمان.</li>
+</ul>
+<h3>سجل الحالة عند إعداد الكتاب</h3>
+<ul>
+<li>[فحص كود] اختبار القبول يبدأ بإضافة isolated_patch_task2 إلى sys.path.</li>
+<li>[فحص كود] الكاتب الجديد والمحرك موجودان داخل isolated_patch_task3.</li>
+<li>[فحص كود] بصمتا الكاتب في task2 وtask3 مختلفتان أثناء المراجعة.</li>
+<li>[تقرير عامل] الزمن 11.98 ثانية يخص ضخ 100 ألف سجل مصطنع إلى الكاتب.</li>
+<li>[فحص كود] اختبار 100 ألف لا يقارن قيم جميع الخلايا؛ يتحقق من عدد الصفوف.</li>
+<li>[فحص كود] اسم Peak RAM في الاختبار يشير إلى RSS Python عند النهاية.</li>
+<li>[فحص كود] ذلك القياس لا يرصد القمة الزمنية ولا ذاكرة عملية Rust.</li>
+<li>[فحص كود] الكاتب الجديد يسمح بحفظ كامل عند فراغ الطابور بعد شرط 60 ثانية.</li>
+<li>[فحص كود] المحرك يحتوي os.remove(temp_wal) في finally؛ يجب تصحيحه قبل تشغيله ضمن قيد المستخدم.</li>
+<li>[فحص كود] الكاتب يحتوي فرعًا يغيّر الحفظ عند اكتشاف خصائص Mock.</li>
+<li>[فحص كود] المنسق ينتج «فرق رصيد» والمحركات الجديدة تختار تنسيق الفروق عند «فرق مديونية».</li>
+<li>[فحص كود] OpenXML يستخدم رقم المصدر لتحديد إحداثي صف التقرير؛ Rust يكتب الصفوف بالتتابع.</li>
+<li>[فحص كود] الإنهاء في task3 ما زال يستدعي التقرير التنفيذي ومحدّث المصدر بعد الكاتب.</li>
+<li>[فحص كود] التقرير التنفيذي ومحدّث المصدر المقروءان ما زالا يستعملان openpyxl.</li>
+<li>[فحص كود] النسخة المالية تحتوي SharedWorkbookCache وFrozenTaskConfig ومسار إعادة المقارنة.</li>
+<li>[غير مثبت] نجاح هذه المكونات متفرقة لا يثبت نجاح نسخة تجمعها مع الكاتب الجديد والجدولة المتزامنة.</li>
+<li>[تقرير محلي] 14.8746 ثانية تخص بيانات 2,891 صفًا مع 2,451 عميل استعلام ضمن مسار القياس المسجل.</li>
+<li>[حد قياس] هذا ليس زمن Book10 الأصلي ذي 22,741 صفًا، ولا قياسًا جديدًا للـVPS.</li>
+<li>[تقرير محلي] اختبار 22,741 صفًا مصطنعًا و56 عمودًا يسجل تحديث المصدر في 62.5234 ثانية.</li>
+<li>[تقرير محلي] الاختبار نفسه يسجل انتظار الكاتب 300.0226 ثانية وعدم اكتماله وعدد 21,303 عند اللقطة.</li>
+<li>[غير مثبت] الحقل records_lost=1438 لا يثبت فقدًا دائمًا؛ يلزم فحص الخيط وWAL والنتيجة النهائية.</li>
+<li>[تقرير محلي] مقارنة تنظيف Unicode تسجل مكسب وسيط 0.04% لطور الخلايا في ست جولات.</li>
+<li>[حد استنتاج] هذا المكسب لا يبرر وصف التحسين بأنه حل للاختناق الرئيسي.</li>
+<li>[تقرير سابق] فجوة الإنتاج 74 ثانية تشمل تحميلًا وتعديلًا وحفظ النسخة الأولى، لا wb.save وحده.</li>
+<li>[تقرير سابق] الفترة التالية 30 ثانية، ومجموع النافذتين 104 ثوانٍ في الحالة الموثقة.</li>
+<li>[حد استنتاج] فارق 19 ثانية بين إعلان التقرير وانتهاء الكاتب دليل تداخل، لا زمن إنشاء التقرير منفردًا.</li>
+<li>[قرار معلق] وثيقة v3 وصفت المطابقة بأقل من 0.01 ريال، والكود المقروء يستخدم 20 هللة.</li>
+<li>[حد استنتاج] لا يوجد دليل يجيز تغيير السياسة المالية على الإنتاج دون تثبيت قرار مالكها.</li>
+<li>[غير مثبت] لا يزال سبب استهلاك Chrome يحتاج خط CPU زمنيًا؛ ثلاثة تبويبات وحدها ليست تفسيرًا.</li>
+<li>[غير مثبت] تدوير السياق بعد 250 نجاحًا سياسة مرشحة تحتاج قياسًا، وليست علاجًا مثبتًا.</li>
+<li>[غير مثبت] التوازي بين ملفات مع مؤجلات يحتاج اختبار تداخل حقيقي؛ A ثم B ليس الدليل المطلوب.</li>
+<li>[غير مثبت] النشر دون انقطاع يعتمد على بنية التوجيه وملكية الطابور وتوافق الحالة، وهي يجب التحقق منها.</li>
+</ul>
+<h3>مصادر المراجعة المحلية</h3>
+<ul>
+<li><span class="local-ref" title="/E:/Projects/zainCheck_smart/scratch/verify_task2_complete_acceptance.py:17">اختبار قبول task2</span> <code class="path">/E:/Projects/zainCheck_smart/scratch/verify_task2_complete_acceptance.py:17</code>.</li>
+<li><span class="local-ref" title="/E:/Projects/zainCheck_smart/scratch/test_integrated_writer_100k.py:40">اختبار الكاتب 100 ألف</span> <code class="path">/E:/Projects/zainCheck_smart/scratch/test_integrated_writer_100k.py:40</code>.</li>
+<li><span class="local-ref" title="/E:/Projects/zainCheck_smart/isolated_patch_task3/zain_checker/async_pipeline_engine.py:226">كاتب task3</span> <code class="path">/E:/Projects/zainCheck_smart/isolated_patch_task3/zain_checker/async_pipeline_engine.py:226</code>.</li>
+<li><span class="local-ref" title="/E:/Projects/zainCheck_smart/isolated_patch_task3/zain_checker/fast_excel_engine.py:135">محرك Excel الجديد</span> <code class="path">/E:/Projects/zainCheck_smart/isolated_patch_task3/zain_checker/fast_excel_engine.py:135</code>.</li>
+<li><span class="local-ref" title="/E:/Projects/zainCheck_smart/isolated_patch_task3/zain_checker/fast_excel_engine.py:293">أمر الحذف المطلوب تصحيحه</span> <code class="path">/E:/Projects/zainCheck_smart/isolated_patch_task3/zain_checker/fast_excel_engine.py:293</code>.</li>
+<li><span class="local-ref" title="/E:/Projects/zainCheck_smart/isolated_patch_task3/manager/orchestrator.py:996">المنسق ومسار الإنهاء</span> <code class="path">/E:/Projects/zainCheck_smart/isolated_patch_task3/manager/orchestrator.py:996</code>.</li>
+<li><span class="local-ref" title="/E:/Projects/zainCheck_smart/isolated_patch_task3/zain_checker/executive_reporter.py:421">التقرير التنفيذي</span> <code class="path">/E:/Projects/zainCheck_smart/isolated_patch_task3/zain_checker/executive_reporter.py:421</code>.</li>
+<li><span class="local-ref" title="/E:/Projects/zainCheck_smart/isolated_patch_task3/zain_checker/sheet_updater.py:536">محدّث المصدر</span> <code class="path">/E:/Projects/zainCheck_smart/isolated_patch_task3/zain_checker/sheet_updater.py:536</code>.</li>
+<li><span class="local-ref" title="/E:/Projects/zainCheck_smart/scratch/rust_writer/src/main.rs">مصدر Rust الموجود</span> <code class="path">/E:/Projects/zainCheck_smart/scratch/rust_writer/src/main.rs</code>.</li>
+<li><span class="local-ref" title="/E:/Projects/zainCheck_smart/scratch/rust_writer/Cargo.toml">تعريف اعتماديات Rust</span> <code class="path">/E:/Projects/zainCheck_smart/scratch/rust_writer/Cargo.toml</code>.</li>
+<li><span class="local-ref" title="/E:/Projects/zainCheck_smart/isolated_patch_financial/domain/sheet_cache.py:196">كاش النسخة المالية</span> <code class="path">/E:/Projects/zainCheck_smart/isolated_patch_financial/domain/sheet_cache.py:196</code>.</li>
+<li><span class="local-ref" title="/E:/Projects/zainCheck_smart/isolated_patch_financial/domain/money.py:15">القواعد المالية الحالية</span> <code class="path">/E:/Projects/zainCheck_smart/isolated_patch_financial/domain/money.py:15</code>.</li>
+<li><span class="local-ref" title="/E:/Projects/zainCheck_smart/isolated_patch_financial/server/web_api.py:482">API إعادة المقارنة</span> <code class="path">/E:/Projects/zainCheck_smart/isolated_patch_financial/server/web_api.py:482</code>.</li>
+<li><span class="local-ref" title="/E:/Projects/zainCheck_smart/isolated_patch_financial/web_ui/index.html:1707">واجهة إعادة المقارنة</span> <code class="path">/E:/Projects/zainCheck_smart/isolated_patch_financial/web_ui/index.html:1707</code>.</li>
+<li><span class="local-ref" title="/E:/Projects/zainCheck_smart/scratch/post_100_finalization_benchmark.json">تقرير الإنهاء المحلي الصغير</span> <code class="path">/E:/Projects/zainCheck_smart/scratch/post_100_finalization_benchmark.json</code>.</li>
+<li><span class="local-ref" title="/E:/Projects/zainCheck_smart/scratch/test_runs/run_20261011_082800_final_validation/synthetic_book10_22741_scale_report.json">تقرير 22,741 صفًا المصطنع</span> <code class="path">/E:/Projects/zainCheck_smart/scratch/test_runs/run_20261011_082800_final_validation/synthetic_book10_22741_scale_report.json</code>.</li>
+<li><span class="local-ref" title="/E:/Projects/zainCheck_smart/scratch/test_runs/run_20261011_082800_final_validation/alternating_benchmark_report.json">تقرير Unicode والجولات المتبادلة</span> <code class="path">/E:/Projects/zainCheck_smart/scratch/test_runs/run_20261011_082800_final_validation/alternating_benchmark_report.json</code>.</li>
+<li><span class="local-ref" title="/E:/Projects/zainCheck_smart/evidence_correction_and_audit_report.md">تقرير تصحيح أدلة الإنتاج السابق</span> <code class="path">/E:/Projects/zainCheck_smart/evidence_correction_and_audit_report.md</code>.</li>
+</ul>
+<h3>مراجع تقنية رسمية وحدود استعمالها</h3>
+<p>إنشاء ملف جديد يختلف عن تعديل مصنف موجود: توضح مكتبة rust_xlsxwriter أنها تنشئ XLSX جديدًا ولا تعدّل ملفًا قائمًا. <a href="https://docs.rs/rust_xlsxwriter/latest/rust_xlsxwriter/" target="_blank" rel="noreferrer">توثيق rust_xlsxwriter</a>.</p>
+<p>الكتابة بالتدفق خيار يقلل الاحتفاظ بالخلايا، لكن قيود write_only ومنها الحفظ مرة واحدة تجعل تصميمه مختلفًا عن تحرير مصدر كامل. <a href="https://openpyxl.readthedocs.io/en/stable/optimized.html" target="_blank" rel="noreferrer">توثيق openpyxl للمودات المحسنة</a>.</p>
+<p>رمز 429 يدل على كثرة الطلبات وقد يأتي معه Retry-After؛ سياسة التبريد يجب أن تراعيه عندما يتوفر. <a href="https://www.rfc-editor.org/rfc/rfc6585.html#section-4" target="_blank" rel="noreferrer">RFC 6585، القسم 4</a>.</p>
+<p>تعامل إدارة السياقات مع إغلاق المورد بوصفه إجراء lifecycle واضحًا؛ لا تجعل رفض طلب دليلًا على حاجة لإغلاق السياق. <a href="https://playwright.dev/python/docs/api/class-browsercontext" target="_blank" rel="noreferrer">توثيق BrowserContext في Playwright</a>.</p>
+<p>هذه المراجع تدعم حدود التقنية، ولا تثبت زمن تنفيذ البرنامج أو سبب أعطال إنتاجه.</p>
+<h3>فهرس الفصول</h3>
+<ul>
+<li><a href="#chapter-01">الفصل 01: حدود المشروع وتعريف النجاح</a></li>
+<li><a href="#chapter-02">الفصل 02: سجل الأدلة وتصحيح الادعاءات</a></li>
+<li><a href="#chapter-03">الفصل 03: المرجع الحقيقي للإنتاج</a></li>
+<li><a href="#chapter-04">الفصل 04: توحيد النسخ المعزولة</a></li>
+<li><a href="#chapter-05">الفصل 05: عقود البيانات وحالة المهمة</a></li>
+<li><a href="#chapter-06">الفصل 06: قراءة الصفوف وتحليل الأرقام</a></li>
+<li><a href="#chapter-07">الفصل 07: تثبيت القاعدة المالية</a></li>
+<li><a href="#chapter-08">الفصل 08: الصفوف المكررة وصحة التقارير المالية</a></li>
+<li><a href="#chapter-09">الفصل 09: قراءة الملف مرة واحدة والكاش</a></li>
+<li><a href="#chapter-10">الفصل 10: سقف الكاش ولقطة المدخلات</a></li>
+<li><a href="#chapter-11">الفصل 11: API وهوية الجلسة والطلبات المتأخرة</a></li>
+<li><a href="#chapter-12">الفصل 12: واجهة الخيارات والعرض المستقر</a></li>
+<li><a href="#chapter-13">الفصل 13: WAL والمتانة ونقاط الاستئناف</a></li>
+<li><a href="#chapter-14">الفصل 14: الاستعادة بعد التعطل والإصلاح</a></li>
+<li><a href="#chapter-15">الفصل 15: دورة حياة الكاتب وانتشار الفشل</a></li>
+<li><a href="#chapter-16">الفصل 16: عقد محركات Excel وسلامة النشر المحلي</a></li>
+<li><a href="#chapter-17">الفصل 17: Rust والمنصات دون تجميع</a></li>
+<li><a href="#chapter-18">الفصل 18: OpenXML وصلاحية الملف البديل</a></li>
+<li><a href="#chapter-19">الفصل 19: التقرير التنفيذي متعدد الأوراق</a></li>
+<li><a href="#chapter-20">الفصل 20: تحديث المصدر مع الحفاظ على المحتوى</a></li>
+<li><a href="#chapter-21">الفصل 21: قياس الأداء حتى 100 ألف صف</a></li>
+<li><a href="#chapter-22">الفصل 22: الذاكرة والطوابير والضغط العكسي</a></li>
+<li><a href="#chapter-23">الفصل 23: JobSession وعزل الملفات المتزامنة</a></li>
+<li><a href="#chapter-24">الفصل 24: الجدولة العادلة عبر الطابور</a></li>
+<li><a href="#chapter-25">الفصل 25: حجز المهام والالتزام والإلغاء</a></li>
+<li><a href="#chapter-26">الفصل 26: صحة المسارات وCircuit Breaker</a></li>
+<li><a href="#chapter-27">الفصل 27: التأجيل وميزانية المحاولات</a></li>
+<li><a href="#chapter-28">الفصل 28: تشخيص CPU في Chrome</a></li>
+<li><a href="#chapter-29">الفصل 29: دورة حياة المتصفح والجلسة</a></li>
+<li><a href="#chapter-30">الفصل 30: الرصد والتفسير التشغيلي</a></li>
+<li><a href="#chapter-31">الفصل 31: مصفوفة القبول الوظيفي المتكامل</a></li>
+<li><a href="#chapter-32">الفصل 32: اختبارات الأعطال والحمل الممتد</a></li>
+<li><a href="#chapter-33">الفصل 33: حزمة الإصدار وتجربة Linux</a></li>
+<li><a href="#chapter-34">الفصل 34: الجاهزية ومراجعة قرار النشر</a></li>
+<li><a href="#chapter-35">الفصل 35: النشر الموازي والتحويل والرجوع</a></li>
+<li><a href="#chapter-36">الفصل 36: التحقق بعد النشر والتسليم النهائي</a></li>
+</ul>
+<h3>قواعد ترتيب التنفيذ</h3>
+<ul>
+<li>الفصول 01–04 تثبّت الأدلة والنسخة؛ لا تعتمد اختبارات قبلها.</li>
+<li>الفصول 05–12 تضبط المال والمدخلات والكاش والواجهة.</li>
+<li>الفصول 13–22 تغلق متانة الحفظ وسلامة المخرجات والأداء والذاكرة.</li>
+<li>الفصول 23–30 تنفذ العزل والجدولة وصحة المسارات والمتصفح والرصد.</li>
+<li>الفصول 31–34 تجمع القبول وتوافق Linux وحزمة القرار.</li>
+<li>الفصول 35–36 تخص النشر الفعلي والتحقق والتسليم بعد استيفاء البوابات.</li>
+<li>يمكن إعداد دليل أو تحليل مستقل بالتوازي، لكن اعتماد النتيجة يتبع التبعيات.</li>
+<li>نقل مهمة إلى إصدار لاحق يحتاج ذكر أثره على وعد المنتج والقبول، لا إسقاطها بصمت.</li>
+</ul>
+<a id="chapter-01"></a>
+<h3>الفصل 01: حدود المشروع وتعريف النجاح</h3>
+<p><strong>الغرض:</strong> تحويل طلب المستخدم إلى نتائج قابلة للتحقق قبل اختيار تقنية أو موعد نشر.</p>
+<p><strong>التبعيات:</strong> لا توجد؛ هذه نقطة البداية.</p>
+<h4 id="T001">T001 — ثبّت القيود التشغيلية</h4>
+<ul>
+<li><strong>الهدف:</strong> حماية الخدمة الحالية والأدلة خلال جميع المراحل.</li>
+<li><strong>المدخلات:</strong> تعليمات المستخدم وسجل العمل الحالي.</li>
+<li><strong>الخطوة 1:</strong> دوّن أن الـVPS يبقى عاملًا طوال الإعداد والتحقق.</li>
+<li><strong>الخطوة 2:</strong> احظر أوامر البناء والتجميع من تعليمات التنفيذ.</li>
+<li><strong>الخطوة 3:</strong> احفظ كل تشغيل في مجلد جديد؛ لا تحذف ملفات مؤقتة.</li>
+<li><strong>الخطوة 4:</strong> افصل إعداد خطة النشر عن تنفيذ تغيير الإنتاج فعليًا.</li>
+<li><strong>اختبار القبول:</strong> لا تحتوي أوامر الخطة على حذف أو بناء أو إيقاف للخدمة الحالية.</li>
+<li><strong>المخرج المطلوب:</strong> وثيقة قيود التشغيل موقعة بالنسخة والتاريخ.</li>
+<li><strong>شرط الإغلاق:</strong> أي خرق يعيد المهمة إلى التصحيح قبل تشغيل الاختبارات.</li>
+</ul>
+<h4 id="T002">T002 — حدّد المخرجات التي يجب الحفاظ عليها</h4>
+<ul>
+<li><strong>الهدف:</strong> منع كسب السرعة بإسقاط جزء من وظيفة البرنامج.</li>
+<li><strong>المدخلات:</strong> المصدر، التقرير التنفيذي، واجهة النتائج والطابور.</li>
+<li><strong>الخطوة 1:</strong> احصر أوراق التقرير وأنواعها وروابطها وإجمالياتها.</li>
+<li><strong>الخطوة 2:</strong> احصر الخلايا التي يسمح بتعديلها في المصدر.</li>
+<li><strong>الخطوة 3:</strong> حدّد سلوك الإيقاف الجزئي والإصلاح وإعادة التصدير.</li>
+<li><strong>الخطوة 4:</strong> عرّف نجاح المهمة باكتمال المخرجات المطلوبة، لا نسبة الفحص فقط.</li>
+<li><strong>اختبار القبول:</strong> لكل مخرج وصف ومثال مرجعي ومعيار تحقق مستقل.</li>
+<li><strong>المخرج المطلوب:</strong> قائمة مخرجات وظيفية متفق عليها.</li>
+<li><strong>شرط الإغلاق:</strong> لا يبدأ حذف وظائف من التقرير تحت اسم تحسين السرعة.</li>
+</ul>
+<h4 id="T003">T003 — افصل الأهداف الزمنية</h4>
+<ul>
+<li><strong>الهدف:</strong> تجنب الوعد بدقيقة تشمل استعلامات خارجية غير مقاسة.</li>
+<li><strong>المدخلات:</strong> طلب 100 ألف صف وتقارير القياس.</li>
+<li><strong>الخطوة 1:</strong> عرّف زمن قراءة المصدر مستقلًا عن زمن استعلام زين.</li>
+<li><strong>الخطوة 2:</strong> عرّف الزمن بعد آخر نتيجة وحتى جاهزية جميع الملفات.</li>
+<li><strong>الخطوة 3:</strong> سجّل هدف الدقيقة للإنهاء المحلي كهدف تجريبي لا ضمان.</li>
+<li><strong>الخطوة 4:</strong> دوّن حدود قبول الدقة والذاكرة والتأجيل قبل المقارنة.</li>
+<li><strong>اختبار القبول:</strong> لا يخلط التقرير زمن الكاتب بزمن المهمة أو زمن الشبكة.</li>
+<li><strong>المخرج المطلوب:</strong> عقد أهداف الأداء وحدود القبول.</li>
+<li><strong>شرط الإغلاق:</strong> الحدود غير المحسومة تسجّل معلّقة ولا تختلق لها أرقام.</li>
+</ul>
+<a id="chapter-02"></a>
+<h3>الفصل 02: سجل الأدلة وتصحيح الادعاءات</h3>
+<p><strong>الغرض:</strong> بناء أساس قرار يتتبع كل رقم إلى قياس وحدود معلنة.</p>
+<p><strong>التبعيات:</strong> الفصل 01.</p>
+<h4 id="T004">T004 — أنشئ سجل حقائق وحالات تحقق</h4>
+<ul>
+<li><strong>الهدف:</strong> تمييز ما شاهدناه في الكود مما نقله تقرير العامل.</li>
+<li><strong>المدخلات:</strong> المرفقات والملفات المحلية المشار إليها.</li>
+<li><strong>الخطوة 1:</strong> صنّف كل بند: فحص كود، تقرير مقروء، اختبار مستقل، أو مقترح.</li>
+<li><strong>الخطوة 2:</strong> اربط البند بمسار الملف وبصمته ووقت مراجعته.</li>
+<li><strong>الخطوة 3:</strong> سجّل حجم البيانات الحقيقي وعدد الأعمدة ونوعها.</li>
+<li><strong>الخطوة 4:</strong> اترك حالة الإنجاز غير مثبتة عندما تنقص الأدلة.</li>
+<li><strong>اختبار القبول:</strong> لا يوصف تقرير العامل بأنه إعادة تحقق مستقلة.</li>
+<li><strong>المخرج المطلوب:</strong> سجل evidence_register بإصدارات محفوظة.</li>
+<li><strong>شرط الإغلاق:</strong> أي ادعاء بلا مصدر يحوّل إلى سؤال تحقق.</li>
+</ul>
+<h4 id="T005">T005 — صحّح وصف القياسات الحالية</h4>
+<ul>
+<li><strong>الهدف:</strong> إزالة الاستنتاجات التي تجاوزت ما يقيسه الاختبار.</li>
+<li><strong>المدخلات:</strong> اختبار الكاتب 100 ألف وحزمة قبول الـ18.</li>
+<li><strong>الخطوة 1:</strong> انسب 11.98 ثانية لاختبار الكاتب المصطنع المذكور في المرفق.</li>
+<li><strong>الخطوة 2:</strong> استبدل ادعاء تطابق جميع البيانات بوصف تحقق عدد الصفوف فقط.</li>
+<li><strong>الخطوة 3:</strong> استبدل تسمية ذروة الذاكرة بوصف RSS عند النهاية.</li>
+<li><strong>الخطوة 4:</strong> انسب نتيجة 18/18 إلى النسخة المستوردة فعلًا، وهي task2 في الاختبار المقروء.</li>
+<li><strong>اختبار القبول:</strong> تطابق عبارات التقرير مع التعليمات الفعلية للاختبارات.</li>
+<li><strong>المخرج المطلوب:</strong> تقرير تصحيح القياسات مع روابط المصدر.</li>
+<li><strong>شرط الإغلاق:</strong> لا تعتمد task3 بتمرير اختبارات task2.</li>
+</ul>
+<h4 id="T006">T006 — حقق تقرير 22,741 صفًا</h4>
+<ul>
+<li><strong>الهدف:</strong> تفسير عدم اكتمال الكاتب دون ادعاء فقد بيانات.</li>
+<li><strong>المدخلات:</strong> تقرير synthetic_book10_22741_scale_report.json.</li>
+<li><strong>الخطوة 1:</strong> سجّل مهلة 300.0226 ثانية وعدد 21,303 عند اللقطة.</li>
+<li><strong>الخطوة 2:</strong> افحص بقاء الخيط ووجهة WAL بعد انتهاء الانتظار.</li>
+<li><strong>الخطوة 3:</strong> تحقق من النتائج النهائية أو سبب الفشل قبل وصف 1,438 سجلًا.</li>
+<li><strong>الخطوة 4:</strong> سجّل زمن تحديث المصدر 62.5234 ثانية كقياس محلي مصطنع.</li>
+<li><strong>اختبار القبول:</strong> تمييز صريح بين عدم المعالجة حتى اللقطة والفقد الدائم.</li>
+<li><strong>المخرج المطلوب:</strong> تحليل مهلة الكاتب وسلامة النتائج.</li>
+<li><strong>شرط الإغلاق:</strong> الحقل records_lost وحده لا يغلق تحقيق الفقد.</li>
+</ul>
+<a id="chapter-03"></a>
+<h3>الفصل 03: المرجع الحقيقي للإنتاج</h3>
+<p><strong>الغرض:</strong> منع بناء إصلاح على نسخة ناقصة أو قديمة.</p>
+<p><strong>التبعيات:</strong> الفصل 02.</p>
+<h4 id="T007">T007 — أكمل قائمة ملفات الإنتاج</h4>
+<ul>
+<li><strong>الهدف:</strong> تحديد التطبيق الذي يعمل فعليًا قبل دمج الفروع المحلية.</li>
+<li><strong>المدخلات:</strong> production_reference وتقارير الاتصال السابقة.</li>
+<li><strong>الخطوة 1:</strong> اطلب جردًا للقراءة فقط عبر العامل المخوّل بالبيئة.</li>
+<li><strong>الخطوة 2:</strong> ضم server وweb_ui وملفات التشغيل والإعداد غير السرية.</li>
+<li><strong>الخطوة 3:</strong> سجّل الملفات الغائبة عن المرجع بدل افتراض وجودها.</li>
+<li><strong>الخطوة 4:</strong> احفظ البصمات والوقت دون كلمات مرور أو مفاتيح.</li>
+<li><strong>اختبار القبول:</strong> المرجع يشمل واجهة الدخول ووحدات الخدمة الفعلية.</li>
+<li><strong>المخرج المطلوب:</strong> manifest للإنتاج وبيان الملفات المستثناة.</li>
+<li><strong>شرط الإغلاق:</strong> نقص المرجع يبقي مقارنة النسخة الحالية غير مكتملة.</li>
+</ul>
+<h4 id="T008">T008 — ثبّت البيئة دون تغييرها</h4>
+<ul>
+<li><strong>الهدف:</strong> تجنب اختلاف Windows وLinux في القبول.</li>
+<li><strong>المدخلات:</strong> إصدارات Python والحزم والخدمة الواردة في التقارير.</li>
+<li><strong>الخطوة 1:</strong> تحقق من الإصدارات الحالية؛ لا تعتمد تقريرًا قديمًا وحده.</li>
+<li><strong>الخطوة 2:</strong> سجّل المعمارية والمساحة والذاكرة وحدود الخدمة.</li>
+<li><strong>الخطوة 3:</strong> اقرأ طريقة تشغيل التطبيق ومجلد العمل والمنفذ.</li>
+<li><strong>الخطوة 4:</strong> احفظ إعدادات منقحة دون تثبيت أو ترقية على الإنتاج.</li>
+<li><strong>اختبار القبول:</strong> توجد صورة بيئة مؤرخة مع تمييز المحلي عن الإنتاج.</li>
+<li><strong>المخرج المطلوب:</strong> environment_manifest منقح.</li>
+<li><strong>شرط الإغلاق:</strong> لا تنشر اعتمادًا على PID أو إصدار تاريخي.</li>
+</ul>
+<h4 id="T009">T009 — حدد مصدر كل وحدة منسوخة</h4>
+<ul>
+<li><strong>الهدف:</strong> منع اعتبار الواجهة المحلية نسخة من الإنتاج بلا دليل.</li>
+<li><strong>المدخلات:</strong> النسخ المعزولة وملفات UI وserver.</li>
+<li><strong>الخطوة 1:</strong> أنشئ صفًا لكل ملف يحدد الأصل والبصمة والسبب.</li>
+<li><strong>الخطوة 2:</strong> ميّز المنسوخ من الإنتاج عن المنسوخ من prototype.</li>
+<li><strong>الخطوة 3:</strong> اربط الإضافات الجديدة بالمهمة التي تحتاجها.</li>
+<li><strong>الخطوة 4:</strong> راجع واجهة التطبيق مع ServerGateway الموجود فعليًا.</li>
+<li><strong>اختبار القبول:</strong> لكل ملف متغير أو جديد أصل أو مبرر واضح.</li>
+<li><strong>المخرج المطلوب:</strong> سجل provenance للملفات.</li>
+<li><strong>شرط الإغلاق:</strong> لا تعتمد عبارة تطابق كامل مع وجود ملفات مجهولة الأصل.</li>
+</ul>
+<a id="chapter-04"></a>
+<h3>الفصل 04: توحيد النسخ المعزولة</h3>
+<p><strong>الغرض:</strong> جمع الكاتب السريع والحسابات والكاش في نسخة واحدة قابلة للاختبار.</p>
+<p><strong>التبعيات:</strong> الفصول 01–03.</p>
+<h4 id="T010">T010 — اختر خط أساس للتكامل</h4>
+<ul>
+<li><strong>الهدف:</strong> تجنب اختبار مكونات ناجحة منفصلة ثم إعلان المنتج ناجحًا.</li>
+<li><strong>المدخلات:</strong> isolated_patch_financial وtask2 وtask3 والمرجع.</li>
+<li><strong>الخطوة 1:</strong> قارن الملفات المشتركة بحسب الوظيفة والبصمة.</li>
+<li><strong>الخطوة 2:</strong> اختر خط الأساس الذي يحفظ الإصلاحات المثبتة.</li>
+<li><strong>الخطوة 3:</strong> أنشئ نسخة تكامل جديدة دون الكتابة فوق الأدلة القديمة.</li>
+<li><strong>الخطوة 4:</strong> دوّن ما سيتنقل من كل نسخة وما سيبقى خارج النطاق.</li>
+<li><strong>اختبار القبول:</strong> خط أساس واحد معلوم مع سجل قرارات الدمج.</li>
+<li><strong>المخرج المطلوب:</strong> integration_manifest للنسخة الجديدة.</li>
+<li><strong>شرط الإغلاق:</strong> لا تنسخ شجرة كاملة مع تجاهل التعديلات المتعارضة.</li>
+</ul>
+<h4 id="T011">T011 — ادمج بحسب الوظيفة</h4>
+<ul>
+<li><strong>الهدف:</strong> حماية الإصلاحات المالية والكاش من رجوع نسخة أقدم.</li>
+<li><strong>المدخلات:</strong> خريطة اختلافات الوحدات المشتركة.</li>
+<li><strong>الخطوة 1:</strong> ادمج إصلاح الكاتب مع حفظ واجهات المنسق المعتمدة.</li>
+<li><strong>الخطوة 2:</strong> حافظ على snapshot الخيارات وربط session_token.</li>
+<li><strong>الخطوة 3:</strong> راجع العقود بين API والكاش والواجهة بعد الدمج.</li>
+<li><strong>الخطوة 4:</strong> سجّل كل تعارض وحله واختبار السلوك المرتبط به.</li>
+<li><strong>اختبار القبول:</strong> لا تختفي وظيفة سابقة بسبب استبدال ملف كامل.</li>
+<li><strong>المخرج المطلوب:</strong> diff مصدر فقط مع شرح التعارضات.</li>
+<li><strong>شرط الإغلاق:</strong> الدمج اليدوي لا يعتبر ناجحًا قبل قبول الوظائف.</li>
+</ul>
+<h4 id="T012">T012 — أثبت وحدات الاختبارات المستوردة</h4>
+<ul>
+<li><strong>الهدف:</strong> إغلاق فجوة task2 مقابل task3 نهائيًا.</li>
+<li><strong>المدخلات:</strong> ملفات الاختبار والنسخة الموحدة.</li>
+<li><strong>الخطوة 1:</strong> اجعل جميع اختبارات الإصدار تشير إلى جذر التكامل.</li>
+<li><strong>الخطوة 2:</strong> اطبع __file__ للوحدات الأساسية داخل تقرير الاختبار.</li>
+<li><strong>الخطوة 3:</strong> سجّل بصمات الوحدات قبل التشغيل وبعده.</li>
+<li><strong>الخطوة 4:</strong> تحقق أن sys.path لا يستورد نسخة أخرى عرضًا.</li>
+<li><strong>اختبار القبول:</strong> تطابق مسارات الوحدات المستوردة مع manifest الإصدار.</li>
+<li><strong>المخرج المطلوب:</strong> تقرير module_provenance لكل تشغيل.</li>
+<li><strong>شرط الإغلاق:</strong> أي اختلاف مسار يبطل نتائج التشغيل لذلك الإصدار.</li>
+</ul>
+<a id="chapter-05"></a>
+<h3>الفصل 05: عقود البيانات وحالة المهمة</h3>
+<p><strong>الغرض:</strong> تقليل الأخطاء الناتجة عن الحقول الضمنية والحالة العامة.</p>
+<p><strong>التبعيات:</strong> الفصل 04.</p>
+<h4 id="T013">T013 — عرّف سجل النتيجة</h4>
+<ul>
+<li><strong>الهدف:</strong> توحيد ما ينتجه العامل وما يقرأه الكاتب والتقرير.</li>
+<li><strong>المدخلات:</strong> الحقول الموجودة في row_record ووحدات التصدير.</li>
+<li><strong>الخطوة 1:</strong> عرّف job_id وsession_id ورقم صف المصدر ونوع الاستعلام.</li>
+<li><strong>الخطوة 2:</strong> ميّز المبلغ المفقود عن الصفر المالي الصحيح.</li>
+<li><strong>الخطوة 3:</strong> عرّف الحالات الفنية والمالية ونسخة السجل.</li>
+<li><strong>الخطوة 4:</strong> حدّد الحقول الإلزامية وسياسة السجلات القديمة.</li>
+<li><strong>اختبار القبول:</strong> يرفض السجل الغريب أو غير المكتمل برسالة قابلة للتتبع.</li>
+<li><strong>المخرج المطلوب:</strong> وثيقة ResultRecord وإصداراتها.</li>
+<li><strong>شرط الإغلاق:</strong> لا تخمّن هوية مهمة لسجل مجهول.</li>
+</ul>
+<h4 id="T014">T014 — ثبّت إعدادات بدء المهمة</h4>
+<ul>
+<li><strong>الهدف:</strong> منع تغير طريقة عمل مهمة نشطة بسبب تعديل الواجهة.</li>
+<li><strong>المدخلات:</strong> FrozenTaskConfig ومسارات start وrepair.</li>
+<li><strong>الخطوة 1:</strong> انسخ الخيارات المتحققة إلى snapshot مرتبط بالمهمة.</li>
+<li><strong>الخطوة 2:</strong> اجعل العمال والتقرير يقرؤون snapshot نفسه.</li>
+<li><strong>الخطوة 3:</strong> افصل خيارات العرض اللاحقة عن إعدادات الاستعلام الجاري.</li>
+<li><strong>الخطوة 4:</strong> أضف تنظيفًا لحالة البدء عند فشل تحميل الملف.</li>
+<li><strong>اختبار القبول:</strong> تغيير خيار العرض لا يغيّر المهمة النشطة عرضًا.</li>
+<li><strong>المخرج المطلوب:</strong> عقد TaskConfig واختبار البدء الفاشل.</li>
+<li><strong>شرط الإغلاق:</strong> لا يبقى حجز البدء معلقًا بعد استثناء.</li>
+</ul>
+<h4 id="T015">T015 — عرّف أحداث الحالة</h4>
+<ul>
+<li><strong>الهدف:</strong> منع نجاح ظاهري قبل انتهاء الحفظ والتصدير.</li>
+<li><strong>المدخلات:</strong> event_bus وحالات QueueJob والواجهة.</li>
+<li><strong>الخطوة 1:</strong> عرّف checking وfinalizing وcompleted وfailed وdeferred.</li>
+<li><strong>الخطوة 2:</strong> اربط كل انتقال بدليل وشروط مسبقة.</li>
+<li><strong>الخطوة 3:</strong> اجعل أحداث النتائج تحمل هوية الجلسة ونسخة البيانات.</li>
+<li><strong>الخطوة 4:</strong> حدد من يملك حق نشر حدث الاكتمال النهائي.</li>
+<li><strong>اختبار القبول:</strong> لا يصدر completed قبل تحقق الكاتب والتقرير والمصدر المطلوب.</li>
+<li><strong>المخرج المطلوب:</strong> جدول انتقالات الحالة والأحداث.</li>
+<li><strong>شرط الإغلاق:</strong> الواجهة لا تستنتج النجاح من 100% وحدها.</li>
+</ul>
+<a id="chapter-06"></a>
+<h3>الفصل 06: قراءة الصفوف وتحليل الأرقام</h3>
+<p><strong>الغرض:</strong> إبقاء الهوية الفيزيائية للصف والتفسير متسقين.</p>
+<p><strong>التبعيات:</strong> الفصل 05.</p>
+<h4 id="T016">T016 — احفظ مواضع الصفوف الفعلية</h4>
+<ul>
+<li><strong>الهدف:</strong> منع انزياح الصفوف عند استخدام القارئ السريع.</li>
+<li><strong>المدخلات:</strong> domain/workbook.py ومسار Calamine والكاش.</li>
+<li><strong>الخطوة 1:</strong> اختبر ورقة تبدأ بياناتها عند C3 لا A1.</li>
+<li><strong>الخطوة 2:</strong> اختبر ورقة بلا عنوان وأخرى بعناوين وصفوف فارغة.</li>
+<li><strong>الخطوة 3:</strong> راجع skip_empty_area=False وسياسة احتساب أرقام الصفوف.</li>
+<li><strong>الخطوة 4:</strong> أبق رقم صف المصدر مستقلًا عن ترتيب التقرير.</li>
+<li><strong>اختبار القبول:</strong> تطابق الصف المستهدف عند القراءة والتحديث والتصدير.</li>
+<li><strong>المخرج المطلوب:</strong> fixtures للمواضع ونتائج الهوية.</li>
+<li><strong>شرط الإغلاق:</strong> لا تصحح الانزياح بإضافة رقم ثابت غير مفسر.</li>
+</ul>
+<h4 id="T017">T017 — وحّد تحليل الحساب والخدمة</h4>
+<ul>
+<li><strong>الهدف:</strong> منع اختلاف الاستعلام بين parser والكاش والمنسق.</li>
+<li><strong>المدخلات:</strong> parse_account_and_service ومسارات lookup.</li>
+<li><strong>الخطوة 1:</strong> اختبر رقمًا مباشرًا وحقلًا يحتوي أكثر من رقم.</li>
+<li><strong>الخطوة 2:</strong> اختبر تسميات الحساب والخدمة داخل النص نفسه.</li>
+<li><strong>الخطوة 3:</strong> استخدم المحلل المرجعي أو عقدًا مكافئًا مثبتًا.</li>
+<li><strong>الخطوة 4:</strong> افصل مفتاح الحساب عن مفتاح الخدمة عند تساوي النص.</li>
+<li><strong>اختبار القبول:</strong> يتطابق نوع الاستعلام ورقمه عبر جميع مسارات التطبيق.</li>
+<li><strong>المخرج المطلوب:</strong> جدول حالات parsing ومخرجات متوقعة.</li>
+<li><strong>شرط الإغلاق:</strong> لا تجمع أرقام متعددة لتكوين معرف جديد.</li>
+</ul>
+<h4 id="T018">T018 — راجع Unicode والمخطط الصريح</h4>
+<ul>
+<li><strong>الهدف:</strong> حماية الأرقام العربية وخيارات الأعمدة المختارة.</li>
+<li><strong>المدخلات:</strong> تقرير Unicode وتعريفات mapping.</li>
+<li><strong>الخطوة 1:</strong> تحقق من مصدر تقرير isdecimal وعدم اختلافه عن النسخة الحالية.</li>
+<li><strong>الخطوة 2:</strong> اختبر أرقامًا عربية ومختلطة وأصفارًا في بداية المعرف.</li>
+<li><strong>الخطوة 3:</strong> قدّم mapping الصريح على الأعمدة المكتشفة تلقائيًا.</li>
+<li><strong>الخطوة 4:</strong> اختبر حدود الفهارس والأعمدة الغائبة واسم الورقة.</li>
+<li><strong>اختبار القبول:</strong> لا يغير تحسين التنظيف المعرف أو العمود المختار.</li>
+<li><strong>المخرج المطلوب:</strong> اختبارات Unicode وأولوية mapping.</li>
+<li><strong>شرط الإغلاق:</strong> التحسين الصغير لا يدمج بلا فائدة قابلة للتمييز.</li>
+</ul>
+<a id="chapter-07"></a>
+<h3>الفصل 07: تثبيت القاعدة المالية</h3>
+<p><strong>الغرض:</strong> إزالة تعارض السياسة قبل توحيد جميع المخرجات.</p>
+<p><strong>التبعيات:</strong> الفصول 05–06.</p>
+<h4 id="T019">T019 — احسم تعارض حد المطابقة</h4>
+<ul>
+<li><strong>الهدف:</strong> عدم تغيير سياسة مالية بالاجتهاد الهندسي.</li>
+<li><strong>المدخلات:</strong> وثيقة v3 والكود domain/money.py.</li>
+<li><strong>الخطوة 1:</strong> سجّل أن v3 وصفت حدًا أقل من 0.01 ريال.</li>
+<li><strong>الخطوة 2:</strong> سجّل أن الكود المقروء يستخدم سماحية 20 هللة شاملة للحد.</li>
+<li><strong>الخطوة 3:</strong> اعرض القرار المطلوب على مالك السياسة المالية عند هذه البوابة.</li>
+<li><strong>الخطوة 4:</strong> أبق تغيير الإنتاج المالي معلقًا حتى تثبيت سياسة مكتوبة.</li>
+<li><strong>اختبار القبول:</strong> توجد سياسة واحدة تحدد السماحية ومعنى الحدود.</li>
+<li><strong>المخرج المطلوب:</strong> قرار FinancialPolicy بإصدار واضح.</li>
+<li><strong>شرط الإغلاق:</strong> لا تفترض أن السياسة الموجودة في الكود هي القرار النهائي.</li>
+</ul>
+<h4 id="T020">T020 — وحّد الحساب بالهللات</h4>
+<ul>
+<li><strong>الهدف:</strong> منع اختلاف التقريب بين الكاش والتقرير والكاتب.</li>
+<li><strong>المدخلات:</strong> parse_money_to_halalas وROUND_HALF_UP.</li>
+<li><strong>الخطوة 1:</strong> استخدم تمثيلًا دقيقًا موحدًا داخل المقارنة.</li>
+<li><strong>الخطوة 2:</strong> حوّل إلى صيغة العرض عند حافة التصدير فقط.</li>
+<li><strong>الخطوة 3:</strong> اختبر 1.005 والمبالغ السالبة والفواصل العربية.</li>
+<li><strong>الخطوة 4:</strong> ميّز الرصيد المفقود عن رصيد صفر ناجح.</li>
+<li><strong>اختبار القبول:</strong> تتطابق النتائج عند الحدود وبين جميع مسارات الحساب.</li>
+<li><strong>المخرج المطلوب:</strong> مصفوفة اختبارات التقريب والبيانات المفقودة.</li>
+<li><strong>شرط الإغلاق:</strong> لا يتحول فشل parsing إلى مطابقة مالية.</li>
+</ul>
+<h4 id="T021">T021 — ثبّت سياسة المبلغين</h4>
+<ul>
+<li><strong>الهدف:</strong> منع اختلاف remaining وcontract وboth.</li>
+<li><strong>المدخلات:</strong> is_amount_match وسياسات واجهة المقارنة.</li>
+<li><strong>الخطوة 1:</strong> وثّق أولوية المبلغ الثاني الموجودة في الكود الحالي.</li>
+<li><strong>الخطوة 2:</strong> وثّق اختيار الأقرب عند عدم مطابقة المبلغين.</li>
+<li><strong>الخطوة 3:</strong> اختبر التعادل والحدود والقيم الغائبة.</li>
+<li><strong>الخطوة 4:</strong> حدّد الفرق الحقيقي والفرق المعروض عند المطابقة.</li>
+<li><strong>اختبار القبول:</strong> الواجهة والتقرير والمصدر تطبق نفس FinancialPolicy.</li>
+<li><strong>المخرج المطلوب:</strong> جدول أمثلة لكل وضع مبلغ.</li>
+<li><strong>شرط الإغلاق:</strong> تعديل الوضع يعيد المقارنة محليًا وفق السياسة المعتمدة.</li>
+</ul>
+<a id="chapter-08"></a>
+<h3>الفصل 08: الصفوف المكررة وصحة التقارير المالية</h3>
+<p><strong>الغرض:</strong> مشاركة الاستعلام دون نسخ قرار مالي من صف لآخر.</p>
+<p><strong>التبعيات:</strong> الفصل 07.</p>
+<h4 id="T022">T022 — افصل نتيجة الاستعلام عن نتيجة الصف</h4>
+<ul>
+<li><strong>الهدف:</strong> حفظ المتوقع المختلف لكل صف مكرر.</li>
+<li><strong>المدخلات:</strong> مجموعات الحسابات والبيانات الخام.</li>
+<li><strong>الخطوة 1:</strong> شارك الرصيد المستعلم حسب نوع الاستعلام والرقم والسياق.</li>
+<li><strong>الخطوة 2:</strong> احسب expected لكل صف من عموده المختار.</li>
+<li><strong>الخطوة 3:</strong> أعد حساب الفرق والحالة لكل صف مستقلًا.</li>
+<li><strong>الخطوة 4:</strong> احفظ علاقة كل صف بالمجموعة دون دمج الصفوف ماليًا.</li>
+<li><strong>اختبار القبول:</strong> صفان بنفس الحساب ومتوقعين مختلفين ينتجان قرارين صحيحين.</li>
+<li><strong>المخرج المطلوب:</strong> اختبار duplicate_row_financials.</li>
+<li><strong>شرط الإغلاق:</strong> لا تنسخ status أو diff من أول صف.</li>
+</ul>
+<h4 id="T023">T023 — اختبر أمثلة المبالغ المكررة</h4>
+<ul>
+<li><strong>الهدف:</strong> تثبيت الفصل بين المثال التوضيحي والبيانات الميدانية.</li>
+<li><strong>المدخلات:</strong> أمثلة 298.00 و282.81 وتقارير الملف المحلي.</li>
+<li><strong>الخطوة 1:</strong> استخدم live=298.00 كمثال مصطنع واضح.</li>
+<li><strong>الخطوة 2:</strong> تحقق من فرق +15.19 للمتوقع 282.81 في المثال.</li>
+<li><strong>الخطوة 3:</strong> لا تنسب هذا الرصيد إلى قياس آخر يستخدم 580.81.</li>
+<li><strong>الخطوة 4:</strong> اختبر اختلاف النتائج عند اختيار مبلغ العقد والمبلغين.</li>
+<li><strong>اختبار القبول:</strong> لكل مثال مصدر وتصنيف وتوقعات متسقة.</li>
+<li><strong>المخرج المطلوب:</strong> fixtures مالية مسماة بوضوح.</li>
+<li><strong>شرط الإغلاق:</strong> لا تدمج أرقام مثالين مختلفين في ادعاء واحد.</li>
+</ul>
+<h4 id="T024">T024 — طابق الإجماليات مع الصفوف</h4>
+<ul>
+<li><strong>الهدف:</strong> حماية مجموع الفروق من العد المكرر أو الحذف.</li>
+<li><strong>المدخلات:</strong> أوراق الفروق والإجماليات والمصدر.</li>
+<li><strong>الخطوة 1:</strong> اجمع الأعداد والمبالغ من نتائج الصفوف المعتمدة.</li>
+<li><strong>الخطوة 2:</strong> حدّد إن كان كل تقرير يعد صفوفًا أم استعلامات فريدة.</li>
+<li><strong>الخطوة 3:</strong> اختبر الموجبة والسالبة والمطابق والأخطاء.</li>
+<li><strong>الخطوة 4:</strong> طابق إجماليات كل ورقة مع صفوفها المعروضة.</li>
+<li><strong>اختبار القبول:</strong> لا يخلط إجمالي العملاء بإجمالي الصفوف المالية.</li>
+<li><strong>المخرج المطلوب:</strong> تقرير reconciliation للإجماليات.</li>
+<li><strong>شرط الإغلاق:</strong> لا تعتمد ملفًا سريعًا بإجماليات مختلفة.</li>
+</ul>
+<a id="chapter-09"></a>
+<h3>الفصل 09: قراءة الملف مرة واحدة والكاش</h3>
+<p><strong>الغرض:</strong> تحقيق طلب المستخدم دون استدعاء قارئ Excel عند كل تغيير عرض.</p>
+<p><strong>التبعيات:</strong> الفصول 06–08.</p>
+<h4 id="T025">T025 — افصل البيانات الخام عن تفسير الخيارات</h4>
+<ul>
+<li><strong>الهدف:</strong> إعادة استخدام قراءة الملف بدل بناء نسخ حسب الوضع.</li>
+<li><strong>المدخلات:</strong> SharedWorkbookCache وRawSheetData.</li>
+<li><strong>الخطوة 1:</strong> احفظ الصفوف الخام مع مسار وورقة ونسخة محتوى.</li>
+<li><strong>الخطوة 2:</strong> اجعل اختيار الأعمدة وتفسير السياسة عمليات محلية.</li>
+<li><strong>الخطوة 3:</strong> لا تجعل مبلغ العقد والمديونية مفاتيح لقراءات منفصلة.</li>
+<li><strong>الخطوة 4:</strong> سجّل عدادات القراءة الفعلية وcache_hit.</li>
+<li><strong>اختبار القبول:</strong> تبديل الخيارات لنفس النسخة لا يقرأ الملف مجددًا ضمن snapshot متاح.</li>
+<li><strong>المخرج المطلوب:</strong> اختبار read_once_options.</li>
+<li><strong>شرط الإغلاق:</strong> لا تكتف بعدّ استدعاءات دالة لا تعكس I/O الحقيقي.</li>
+</ul>
+<h4 id="T026">T026 — امنع قراءات متزامنة مكررة</h4>
+<ul>
+<li><strong>الهدف:</strong> توحيد التحميل عند وصول طلبين للملف نفسه.</li>
+<li><strong>المدخلات:</strong> آلية single-flight والأقفال الحالية.</li>
+<li><strong>الخطوة 1:</strong> اختبر طلبين متزامنين قبل أول تحميل.</li>
+<li><strong>الخطوة 2:</strong> اجعل الطلب الثاني ينتظر نتيجة القراءة نفسها.</li>
+<li><strong>الخطوة 3:</strong> انشر فشل القراءة للمنتظرين دون إبقاء قفل عالق.</li>
+<li><strong>الخطوة 4:</strong> اختبر نجاح المحاولة التالية بعد إصلاح مدخل الاختبار.</li>
+<li><strong>اختبار القبول:</strong> قراءة واحدة لنفس المفتاح المتزامن ولا deadlock عند الفشل.</li>
+<li><strong>المخرج المطلوب:</strong> تقرير singleflight_success_failure.</li>
+<li><strong>شرط الإغلاق:</strong> لا يحتفظ الكاش باستثناء باعتباره بيانات صحيحة.</li>
+</ul>
+<h4 id="T027">T027 — اختبر تغير المدخلات</h4>
+<ul>
+<li><strong>الهدف:</strong> عدم إرجاع نسخة قديمة عند تغيير ملف خارجي.</li>
+<li><strong>المدخلات:</strong> mtime وsize وتوقيع المدخلات.</li>
+<li><strong>الخطوة 1:</strong> اختبر تغيير المحتوى من خارج البرنامج.</li>
+<li><strong>الخطوة 2:</strong> اختبر ملفين بنفس الاسم في مسارين مختلفين.</li>
+<li><strong>الخطوة 3:</strong> اختبر تغير الورقة أو mapping دون تغير الملف.</li>
+<li><strong>الخطوة 4:</strong> عرّف حدود الاعتماد على mtime وsize وأضف نسخة محتوى للمهمة.</li>
+<li><strong>اختبار القبول:</strong> يرفض سياق مهمة لا يطابق مدخلاتها المثبتة.</li>
+<li><strong>المخرج المطلوب:</strong> اختبارات cache_identity.</li>
+<li><strong>شرط الإغلاق:</strong> لا تعتبر metadata وحدها إثباتًا مطلقًا للمحتوى.</li>
+</ul>
+<a id="chapter-10"></a>
+<h3>الفصل 10: سقف الكاش ولقطة المدخلات</h3>
+<p><strong>الغرض:</strong> حل التعارض بين حد الذاكرة وإعادة الاستخدام المستمرة.</p>
+<p><strong>التبعيات:</strong> الفصل 09.</p>
+<h4 id="T028">T028 — تحقق من حد 50 ميجابايت</h4>
+<ul>
+<li><strong>الهدف:</strong> فصل سقف مدخلات الكاش عن ذاكرة العملية الكاملة.</li>
+<li><strong>المدخلات:</strong> تقرير 22,741 صفًا والكاش الحالي.</li>
+<li><strong>الخطوة 1:</strong> سجّل أن حد الكاش لا يشمل Chrome أو Rust أو التقارير.</li>
+<li><strong>الخطوة 2:</strong> اختبر إدخالًا يتجاوز الحد وإخلاء LRU.</li>
+<li><strong>الخطوة 3:</strong> قِس النسخ المؤقتة أثناء تحميل وتحليل الورقة.</li>
+<li><strong>الخطوة 4:</strong> لا تَعِد بصفر قراءة بعد الإخلاء دون snapshot بديل.</li>
+<li><strong>اختبار القبول:</strong> السلوك عند التجاوز موثق وذاكرة العملية مقاسة منفصلًا.</li>
+<li><strong>المخرج المطلوب:</strong> تقرير cache_budget_and_eviction.</li>
+<li><strong>شرط الإغلاق:</strong> لا يوصف deep_size بأنه ذروة RSS.</li>
+</ul>
+<h4 id="T029">T029 — اختر سياسة للملف الكبير النشط</h4>
+<ul>
+<li><strong>الهدف:</strong> تحقيق إعادة المقارنة دون قراءة المصدر المتغير كل مرة.</li>
+<li><strong>المدخلات:</strong> مدخل كبير غير مخزن ومهمة نشطة.</li>
+<li><strong>الخطوة 1:</strong> قارن الاحتفاظ بالحقول المطلوبة فقط ببيانات الورقة كاملة.</li>
+<li><strong>الخطوة 2:</strong> ادرس snapshot محفوظًا بإصدار إذا لم تكف الذاكرة.</li>
+<li><strong>الخطوة 3:</strong> حدد تكلفة الوصول ومقدار البيانات المستبقاة لكل خيار.</li>
+<li><strong>الخطوة 4:</strong> اختر سياسة بناءً على الدقة والذاكرة والقياس.</li>
+<li><strong>اختبار القبول:</strong> خيارات العرض لا تعيد الاستعلام الخارجي حتى مع إخلاء الكاش.</li>
+<li><strong>المخرج المطلوب:</strong> قرار ActiveInputSnapshot واختباره.</li>
+<li><strong>شرط الإغلاق:</strong> إعادة قراءة snapshot ليست قراءة جديدة للمصدر؛ صرّح بالفارق.</li>
+</ul>
+<h4 id="T030">T030 — راجع التحديث المصرح للمصدر</h4>
+<ul>
+<li><strong>الهدف:</strong> حماية مدخلات المقارنة بعد الكتابة في الملف نفسه.</li>
+<li><strong>المدخلات:</strong> authorize_in_place_update في النسخة المالية.</li>
+<li><strong>الخطوة 1:</strong> لا تحدّث metadata لكامل أوراق المسار دون إثبات التغييرات.</li>
+<li><strong>الخطوة 2:</strong> افصل snapshot الإدخال عن نسخة الملف المحدثة.</li>
+<li><strong>الخطوة 3:</strong> اختبر تحديث ورقة واحدة ووجود أوراق أخرى في الكاش.</li>
+<li><strong>الخطوة 4:</strong> اختبر كتابة خارجية تتزامن مع تحديث البرنامج.</li>
+<li><strong>اختبار القبول:</strong> لا تُعتمد بيانات قديمة بوصفها النسخة الجديدة بلا تتبع.</li>
+<li><strong>المخرج المطلوب:</strong> اختبارات authorized_update_versions.</li>
+<li><strong>شرط الإغلاق:</strong> تحديث mtime ليس تحديثًا لمحتوى الصفوف المخزنة.</li>
+</ul>
+<a id="chapter-11"></a>
+<h3>الفصل 11: API وهوية الجلسة والطلبات المتأخرة</h3>
+<p><strong>الغرض:</strong> منع خلط نتائج المقارنة بين ملفات أو جلسات متعاقبة.</p>
+<p><strong>التبعيات:</strong> الفصول 05 و09–10.</p>
+<h4 id="T031">T031 — شدّد عقد إعادة المقارنة</h4>
+<ul>
+<li><strong>الهدف:</strong> ربط الرصيد والمصدر والسياسة بهوية واحدة.</li>
+<li><strong>المدخلات:</strong> handle_recalculate_comparison ومسار live_balances.</li>
+<li><strong>الخطوة 1:</strong> تحقق من session_token والمسار والورقة ونسخة المدخل.</li>
+<li><strong>الخطوة 2:</strong> طبّق التحقق أيضًا على أرصدة مرسلة في payload.</li>
+<li><strong>الخطوة 3:</strong> حدد مصدر الأرصدة المقبول وتوقيت الاستعلام المرتبط به.</li>
+<li><strong>الخطوة 4:</strong> أعد نتيجة واضحة لغياب رصيد صالح دون اختلاق صفر.</li>
+<li><strong>اختبار القبول:</strong> لا تستخدم أرصدة جلسة A لملف أو جلسة B.</li>
+<li><strong>المخرج المطلوب:</strong> اختبار recalc_identity_matrix.</li>
+<li><strong>شرط الإغلاق:</strong> وجود live_balances لا يعفي من التحقق من السياق.</li>
+</ul>
+<h4 id="T032">T032 — خذ snapshot متسقًا للخدمة</h4>
+<ul>
+<li><strong>الهدف:</strong> إغلاق السباق بين قراءة token وجمع الأرصدة.</li>
+<li><strong>المدخلات:</strong> قفل المنسق وactive session.</li>
+<li><strong>الخطوة 1:</strong> اجمع الهوية والأرصدة ونسخة البيانات ضمن لقطة متسقة.</li>
+<li><strong>الخطوة 2:</strong> نفّذ الحساب الطويل خارج القفل بعد تثبيت اللقطة.</li>
+<li><strong>الخطوة 3:</strong> تحقق من صلاحية النتيجة قبل نشرها إلى سياق قابل للتبدل.</li>
+<li><strong>الخطوة 4:</strong> أعد الهوية المستخدمة فعلًا ضمن الاستجابة.</li>
+<li><strong>اختبار القبول:</strong> لا تجمع token قديمًا مع أرصدة مهمة جديدة.</li>
+<li><strong>المخرج المطلوب:</strong> اختبار concurrent_session_switch.</li>
+<li><strong>شرط الإغلاق:</strong> لا يحقق قفل جزئي ذرية عملية متعددة القراءات.</li>
+</ul>
+<h4 id="T033">T033 — راجع مدخلات التشغيل والاستجابة</h4>
+<ul>
+<li><strong>الهدف:</strong> توحيد mode وsheet والفلاتر بين UI والخدمة.</li>
+<li><strong>المدخلات:</strong> عقود API والمخطط المحفوظ.</li>
+<li><strong>الخطوة 1:</strong> طبّع أوضاع account_only وservice_only وsmart_hybrid.</li>
+<li><strong>الخطوة 2:</strong> تحقق من اسم الورقة وفهرسها قبل بدء المهمة.</li>
+<li><strong>الخطوة 3:</strong> اختبر فلاتر المحصل والمبالغ والحالات بالطلب الحقيقي.</li>
+<li><strong>الخطوة 4:</strong> حافظ على Content-Length الصحيح لعدد بايتات الاستجابة.</li>
+<li><strong>اختبار القبول:</strong> الطلبات الفعلية تستخرج العملاء نفسهم كما يحدد المستخدم.</li>
+<li><strong>المخرج المطلوب:</strong> اختبارات HTTP للخيارات والأخطاء.</li>
+<li><strong>شرط الإغلاق:</strong> اختبار دالة مباشرة لا يغني عن اختبار عقد HTTP.</li>
+</ul>
+<a id="chapter-12"></a>
+<h3>الفصل 12: واجهة الخيارات والعرض المستقر</h3>
+<p><strong>الغرض:</strong> جعل تغيير مبلغ المقارنة سريعًا دون إعادة الفحص أو طمس النتائج.</p>
+<p><strong>التبعيات:</strong> الفصل 11.</p>
+<h4 id="T034">T034 — افصل التغيير الحسابي عن بدء الفحص</h4>
+<ul>
+<li><strong>الهدف:</strong> إغلاق السبب الذي يستهلك المعالج عند تغيير الخيار.</li>
+<li><strong>المدخلات:</strong> أحداث الخيارات وأزرار البدء ومسار recalc.</li>
+<li><strong>الخطوة 1:</strong> اجعل تغيير مبلغ المقارنة يستدعي إعادة حساب محلية.</li>
+<li><strong>الخطوة 2:</strong> لا تستدع start أو dispatch أو قارئ المصدر لهذا الحدث.</li>
+<li><strong>الخطوة 3:</strong> احتفظ بخيارات الاستعلام الجاري في snapshot منفصل.</li>
+<li><strong>الخطوة 4:</strong> وضّح للمستخدم عندما لا يوجد رصيد سابق صالح.</li>
+<li><strong>اختبار القبول:</strong> عشرة تبديلات متتابعة تنتج صفر استعلامات زين إضافية.</li>
+<li><strong>المخرج المطلوب:</strong> تقرير UI_options_no_refetch.</li>
+<li><strong>شرط الإغلاق:</strong> لا تعالج غياب الأرصدة بإعادة فحص صامتة.</li>
+</ul>
+<h4 id="T035">T035 — ارفض الاستجابة القديمة كاملة</h4>
+<ul>
+<li><strong>الهدف:</strong> منع استجابة جلسة سابقة من تحديث جدول جلسة جديدة.</li>
+<li><strong>المدخلات:</strong> latestRecalcRequestId وactiveSessionToken.</li>
+<li><strong>الخطوة 1:</strong> التقط token والورقة والنسخة ورقم الطلب عند الإرسال.</li>
+<li><strong>الخطوة 2:</strong> أبطل الطلبات السابقة عند تبدل الجلسة.</li>
+<li><strong>الخطوة 3:</strong> قارن هوية الاستجابة بالهوية الحالية قبل العرض.</li>
+<li><strong>الخطوة 4:</strong> اختبر وصول A بعد بدء B ووصول خيار قديم بعد خيار أحدث.</li>
+<li><strong>اختبار القبول:</strong> يبقى الجدول متعلقًا بالجلسة والسياسة الحالية فقط.</li>
+<li><strong>المخرج المطلوب:</strong> اختبارات stale_response_identity.</li>
+<li><strong>شرط الإغلاق:</strong> رقم طلب أعلى وحده لا يحمي تبدل سياق الجلسة.</li>
+</ul>
+<h4 id="T036">T036 — راجع polling وفشل التحديث</h4>
+<ul>
+<li><strong>الهدف:</strong> منع عودة العرض القديم أو تجمد التحديث بعد خطأ.</li>
+<li><strong>المدخلات:</strong> حلقة polling والعرض بعد 100%.</li>
+<li><strong>الخطوة 1:</strong> احتفظ بعرض السياسة المختارة عند وصول status جديد.</li>
+<li><strong>الخطوة 2:</strong> حدّث المقارنة عند نتائج جديدة مع تجميع الطلبات.</li>
+<li><strong>الخطوة 3:</strong> لا تثبّت عداد التقدم المرجعي قبل نجاح إعادة الحساب.</li>
+<li><strong>الخطوة 4:</strong> اختبر فشل HTTP مؤقتًا ثم نجاح الاستعادة دون إعادة الفحص.</li>
+<li><strong>اختبار القبول:</strong> المطابقات الجديدة تظهر والسياسة المختارة لا تتغير عرضًا.</li>
+<li><strong>المخرج المطلوب:</strong> تقرير polling_recalc_recovery.</li>
+<li><strong>شرط الإغلاق:</strong> اعرض finalizing حتى جاهزية المخرجات النهائية.</li>
+</ul>
+<a id="chapter-13"></a>
+<h3>الفصل 13: WAL والمتانة ونقاط الاستئناف</h3>
+<p><strong>الغرض:</strong> حفظ نتيجة قابلة للاسترداد قبل اعتبار الصف مكتملًا.</p>
+<p><strong>التبعيات:</strong> الفصول 05 و08.</p>
+<h4 id="T037">T037 — ثبّت ترتيب الالتزام</h4>
+<ul>
+<li><strong>الهدف:</strong> منع تقدم العدادات قبل نجاح الحفظ المطلوب.</li>
+<li><strong>المدخلات:</strong> record_task_outcome وappend_journal والكاتب.</li>
+<li><strong>الخطوة 1:</strong> حدد أي مكوّن مسؤول عن WAL لتجنب الكتابة المزدوجة.</li>
+<li><strong>الخطوة 2:</strong> اكتب النتيجة المتحققة قبل تحديث completed_indices.</li>
+<li><strong>الخطوة 3:</strong> عند فشل الحفظ احتفظ بالمهمة معلقة أو قابلة لإعادة الالتزام.</li>
+<li><strong>الخطوة 4:</strong> اختبر عدم إرسال نجاح للواجهة عند تعذر كتابة النتيجة.</li>
+<li><strong>اختبار القبول:</strong> لا يوجد صف مكتمل بلا سجل قابل للاسترداد وفق السياسة.</li>
+<li><strong>المخرج المطلوب:</strong> اختبار commit_after_persist.</li>
+<li><strong>شرط الإغلاق:</strong> الكاتب مع wal_already_persisted لا يعيد كتابة السجل نفسه.</li>
+</ul>
+<h4 id="T038">T038 — عرّف مستوى متانة السجل</h4>
+<ul>
+<li><strong>الهدف:</strong> منع ادعاء atomic أو crash-proof دون دليل.</li>
+<li><strong>المدخلات:</strong> طريقة write وflush وإغلاق الملف.</li>
+<li><strong>الخطوة 1:</strong> فرّق بين تعطل العملية وانقطاع النظام أو الطاقة.</li>
+<li><strong>الخطوة 2:</strong> وثّق أن flush وحده ليس دليلًا على متانة القرص.</li>
+<li><strong>الخطوة 3:</strong> اختر سياسة المزامنة وتجميع الدفعات بحسب متطلبات الفقد.</li>
+<li><strong>الخطوة 4:</strong> قِس أثر السياسة قبل إدخال مزامنة مكلفة لكل صف.</li>
+<li><strong>اختبار القبول:</strong> التقرير يحدد المتانة المقاسة وحد الفقد المحتمل بوضوح.</li>
+<li><strong>المخرج المطلوب:</strong> قرار WALDurability وقياسات أثره.</li>
+<li><strong>شرط الإغلاق:</strong> لا تستخدم عبارة صفر فقد لكل الأعطال دون تحقق.</li>
+</ul>
+<h4 id="T039">T039 — اعزل WAL ونقطة الاستئناف</h4>
+<ul>
+<li><strong>الهدف:</strong> منع خلط الملفات ذات الأسماء المتشابهة.</li>
+<li><strong>المدخلات:</strong> job_id وsession_id وcheckpoint وwal_parts.</li>
+<li><strong>الخطوة 1:</strong> سمّ الملفات بمعرف المهمة ونسخة المدخل لا basename فقط.</li>
+<li><strong>الخطوة 2:</strong> احفظ قائمة أجزاء WAL في manifest صريح.</li>
+<li><strong>الخطوة 3:</strong> لا تجمع Book1 وBook10 بواسطة نمط اسم واسع.</li>
+<li><strong>الخطوة 4:</strong> اربط checkpoint ببصمة المدخل والسياسة المالية وإصدار السجل.</li>
+<li><strong>اختبار القبول:</strong> ترفض الجلسة WAL أجنبيًا أو نقطة استئناف غير مطابقة.</li>
+<li><strong>المخرج المطلوب:</strong> اختبارات journal_job_isolation.</li>
+<li><strong>شرط الإغلاق:</strong> الاسم المشابه لا يثبت انتماء السجل.</li>
+</ul>
+<a id="chapter-14"></a>
+<h3>الفصل 14: الاستعادة بعد التعطل والإصلاح</h3>
+<p><strong>الغرض:</strong> استرجاع النتائج الصحيحة دون حذف دليل أو تكرار أثر.</p>
+<p><strong>التبعيات:</strong> الفصل 13.</p>
+<h4 id="T040">T040 — عالج السطر المبتور بدقة</h4>
+<ul>
+<li><strong>الهدف:</strong> استعادة نهاية WAL دون قبول فساد داخلي.</li>
+<li><strong>المدخلات:</strong> أجزاء WAL وسجل الاستعادة.</li>
+<li><strong>الخطوة 1:</strong> احتفظ بالجزء القديم دون تعديل أو حذف.</li>
+<li><strong>الخطوة 2:</strong> ميّز السطر الأخير غير المكتمل عن فساد في المنتصف.</li>
+<li><strong>الخطوة 3:</strong> اكتب الاستكمال في جزء جديد مرتبط بالمهمة.</li>
+<li><strong>الخطوة 4:</strong> استخدم جميع الأجزاء الموثقة عند الجمع النهائي.</li>
+<li><strong>اختبار القبول:</strong> استعادة الصفوف الصالحة ورفض الفساد الداخلي صراحة.</li>
+<li><strong>المخرج المطلوب:</strong> اختبار truncated_tail_and_mid_corruption.</li>
+<li><strong>شرط الإغلاق:</strong> لا تتجاوز كل JSON غير صالح بحجة الاستمرار.</li>
+</ul>
+<h4 id="T041">T041 — اجعل الإصلاح تحديثًا بإصدار</h4>
+<ul>
+<li><strong>الهدف:</strong> منع تكرار صف قديم وجديد داخل التقرير.</li>
+<li><strong>المدخلات:</strong> نتائج needs_review وطلبات repair.</li>
+<li><strong>الخطوة 1:</strong> اربط الإصلاح بنفس هوية صف المصدر داخل المهمة.</li>
+<li><strong>الخطوة 2:</strong> سجّل إصدار النتيجة أو تسلسل الالتزام.</li>
+<li><strong>الخطوة 3:</strong> اختَر أحدث نتيجة ملتزمة وفق قاعدة معلنة.</li>
+<li><strong>الخطوة 4:</strong> احتفظ بأثر النسخة السابقة للتدقيق دون عرضها كصف إضافي.</li>
+<li><strong>اختبار القبول:</strong> يظهر الصف المصحح مرة واحدة مع نتيجة صحيحة.</li>
+<li><strong>المخرج المطلوب:</strong> اختبار repair_upsert_versions.</li>
+<li><strong>شرط الإغلاق:</strong> لا تحذف سجلًا قديمًا لتجاوز تعارض الإصدار.</li>
+</ul>
+<h4 id="T042">T042 — اختبر دورة استعادة كاملة</h4>
+<ul>
+<li><strong>الهدف:</strong> إثبات الاستئناف بالواجهة والمنسق لا بالدوال وحدها.</li>
+<li><strong>المدخلات:</strong> نسخة التكامل ومهمة مصطنعة قابلة للإيقاف.</li>
+<li><strong>الخطوة 1:</strong> أوقف عملية الاختبار فقط بعد حفظ مجموعة نتائج.</li>
+<li><strong>الخطوة 2:</strong> ابدأ نسخة اختبار جديدة من manifest الاستعادة.</li>
+<li><strong>الخطوة 3:</strong> أكمل النتائج ثم نفّذ التقرير وتحديث نسخة المصدر.</li>
+<li><strong>الخطوة 4:</strong> قارن جميع الصفوف مع تشغيل مرجعي غير منقطع.</li>
+<li><strong>اختبار القبول:</strong> تطابق الهوية والقيم والإجماليات بين التشغيلين.</li>
+<li><strong>المخرج المطلوب:</strong> تقرير end_to_end_recovery.</li>
+<li><strong>شرط الإغلاق:</strong> أي توقف في الاختبار لا يمس خدمة الإنتاج.</li>
+</ul>
+<a id="chapter-15"></a>
+<h3>الفصل 15: دورة حياة الكاتب وانتشار الفشل</h3>
+<p><strong>الغرض:</strong> إغلاق الثغرات التي تسمح بنجاح ظاهري أو حفظ متكرر.</p>
+<p><strong>التبعيات:</strong> الفصول 04 و13–14.</p>
+<h4 id="T043">T043 — أزل المسار الخاص باكتشاف Mock</h4>
+<ul>
+<li><strong>الهدف:</strong> جعل اختبار الفشل يمر بمنطق الإنتاج نفسه.</li>
+<li><strong>المدخلات:</strong> _flush_to_disk في النسخة الجديدة.</li>
+<li><strong>الخطوة 1:</strong> أزل فروع hasattr الخاصة بمعرفة وجود اختبار.</li>
+<li><strong>الخطوة 2:</strong> عرّف مدخلًا صريحًا لتبديل محرك الكتابة عند الاختبار.</li>
+<li><strong>الخطوة 3:</strong> حقن الفشل عند المدخل نفسه الذي يستخدمه الإنتاج.</li>
+<li><strong>الخطوة 4:</strong> اختبر فشل المحرك والبديل معًا واحتفاظ الحالة غير المحفوظة.</li>
+<li><strong>اختبار القبول:</strong> لا يختلف مسار اختيار الحفظ بسبب وجود Mock.</li>
+<li><strong>المخرج المطلوب:</strong> اختبارات writer_engine_failures.</li>
+<li><strong>شرط الإغلاق:</strong> الأعلام وحدها لا تثبت صحة مسار الفشل.</li>
+</ul>
+<h4 id="T044">T044 — اجعل حفظ Excel نهائيًا وفق السياسة</h4>
+<ul>
+<li><strong>الهدف:</strong> تقليل إعادة تسلسل المصنف أثناء انتظار الشبكة.</li>
+<li><strong>المدخلات:</strong> شرط الخمول 60 ثانية وSTOP_SENTINEL.</li>
+<li><strong>الخطوة 1:</strong> احذف الحفظ الكامل الدوري إذا اعتمد تصميم WAL ثم تصدير.</li>
+<li><strong>الخطوة 2:</strong> لا تعتبر فراغ الطابور انتهاء المنتجين.</li>
+<li><strong>الخطوة 3:</strong> سجّل سبب كل تصدير وعدد عمليات الإنشاء.</li>
+<li><strong>الخطوة 4:</strong> اختبر انتظارًا يتجاوز 60 ثانية بين دفعتين وصفر نتائج.</li>
+<li><strong>اختبار القبول:</strong> عدد عمليات الحفظ يوافق السياسة في التشغيل الطويل.</li>
+<li><strong>المخرج المطلوب:</strong> تقرير final_export_count.</li>
+<li><strong>شرط الإغلاق:</strong> تصدير جزئي مقصود يوسم جزئيًا ولا يسمى اكتمالًا.</li>
+</ul>
+<h4 id="T045">T045 — تحقق من انتهاء الكاتب قبل المتابعة</h4>
+<ul>
+<li><strong>الهدف:</strong> منع تشغيل التصدير أو المصدر مع خيط غير مكتمل.</li>
+<li><strong>المدخلات:</strong> join وأعلام completed_successfully وfatal_error.</li>
+<li><strong>الخطوة 1:</strong> أوقف قبول نتائج جديدة وفق بروتوكول المنتجين.</li>
+<li><strong>الخطوة 2:</strong> أرسل إشارة الانتهاء بعد إغلاق جميع المنتجين.</li>
+<li><strong>الخطوة 3:</strong> افحص is_alive بعد المهلة ولا تفترض انتهاء join.</li>
+<li><strong>الخطوة 4:</strong> اجعل الفشل والمهلة يمنعان اكتمال المهمة ويحتفظان بالأدلة.</li>
+<li><strong>اختبار القبول:</strong> لا ينشر completed مع writer حي أو فشل حفظ.</li>
+<li><strong>المخرج المطلوب:</strong> اختبارات writer_join_and_timeout.</li>
+<li><strong>شرط الإغلاق:</strong> لا تكبر المهلة لإخفاء سبب بطء غير محلل.</li>
+</ul>
+<a id="chapter-16"></a>
+<h3>الفصل 16: عقد محركات Excel وسلامة النشر المحلي</h3>
+<p><strong>الغرض:</strong> فصل إنشاء الملف عن اعتماده كمخرج صالح.</p>
+<p><strong>التبعيات:</strong> الفصل 15.</p>
+<h4 id="T046">T046 — عرّف واجهة المحرك</h4>
+<ul>
+<li><strong>الهدف:</strong> إرجاع دليل نجاح موحد بدل الاكتفاء بوجود ملف.</li>
+<li><strong>المدخلات:</strong> generate_fast_excel والمحركات المتاحة.</li>
+<li><strong>الخطوة 1:</strong> حدد schema_version وترتيب السجلات والعناوين.</li>
+<li><strong>الخطوة 2:</strong> أعد اسم المحرك وعدد السجلات ومسار المخرج والمدة.</li>
+<li><strong>الخطوة 3:</strong> تحقق من إغلاق الملف وبنية ZIP المطلوبة.</li>
+<li><strong>الخطوة 4:</strong> افصل أخطاء المدخل عن أخطاء المحرك والقرص.</li>
+<li><strong>اختبار القبول:</strong> المحركان يعيدان عقدًا متطابقًا للنجاح والفشل.</li>
+<li><strong>المخرج المطلوب:</strong> وثيقة ExcelEngineResult.</li>
+<li><strong>شرط الإغلاق:</strong> وجود ملف قديم في المسار ليس دليلًا على نجاح تشغيل جديد.</li>
+</ul>
+<h4 id="T047">T047 — اكتب مخرجًا جديدًا قبل اعتماده</h4>
+<ul>
+<li><strong>الهدف:</strong> حماية الملف الصالح السابق عند فشل المحاولة.</li>
+<li><strong>المدخلات:</strong> مجلدات تشغيل محفوظة ومعرفات إصدار.</li>
+<li><strong>الخطوة 1:</strong> استخدم اسمًا جديدًا لا يتعارض مع مخرج سابق.</li>
+<li><strong>الخطوة 2:</strong> تحقق من الملف المكتمل قبل إعلان المسار للمستخدم.</li>
+<li><strong>الخطوة 3:</strong> سجّل المسار المعتمد في حالة المهمة بعد التحقق.</li>
+<li><strong>الخطوة 4:</strong> احتفظ بالمحاولات الفاشلة والمعتمد السابق دون حذف.</li>
+<li><strong>اختبار القبول:</strong> فشل التصدير لا يفسد المخرج الصالح السابق.</li>
+<li><strong>المخرج المطلوب:</strong> اختبار publish_validated_artifact.</li>
+<li><strong>شرط الإغلاق:</strong> لا تستبدل ملفًا قائمًا بدفعة ناقصة أو بديل غير متحقق.</li>
+</ul>
+<h4 id="T048">T048 — وحّد الترتيب والحالات</h4>
+<ul>
+<li><strong>الهدف:</strong> إغلاق اختلاف Rust وOpenXML في مواضع الصفوف.</li>
+<li><strong>المدخلات:</strong> حالات المنسق وترقيم الصفوف.</li>
+<li><strong>الخطوة 1:</strong> استخدم الحالة المرجعية بدل مقارنة تسميات غير موحدة.</li>
+<li><strong>الخطوة 2:</strong> اجعل فرق رصيد يطابق تنسيق الفروق المعتمد.</li>
+<li><strong>الخطوة 3:</strong> رتّب السجلات حسب قاعدة ثابتة قبل المحركين.</li>
+<li><strong>الخطوة 4:</strong> اكتب رقم المصدر كقيمة لا كإحداثي التقرير.</li>
+<li><strong>اختبار القبول:</strong> مخرجات محركين لمدخل غير مرتب متكافئة بالقيم والتنسيق.</li>
+<li><strong>المخرج المطلوب:</strong> اختبار engine_semantic_equivalence.</li>
+<li><strong>شرط الإغلاق:</strong> لا تُصنف حالات المراجعة كخطأ مالي تلقائيًا.</li>
+</ul>
+<a id="chapter-17"></a>
+<h3>الفصل 17: Rust والمنصات دون تجميع</h3>
+<p><strong>الغرض:</strong> استخدام المكوّن المتاح مع حدود توافق واضحة.</p>
+<p><strong>التبعيات:</strong> الفصل 16.</p>
+<h4 id="T049">T049 — صحّح اكتشاف الملف التنفيذي</h4>
+<ul>
+<li><strong>الهدف:</strong> منع الاختيار بحسب مجلد تشغيل عارض.</li>
+<li><strong>المدخلات:</strong> find_rust_binary وbin المتاح.</li>
+<li><strong>الخطوة 1:</strong> اربط المسارات بموقع الوحدة أو إعداد صريح.</li>
+<li><strong>الخطوة 2:</strong> تحقق من المنصة والمعمارية قبل محاولة التشغيل.</li>
+<li><strong>الخطوة 3:</strong> لا تختَر Windows exe على Linux باعتباره مكوّنًا صالحًا.</li>
+<li><strong>الخطوة 4:</strong> سجّل المسار والبصمة والسبب عند اختيار البديل.</li>
+<li><strong>اختبار القبول:</strong> الاختيار ثابت عند تغير working directory.</li>
+<li><strong>المخرج المطلوب:</strong> اختبار engine_discovery_platforms.</li>
+<li><strong>شرط الإغلاق:</strong> لا تُشغل بحثًا أو تحميلًا أو بناءً تلقائيًا للمكوّن.</li>
+</ul>
+<h4 id="T050">T050 — تحقق من المكوّن الموجود</h4>
+<ul>
+<li><strong>الهدف:</strong> ربط قياس Rust بالنسخة التنفيذية الفعلية.</li>
+<li><strong>المدخلات:</strong> rust_writer.exe وCargo.toml وmain.rs.</li>
+<li><strong>الخطوة 1:</strong> احفظ بصمة الملف التنفيذي المتاح بالفعل.</li>
+<li><strong>الخطوة 2:</strong> دوّن أن تعديل main.rs لا يحدّث الملف التنفيذي دون بناء.</li>
+<li><strong>الخطوة 3:</strong> اختبر السلوك الفعلي المطلوب على المكوّن الموجود.</li>
+<li><strong>الخطوة 4:</strong> إن تعذر إثبات التكافؤ استخدم بديلًا متحققًا بدل التجميع.</li>
+<li><strong>اختبار القبول:</strong> توجد صلة معلنة بين السلوك المقاس والمكوّن المستخدم.</li>
+<li><strong>المخرج المطلوب:</strong> binary_manifest وحدود provenance.</li>
+<li><strong>شرط الإغلاق:</strong> لا تدّعي أن المصدر الحالي هو مصدر الثنائية بلا دليل.</li>
+</ul>
+<h4 id="T051">T051 — اختبر timeout والفشل والبديل</h4>
+<ul>
+<li><strong>الهدف:</strong> منع إعلان نجاح بعد خروج غير صالح للمحرك.</li>
+<li><strong>المدخلات:</strong> subprocess.run وملفات إدخال الاختبار.</li>
+<li><strong>الخطوة 1:</strong> اختبر خروجًا غير صفري ومهلة وانعدام الملف التنفيذي.</li>
+<li><strong>الخطوة 2:</strong> تحقق من المخرج الجديد حتى عند returncode=0.</li>
+<li><strong>الخطوة 3:</strong> راقب ذاكرة العملية التابعة ضمن القياس.</li>
+<li><strong>الخطوة 4:</strong> احتفظ بمدخل JSONL والسجلات المنقحة لكل محاولة.</li>
+<li><strong>اختبار القبول:</strong> ينجح البديل أو يصل فشل واضح إلى المنسق.</li>
+<li><strong>المخرج المطلوب:</strong> تقرير rust_invocation_contract.</li>
+<li><strong>شرط الإغلاق:</strong> لا يعتبر fallback نجاحًا قبل فحص ملفه.</li>
+</ul>
+<a id="chapter-18"></a>
+<h3>الفصل 18: OpenXML وصلاحية الملف البديل</h3>
+<p><strong>الغرض:</strong> إثبات أن البديل صالح وآمن للبيانات المعتمدة.</p>
+<p><strong>التبعيات:</strong> الفصل 16.</p>
+<h4 id="T052">T052 — راجع بناء XML</h4>
+<ul>
+<li><strong>الهدف:</strong> منع ملف يقرأ جزئيًا لكنه غير سليم للتطبيق المستهدف.</li>
+<li><strong>المدخلات:</strong> generate_openxml_stream وقوالب XML.</li>
+<li><strong>الخطوة 1:</strong> اهرب النصوص والسمات بحسب نوع الموضع.</li>
+<li><strong>الخطوة 2:</strong> تعامل مع رموز التحكم غير الصالحة بسياسة موثقة.</li>
+<li><strong>الخطوة 3:</strong> راجع أسماء الأوراق والأطوال والمعرفات والروابط.</li>
+<li><strong>الخطوة 4:</strong> تحقق من قيم رقمية منتهية؛ لا تكتب NaN كمال صحيح.</li>
+<li><strong>اختبار القبول:</strong> يفتح الملف دون إصلاح مع حفظ النصوص المقبولة.</li>
+<li><strong>المخرج المطلوب:</strong> تقرير XML_validity_cases.</li>
+<li><strong>شرط الإغلاق:</strong> saxutils.escape للنص لا يثبت سلامة كل سمات XML.</li>
+</ul>
+<h4 id="T053">T053 — راجع أجزاء الحزمة والتنسيق</h4>
+<ul>
+<li><strong>الهدف:</strong> حماية العلاقة بين worksheets وstyles وworkbook.</li>
+<li><strong>المدخلات:</strong> ملف XLSX وContent Types وrelationships.</li>
+<li><strong>الخطوة 1:</strong> تحقق من الأجزاء الإلزامية وروابطها وأرقام styles.</li>
+<li><strong>الخطوة 2:</strong> قارن RTL والعروض والحدود وتنسيق المبالغ.</li>
+<li><strong>الخطوة 3:</strong> اختبر الصف الأول والآخر والفراغات الطويلة.</li>
+<li><strong>الخطوة 4:</strong> قارن نتيجة قارئ مستقل وفتح الملف في تطبيق Excel متاح.</li>
+<li><strong>اختبار القبول:</strong> لا تظهر رسالة إصلاح ولا اختلافات تنسيق مطلوبة.</li>
+<li><strong>المخرج المطلوب:</strong> فحص package_integrity_and_styles.</li>
+<li><strong>شرط الإغلاق:</strong> عدّ الصفوف لا يثبت صلاحية روابط الحزمة.</li>
+</ul>
+<h4 id="T054">T054 — اختبر البديل مستقلًا</h4>
+<ul>
+<li><strong>الهدف:</strong> إثبات مسار Linux المحتمل دون افتراض نجاح Rust.</li>
+<li><strong>المدخلات:</strong> اختيار محرك صريح وبيانات قبول موحدة.</li>
+<li><strong>الخطوة 1:</strong> اجبر OpenXML عبر إعداد واضح لا حذف الثنائية.</li>
+<li><strong>الخطوة 2:</strong> شغّل الحالات المالية والنصية نفسها المستخدمة مع Rust.</li>
+<li><strong>الخطوة 3:</strong> اختبر أحجامًا صغيرة وكبيرة وتوقفًا منظمًا.</li>
+<li><strong>الخطوة 4:</strong> قارن الملفات على مستوى المعنى لا البصمة الثنائية الكاملة.</li>
+<li><strong>اختبار القبول:</strong> نتائج البديل صحيحة ويظهر اسمه في القياس.</li>
+<li><strong>المخرج المطلوب:</strong> تقرير openxml_acceptance.</li>
+<li><strong>شرط الإغلاق:</strong> اختلاف ZIP metadata لا يعني اختلاف بيانات التقرير.</li>
+</ul>
+<a id="chapter-19"></a>
+<h3>الفصل 19: التقرير التنفيذي متعدد الأوراق</h3>
+<p><strong>الغرض:</strong> تسريع المخرج الذي يراه المستخدم مع الحفاظ على وظيفته.</p>
+<p><strong>التبعيات:</strong> الفصول 07–08 و16–18.</p>
+<h4 id="T055">T055 — احصر خصائص التقرير الحالي</h4>
+<ul>
+<li><strong>الهدف:</strong> منع إحلال ورقة 19 عمودًا محل تقرير مختلف.</li>
+<li><strong>المدخلات:</strong> executive_reporter ومسارات normal وrepair وmawarid.</li>
+<li><strong>الخطوة 1:</strong> احصر أوراق الموجبة والسالبة والشاملة والملاحظات.</li>
+<li><strong>الخطوة 2:</strong> راجع اختلاف عدد الأوراق في وضع الصيانة.</li>
+<li><strong>الخطوة 3:</strong> احصر الروابط وتجميد العناوين والإجماليات والفرز.</li>
+<li><strong>الخطوة 4:</strong> أنشئ نماذج مرجعية لكل وضع مع صفوف صالحة وخاطئة.</li>
+<li><strong>اختبار القبول:</strong> مصفوفة خصائص تغطي جميع أوضاع التقرير المستخدمة.</li>
+<li><strong>المخرج المطلوب:</strong> ExecutiveReportSpec.</li>
+<li><strong>شرط الإغلاق:</strong> لا يُستبعد مخرج لأنه يبطئ benchmark.</li>
+</ul>
+<h4 id="T056">T056 — غيّر الكاتب دون تغيير القرار المالي</h4>
+<ul>
+<li><strong>الهدف:</strong> إعادة استخدام محرك سريع لإنشاء التقرير المعتمد.</li>
+<li><strong>المدخلات:</strong> نتائج متحققة ومواصفات التقرير.</li>
+<li><strong>الخطوة 1:</strong> انقل قواعد اختيار الصفوف والحساب إلى طبقة مستقلة.</li>
+<li><strong>الخطوة 2:</strong> مرر بيانات الأوراق الجاهزة إلى writer قابل للاستبدال.</li>
+<li><strong>الخطوة 3:</strong> حافظ على العناوين والتنسيق المالي والروابط المطلوبة.</li>
+<li><strong>الخطوة 4:</strong> ابدأ بمحرك متاح لا يتطلب بناءً جديدًا.</li>
+<li><strong>اختبار القبول:</strong> يختلف زمن التسلسل وتبقى النتائج الوظيفية متكافئة.</li>
+<li><strong>المخرج المطلوب:</strong> تعديل تقرير مع مقارنة مرجعية.</li>
+<li><strong>شرط الإغلاق:</strong> إذا لم تدعم الثنائية الأوراق لا تزعم دعمها؛ استخدم البديل.</li>
+</ul>
+<h4 id="T057">T057 — تحقق من التصدير والمسار البديل</h4>
+<ul>
+<li><strong>الهدف:</strong> منع خلط تقرير قديم بمخرج جلسة جديدة.</li>
+<li><strong>المدخلات:</strong> export_executive_workbook وأسماء المخرجات.</li>
+<li><strong>الخطوة 1:</strong> اختبر ملفًا مفتوحًا أو وجهة غير قابلة للكتابة محليًا.</li>
+<li><strong>الخطوة 2:</strong> حافظ على مسار فعلي جديد عند نجاح بديل.</li>
+<li><strong>الخطوة 3:</strong> حدّث QueueJob والواجهة بالمسار المعتمد نفسه.</li>
+<li><strong>الخطوة 4:</strong> اختبر إعادة التصدير دون تكرار استعلام زين.</li>
+<li><strong>اختبار القبول:</strong> المستخدم يحصل على تقرير الجلسة الصحيح أو فشل واضح.</li>
+<li><strong>المخرج المطلوب:</strong> تقرير executive_export_paths.</li>
+<li><strong>شرط الإغلاق:</strong> لا تغير حالة فشل المصدر إلى نجاح لمجرد تصدير التقرير.</li>
+</ul>
+<a id="chapter-20"></a>
+<h3>الفصل 20: تحديث المصدر مع الحفاظ على المحتوى</h3>
+<p><strong>الغرض:</strong> معالجة الجزء البطيء دون خسارة خصائص المصنف.</p>
+<p><strong>التبعيات:</strong> الفصول 06–08 و19.</p>
+<h4 id="T058">T058 — حدّد نطاق تعديل المصدر</h4>
+<ul>
+<li><strong>الهدف:</strong> فصل حقول التدقيق عن محتويات المستخدم الأصلية.</li>
+<li><strong>المدخلات:</strong> sheet_updater وعينات المصدر.</li>
+<li><strong>الخطوة 1:</strong> احصر الأعمدة والخلايا المسموح تغييرها.</li>
+<li><strong>الخطوة 2:</strong> سجّل الصيغ والأوراق والجداول والروابط والصور الموجودة.</li>
+<li><strong>الخطوة 3:</strong> حدّد سياسة الملف المفتوح وفشل تحديث الأصل.</li>
+<li><strong>الخطوة 4:</strong> اعمل على نسخة اختبار واحتفظ ببصمة الأصل.</li>
+<li><strong>اختبار القبول:</strong> أي اختلاف خارج النطاق المسموح يرفض المرشح.</li>
+<li><strong>المخرج المطلوب:</strong> SourceMutationSpec.</li>
+<li><strong>شرط الإغلاق:</strong> لا تستبدل المصدر بتقرير جديد ذي مخطط مختلف.</li>
+</ul>
+<h4 id="T059">T059 — قارن وسائل التحديث على دليل واحد</h4>
+<ul>
+<li><strong>الهدف:</strong> اختيار تقنية المصدر بناءً على الحفاظ والوقت.</li>
+<li><strong>المدخلات:</strong> openpyxl ومسار selective XML المرشح.</li>
+<li><strong>الخطوة 1:</strong> قِس التحميل وتعديل الخلايا والحفظ والنسخ منفصلة.</li>
+<li><strong>الخطوة 2:</strong> اختبر selective XML على نسخة متعددة الخصائص.</li>
+<li><strong>الخطوة 3:</strong> لا تدّعي نسخًا خامًا لأجزاء ZIP إذا أُعيد ضغطها.</li>
+<li><strong>الخطوة 4:</strong> راجع العلاقات والصيغ والقيم المحسوبة عند تغيير المدخلات.</li>
+<li><strong>اختبار القبول:</strong> المرشح يحافظ على الخصائص المطلوبة ويبيّن مكسبه الحقيقي.</li>
+<li><strong>المخرج المطلوب:</strong> تقرير source_update_candidates.</li>
+<li><strong>شرط الإغلاق:</strong> Rust writer لإنشاء ملف جديد لا يعدّل المصدر القائم بذاته.</li>
+</ul>
+<h4 id="T060">T060 — تحقق من الحفظ المزدوج والتعارض</h4>
+<ul>
+<li><strong>الهدف:</strong> حماية النسخة الصحيحة من فشل النسخ أو تغير الأصل.</li>
+<li><strong>المدخلات:</strong> النسخة المحدثة وfast clone ومسار المصدر.</li>
+<li><strong>الخطوة 1:</strong> احتفظ بإصدار سابق قبل أي تحديث مصرح للأصل.</li>
+<li><strong>الخطوة 2:</strong> تحقق من النسخة الجديدة قبل نسخها إلى وجهة مطلوبة.</li>
+<li><strong>الخطوة 3:</strong> أعد فحص نسخة المدخل لتجنب سحق تعديل خارجي.</li>
+<li><strong>الخطوة 4:</strong> اختبر فشل الوجهتين وفشل واحدة دون نجاح كاذب.</li>
+<li><strong>اختبار القبول:</strong> تظهر نتيجة كل وجهة ويظل مخرج صالح محفوظًا.</li>
+<li><strong>المخرج المطلوب:</strong> تقرير source_destinations_and_conflicts.</li>
+<li><strong>شرط الإغلاق:</strong> نسخ المصدر المحدث قد يكون صالحًا؛ نسخ التقرير مكانه ليس مكافئًا.</li>
+</ul>
+<a id="chapter-21"></a>
+<h3>الفصل 21: قياس الأداء حتى 100 ألف صف</h3>
+<p><strong>الغرض:</strong> إثبات الهدف على جميع المخرجات لا على كاتب منفرد.</p>
+<p><strong>التبعيات:</strong> الفصول 15–20.</p>
+<h4 id="T061">T061 — أنشئ بيانات قياس صادقة</h4>
+<ul>
+<li><strong>الهدف:</strong> منع تحسن ظاهري بسبب مدخل مبسط أو تسمية مضللة.</li>
+<li><strong>المدخلات:</strong> ملف صغير حقيقي وfixture كبير.</li>
+<li><strong>الخطوة 1:</strong> سجّل عدد الصفوف الفيزيائية والاستعلامات الفريدة والأعمدة.</li>
+<li><strong>الخطوة 2:</strong> ميّز الحقيقي والمكرر والمصطنع بوضوح.</li>
+<li><strong>الخطوة 3:</strong> لا تسمّ fixture باسم Book10 بما يوحي أنه الملف الأصلي.</li>
+<li><strong>الخطوة 4:</strong> أدخل نصوصًا متنوعة وتكرارات وحالات وصيغًا حسب نطاق المصدر.</li>
+<li><strong>اختبار القبول:</strong> توجد مواصفات بيانات وبصمة ثابتة لكل مقارنة.</li>
+<li><strong>المخرج المطلوب:</strong> benchmark_dataset_manifest.</li>
+<li><strong>شرط الإغلاق:</strong> 22,741 صفًا مصطنعًا لا يثبت أداء Book10 الحقيقي.</li>
+</ul>
+<h4 id="T062">T062 — قِس مسار الإنهاء الكامل</h4>
+<ul>
+<li><strong>الهدف:</strong> تحديد الزمن المتبقي بعد آخر نتيجة.</li>
+<li><strong>المدخلات:</strong> منسق التكامل ونتائج جاهزة دون شبكة.</li>
+<li><strong>الخطوة 1:</strong> ابدأ المؤقت عند اكتمال نتائج الفحص المحددة.</li>
+<li><strong>الخطوة 2:</strong> قس drain وWAL validation والتقرير وتحديث المصدر.</li>
+<li><strong>الخطوة 3:</strong> انته عند جاهزية جميع المخرجات وحالة المهمة الصحيحة.</li>
+<li><strong>الخطوة 4:</strong> احفظ مؤقتات monotonic وعدد عمليات الحفظ الفعلية.</li>
+<li><strong>اختبار القبول:</strong> لا يُحذف طور من القياس النهائي لإظهار دقيقة.</li>
+<li><strong>المخرج المطلوب:</strong> تقرير finalization_end_to_end.</li>
+<li><strong>شرط الإغلاق:</strong> لا تستنتج زمن مرحلة بطرح قياسات تشغيلين مختلفين.</li>
+</ul>
+<h4 id="T063">T063 — قارن مع خط أساس عادل</h4>
+<ul>
+<li><strong>الهدف:</strong> تمييز التحسن من تفاوت التشغيل.</li>
+<li><strong>المدخلات:</strong> نسختان وبيانات وبنود قبول واحدة.</li>
+<li><strong>الخطوة 1:</strong> نفّذ ثلاثة تكرارات على الأقل لكل مرشح جاهز.</li>
+<li><strong>الخطوة 2:</strong> بدّل ترتيب النسخ وتجنب مقارنة بارد بدافئ دون بيان.</li>
+<li><strong>الخطوة 3:</strong> سجّل الوسيط والمدى والقيم الفردية والبيئة.</li>
+<li><strong>الخطوة 4:</strong> قدّم قياسات 2,891 و22,741 و100,000 دون استقراء حتمي.</li>
+<li><strong>اختبار القبول:</strong> كل ادعاء تحسن مرتبط بعينة وإطار قياس متكافئ.</li>
+<li><strong>المخرج المطلوب:</strong> تقرير performance_decision.</li>
+<li><strong>شرط الإغلاق:</strong> إذا بقي التفاوت أكبر من المكسب فلا تعتمد التحسين.</li>
+</ul>
+<a id="chapter-22"></a>
+<h3>الفصل 22: الذاكرة والطوابير والضغط العكسي</h3>
+<p><strong>الغرض:</strong> منع انتقال البطء من Excel إلى ذاكرة النتائج أو Chrome.</p>
+<p><strong>التبعيات:</strong> الفصول 10 و15 و21.</p>
+<h4 id="T064">T064 — قِس ذاكرة مجموعة العمليات</h4>
+<ul>
+<li><strong>الهدف:</strong> إزالة تسمية النهاية ذروةً وإدخال عملية Rust.</li>
+<li><strong>المدخلات:</strong> Python والكاتب والمتصفح والعمليات التابعة.</li>
+<li><strong>الخطوة 1:</strong> خذ عينات دورية موثقة مع الزمن وهوية العمليات.</li>
+<li><strong>الخطوة 2:</strong> سجّل RSS لكل عملية والمجموع اللحظي المرصود.</li>
+<li><strong>الخطوة 3:</strong> ميّز الذاكرة المقاسة من tracemalloc المخصص لبايثون.</li>
+<li><strong>الخطوة 4:</strong> اذكر فترة العينات واحتمال قمم بين العينات.</li>
+<li><strong>اختبار القبول:</strong> تقرير الذاكرة يشمل العمليات المطلوبة وحدود القياس.</li>
+<li><strong>المخرج المطلوب:</strong> memory_timeline وملخص الذروة المرصودة.</li>
+<li><strong>شرط الإغلاق:</strong> لا تستخدم نهاية RSS دليلًا على عدم تجاوز حد سابق.</li>
+</ul>
+<h4 id="T065">T065 — اضبط حجم الطابور والنسخ</h4>
+<ul>
+<li><strong>الهدف:</strong> حماية الذاكرة عندما تكون الكتابة أبطأ من وصول النتائج.</li>
+<li><strong>المدخلات:</strong> result_queue وrecords_buffer وall_completed_records.</li>
+<li><strong>الخطوة 1:</strong> احصر النسخ المتزامنة لنفس سجلات النتائج.</li>
+<li><strong>الخطوة 2:</strong> اختَر طابورًا محدودًا وسياسة ضغط عكسي معلنة.</li>
+<li><strong>الخطوة 3:</strong> لا تحبس قفل الجلسة أثناء انتظار طابور ممتلئ.</li>
+<li><strong>الخطوة 4:</strong> تجنب إعادة تحميل كل workbook سابق في مسار سريع بلا حاجة.</li>
+<li><strong>اختبار القبول:</strong> الطابور لا ينمو بلا حد ولا يحدث deadlock تحت الضغط.</li>
+<li><strong>المخرج المطلوب:</strong> تقرير backlog_and_backpressure.</li>
+<li><strong>شرط الإغلاق:</strong> سرعة put في اختبار قصير لا تثبت الاستقرار.</li>
+</ul>
+<h4 id="T066">T066 — وازن الذاكرة بين الجلسات</h4>
+<ul>
+<li><strong>الهدف:</strong> عدم فتح كاتب ومصنف غير محدود لكل ملف مؤجل.</li>
+<li><strong>المدخلات:</strong> سقف الكاش وعدد الجلسات والتصدير.</li>
+<li><strong>الخطوة 1:</strong> حدّد ميزانية مستقلة للمتصفحات والكاش والنتائج والتصدير.</li>
+<li><strong>الخطوة 2:</strong> استخدم WAL كحالة باقية للجلسة غير النشطة.</li>
+<li><strong>الخطوة 3:</strong> ضع حدًا لتزامن عمليات التصدير الثقيلة.</li>
+<li><strong>الخطوة 4:</strong> اختبر العودة لجلسة أُخرجت بياناتها من الذاكرة.</li>
+<li><strong>اختبار القبول:</strong> تبقى النتائج قابلة للاسترداد ضمن ميزانية مرصودة.</li>
+<li><strong>المخرج المطلوب:</strong> قرار memory_admission_budget.</li>
+<li><strong>شرط الإغلاق:</strong> حد 50 ميجابايت للكاش لا يحد ذاكرة المنتج كاملًا.</li>
+</ul>
+<a id="chapter-23"></a>
+<h3>الفصل 23: JobSession وعزل الملفات المتزامنة</h3>
+<p><strong>الغرض:</strong> تنفيذ فكرة الانتقال بين الملفات دون خلط حالة المنسق.</p>
+<p><strong>التبعيات:</strong> الفصول 05 و13–14 و22.</p>
+<h4 id="T067">T067 — عرّف جلسة لكل مهمة</h4>
+<ul>
+<li><strong>الهدف:</strong> استبدال الحالة العامة المشتركة بعزل قابل للتتبع.</li>
+<li><strong>المدخلات:</strong> مخطط v3 والمنسق الحالي.</li>
+<li><strong>الخطوة 1:</strong> ضع المدخلات والإعدادات والنتائج والمؤجلات داخل JobSession.</li>
+<li><strong>الخطوة 2:</strong> اربط WAL وcheckpoint ومخرجات التصدير بمعرف الجلسة.</li>
+<li><strong>الخطوة 3:</strong> أبق RouteManager خارج الجلسات بوصفه موردًا مشتركًا.</li>
+<li><strong>الخطوة 4:</strong> حدّد الحالات المقيمة والمحفوظه وحدود عدد الجلسات النشطة.</li>
+<li><strong>اختبار القبول:</strong> لا تغير معالجة B هوية نتائج A أو إعداداتها.</li>
+<li><strong>المخرج المطلوب:</strong> وثيقة JobSession وتوزيع ملكية الحقول.</li>
+<li><strong>شرط الإغلاق:</strong> وجود session_token في singleton لا يثبت عزل جلسات متزامنة.</li>
+</ul>
+<h4 id="T068">T068 — انقل الملكية تدريجيًا</h4>
+<ul>
+<li><strong>الهدف:</strong> تقليل مخاطر استبدال المنسق دفعة واحدة.</li>
+<li><strong>المدخلات:</strong> قائمة self fields ومسارات worker وexport.</li>
+<li><strong>الخطوة 1:</strong> احصر كل حقل mutable يخص ملفًا واحدًا.</li>
+<li><strong>الخطوة 2:</strong> انقل عقد leasing والcommit ليحمل job_id صريحًا.</li>
+<li><strong>الخطوة 3:</strong> مرر مرجع الجلسة إلى العامل والكاتب والمصدر.</li>
+<li><strong>الخطوة 4:</strong> اجعل المكوّن القديم يكيّف الواجهة مؤقتًا دون مشاركة الحالة.</li>
+<li><strong>اختبار القبول:</strong> تعمل مهمة واحدة بالسلوك نفسه بعد نقل الملكية.</li>
+<li><strong>المخرج المطلوب:</strong> تعديل session_encapsulation مع اختبار مرجعي.</li>
+<li><strong>شرط الإغلاق:</strong> لا تبدأ تشغيل عدة ملفات قبل إزالة الحقول المشتركة الحساسة.</li>
+</ul>
+<h4 id="T069">T069 — اختبر تداخل A وB فعليًا</h4>
+<ul>
+<li><strong>الهدف:</strong> إثبات الفكرة الأصلية للجدولة لا الانتقال التسلسلي فقط.</li>
+<li><strong>المدخلات:</strong> جلسة A مؤجلة وخدمات أو حسابات جاهزة في B.</li>
+<li><strong>الخطوة 1:</strong> أبق جزءًا من A مؤجلًا بينما يستمر عمل B.</li>
+<li><strong>الخطوة 2:</strong> أكمل نتائج A خلال نشاط B بعد تعافي المسار.</li>
+<li><strong>الخطوة 3:</strong> صدّر الملفين وراجع WAL والهوية والخيارات.</li>
+<li><strong>الخطوة 4:</strong> اختبر إغلاق واجهة A دون إتلاف جلسة B.</li>
+<li><strong>اختبار القبول:</strong> التداخل المثبت لا يخلط قيمة أو صفًا أو ملفًا.</li>
+<li><strong>المخرج المطلوب:</strong> تقرير simultaneous_jobs_isolation.</li>
+<li><strong>شرط الإغلاق:</strong> اختبار A ثم B بعد انتهاء A لا يثبت هذا الشرط.</li>
+</ul>
+<a id="chapter-24"></a>
+<h3>الفصل 24: الجدولة العادلة عبر الطابور</h3>
+<p><strong>الغرض:</strong> تطبيق تقدم الملفات الممكنة دون تجويع المؤجلات.</p>
+<p><strong>التبعيات:</strong> الفصل 23.</p>
+<h4 id="T070">T070 — حدد سياسة الاختيار</h4>
+<ul>
+<li><strong>الهدف:</strong> تحويل فكرة المستخدم إلى قاعدة قابلة للاختبار.</li>
+<li><strong>المدخلات:</strong> طابور الملفات وأنواع الحساب والخدمة.</li>
+<li><strong>الخطوة 1:</strong> اختر مهمة جاهزة تتوافق مع العامل والمسار الصحي.</li>
+<li><strong>الخطوة 2:</strong> اسمح بالانتقال إلى B عندما تتعذر مهام A المناسبة.</li>
+<li><strong>الخطوة 3:</strong> لا تعلن A مكتملة ما دام لها عمل مؤجل.</li>
+<li><strong>الخطوة 4:</strong> اجعل الأولويات قابلة للتفسير مع حد يمنع تجويع القديم.</li>
+<li><strong>اختبار القبول:</strong> كل قرار جدولة يفسر نوع المهمة والمسار والأولوية.</li>
+<li><strong>المخرج المطلوب:</strong> SchedulingPolicy وأمثلة طابور عشرة ملفات.</li>
+<li><strong>شرط الإغلاق:</strong> المرور السريع عبر الملفات لا يعني إكمالها جميعًا.</li>
+</ul>
+<h4 id="T071">T071 — اختبر التماثل بين الأنواع</h4>
+<ul>
+<li><strong>الهدف:</strong> منع افتراض أن الحسابات تعمل دائمًا والخدمات تتعثر فقط.</li>
+<li><strong>المدخلات:</strong> بيانات حظر الحساب والخدمة.</li>
+<li><strong>الخطوة 1:</strong> اختبر حسابات معطلة وخدمات جاهزة في ملفات لاحقة.</li>
+<li><strong>الخطوة 2:</strong> اختبر خدمات معطلة وحسابات جاهزة في ملفات لاحقة.</li>
+<li><strong>الخطوة 3:</strong> اختبر غياب النوع المطلوب في عدة ملفات متتالية.</li>
+<li><strong>الخطوة 4:</strong> اختبر جاهزية النوعين مع عامل مشغول وآخر متاح.</li>
+<li><strong>اختبار القبول:</strong> يستفيد كل نوع من موارد متاحة دون تجاوز صحة المسار.</li>
+<li><strong>المخرج المطلوب:</strong> مصفوفة dual_type_scheduler.</li>
+<li><strong>شرط الإغلاق:</strong> لا تحجز العامل على ملف لا يملك له عملًا جاهزًا.</li>
+</ul>
+<h4 id="T072">T072 — امنع الدوران والانتظار النشط</h4>
+<ul>
+<li><strong>الهدف:</strong> خفض CPU عند عدم وجود عمل جاهز.</li>
+<li><strong>المدخلات:</strong> queues ومواعيد retry ومؤقتات العامل.</li>
+<li><strong>الخطوة 1:</strong> احسب أقرب وقت يمكن عنده إعادة المحاولة.</li>
+<li><strong>الخطوة 2:</strong> استخدم إشارة أو انتظارًا محدودًا بدل حلقة تبحث باستمرار.</li>
+<li><strong>الخطوة 3:</strong> سجّل idle reason ولا تصفه تعطلًا.</li>
+<li><strong>الخطوة 4:</strong> اختبر طابورًا كله مؤجل دون زيادة CPU غير مفسرة.</li>
+<li><strong>اختبار القبول:</strong> حالة عدم الجاهزية تنتظر وتتفاعل مع تغير الصحة.</li>
+<li><strong>المخرج المطلوب:</strong> تقرير scheduler_idle_cpu.</li>
+<li><strong>شرط الإغلاق:</strong> لا تنشئ متصفحًا جديدًا لمجرد فراغ العمل.</li>
+</ul>
+<a id="chapter-25"></a>
+<h3>الفصل 25: حجز المهام والالتزام والإلغاء</h3>
+<p><strong>الغرض:</strong> ضمان أن العامل لا يلتزم بنتيجة لمهمة تبدلت أو انتهى حجزها.</p>
+<p><strong>التبعيات:</strong> الفصول 23–24.</p>
+<h4 id="T073">T073 — عرّف lease بهوية كاملة</h4>
+<ul>
+<li><strong>الهدف:</strong> منع عمل مزدوج أو استجابة متأخرة على صف جديد.</li>
+<li><strong>المدخلات:</strong> task_id وworker_id وjob_id.</li>
+<li><strong>الخطوة 1:</strong> احفظ job_id وrow_id وattempt_id عند حجز العمل.</li>
+<li><strong>الخطوة 2:</strong> حدد صلاحية الحجز ووقت انتهائه ونسخة الجلسة.</li>
+<li><strong>الخطوة 3:</strong> تحقق من الحجز قبل قبول نتيجة العامل.</li>
+<li><strong>الخطوة 4:</strong> ارفض نتيجة قديمة دون إلغاء نتيجة حديثة صحيحة.</li>
+<li><strong>اختبار القبول:</strong> لا تقبل نتيجة لحجز منتهي أو عامل مختلف.</li>
+<li><strong>المخرج المطلوب:</strong> اختبارات lease_identity_and_expiry.</li>
+<li><strong>شرط الإغلاق:</strong> task_id وحده لا يكفي إذا أعيد ربطه بسياق آخر.</li>
+</ul>
+<h4 id="T074">T074 — اختبر الالتزام المتكرر</h4>
+<ul>
+<li><strong>الهدف:</strong> منع تكرار العدادات والمبالغ عند إعادة وصول النتيجة.</li>
+<li><strong>المدخلات:</strong> commit_task وWAL وحالة الصف.</li>
+<li><strong>الخطوة 1:</strong> أرسل النتيجة نفسها مرتين بنفس attempt_id.</li>
+<li><strong>الخطوة 2:</strong> أرسل نتيجة متأخرة لمحاولة سبق استبدالها.</li>
+<li><strong>الخطوة 3:</strong> تحقق من نتيجة واحدة مؤثرة وعدادات متسقة.</li>
+<li><strong>الخطوة 4:</strong> احتفظ بحدث الرفض للتشخيص دون سجل مالي مكرر.</li>
+<li><strong>اختبار القبول:</strong> إعادة الإرسال لا تضاعف التقدم أو إجماليات التقرير.</li>
+<li><strong>المخرج المطلوب:</strong> اختبار idempotent_commit.</li>
+<li><strong>شرط الإغلاق:</strong> التكرار المرفوض يفسر بهوية المحاولة.</li>
+</ul>
+<h4 id="T075">T075 — اجعل الإلغاء خاصًا بالجّلْسة</h4>
+<ul>
+<li><strong>الهدف:</strong> منع إيقاف كل العمال بسبب إلغاء ملف واحد.</li>
+<li><strong>المدخلات:</strong> stop_all وcancel وactive_sessions.</li>
+<li><strong>الخطوة 1:</strong> ميّز إلغاء جلسة عن إيقاف التطبيق كله.</li>
+<li><strong>الخطوة 2:</strong> أوقف حجز أعمال جديدة للجلسة الملغاة.</li>
+<li><strong>الخطوة 3:</strong> حافظ على التزامات باقية أو ارفضها وفق سياسة صريحة.</li>
+<li><strong>الخطوة 4:</strong> صدّر جزئيًا إذا طُلب دون وصف الملف مكتملًا.</li>
+<li><strong>اختبار القبول:</strong> إلغاء A لا يوقف B ولا يحذف WAL لأي منهما.</li>
+<li><strong>المخرج المطلوب:</strong> اختبار cancel_one_session.</li>
+<li><strong>شرط الإغلاق:</strong> الخيط الحي بعد مهلة الإلغاء يبقى ظاهرًا ومملوكًا.</li>
+</ul>
+<a id="chapter-26"></a>
+<h3>الفصل 26: صحة المسارات وCircuit Breaker</h3>
+<p><strong>الغرض:</strong> تمييز رفض الطلب من فشل المتصفح وإدارة الصحة المشتركة.</p>
+<p><strong>التبعيات:</strong> الفصول 24–25.</p>
+<h4 id="T076">T076 — صنّف نتائج النقل</h4>
+<ul>
+<li><strong>الهدف:</strong> منع العلاج نفسه لحالات HTTP مختلفة.</li>
+<li><strong>المدخلات:</strong> HTTP 403 و429 ورفض HTTP 200 وأخطاء الشبكة.</li>
+<li><strong>الخطوة 1:</strong> احتفظ برمز HTTP ورسالة التطبيق دون اعتبار 200 نجاحًا كافيًا.</li>
+<li><strong>الخطوة 2:</strong> افصل session_expired وblocked وnetwork_error وbrowser_crash.</li>
+<li><strong>الخطوة 3:</strong> لا تعتبر رفض الخادم دليلًا على تعطل Chrome.</li>
+<li><strong>الخطوة 4:</strong> سجّل تصنيفًا موحدًا للحسابات والخدمات.</li>
+<li><strong>اختبار القبول:</strong> الحالات المختلفة تؤدي لإجراءات مختلفة قابلة للاختبار.</li>
+<li><strong>المخرج المطلوب:</strong> TransportOutcome taxonomy.</li>
+<li><strong>شرط الإغلاق:</strong> لا تُخف الفشل كتصفير رصيد أو غير موجود.</li>
+</ul>
+<h4 id="T077">T077 — طبّق كاسر دائرة مضبوطًا</h4>
+<ul>
+<li><strong>الهدف:</strong> تقليل المحاولات غير المفيدة على مسار غير صحي.</li>
+<li><strong>المدخلات:</strong> RouteManager وسياسة v3 المقترحة.</li>
+<li><strong>الخطوة 1:</strong> عرّف closed وopen وhalf_open وحالات الانتقال.</li>
+<li><strong>الخطوة 2:</strong> اعتبر 15 و45 و120 ثانية سياسة مقترحة تحتاج قياسًا.</li>
+<li><strong>الخطوة 3:</strong> احترم Retry-After عند توفره وحدود الخدمة المشتركة.</li>
+<li><strong>الخطوة 4:</strong> نفّذ probe محدودًا بعد التبريد بدل دفعة محاولات كبيرة.</li>
+<li><strong>اختبار القبول:</strong> لا يرسل العامل طلبات على مسار open قبل موعده.</li>
+<li><strong>المخرج المطلوب:</strong> اختبار breaker_cooldown_and_probe.</li>
+<li><strong>شرط الإغلاق:</strong> تبديل IP لا يبرر تجاوز قيود مزود الخدمة.</li>
+</ul>
+<h4 id="T078">T078 — حدد نطاق الصحة الحقيقي</h4>
+<ul>
+<li><strong>الهدف:</strong> منع تلويث مسار سليم أو افتراض استقلال وهمي.</li>
+<li><strong>المدخلات:</strong> المسار وcredential والجلسة ونوع endpoint.</li>
+<li><strong>الخطوة 1:</strong> حدد هل الفشل يخص IP أم الجلسة أم الحساب أم endpoint.</li>
+<li><strong>الخطوة 2:</strong> اختبر مشاركة cooldown عند اشتراك المكونات فعليًا.</li>
+<li><strong>الخطوة 3:</strong> لا تعمم فشل بيانات عميل واحد على جميع المسارات.</li>
+<li><strong>الخطوة 4:</strong> اختر بديلًا مخولًا سليمًا مع ميزانية طلبات مشتركة.</li>
+<li><strong>اختبار القبول:</strong> القرار يعزل الفشل في النطاق المثبت ويمنع التكرار.</li>
+<li><strong>المخرج المطلوب:</strong> RouteHealthScope ونتائج الاختبار.</li>
+<li><strong>شرط الإغلاق:</strong> سبب 403 غير المعروف يبقى مجهولًا حتى التحقيق.</li>
+</ul>
+<a id="chapter-27"></a>
+<h3>الفصل 27: التأجيل وميزانية المحاولات</h3>
+<p><strong>الغرض:</strong> تقدم منضبط دون ترك الملفات معلقة بلا تفسير.</p>
+<p><strong>التبعيات:</strong> الفصل 26.</p>
+<h4 id="T079">T079 — عرّف المؤجلات لكل نوع</h4>
+<ul>
+<li><strong>الهدف:</strong> معاملة تعثر الحساب والخدمة بآلية متماثلة.</li>
+<li><strong>المدخلات:</strong> deferred_queue وretry_attempts.</li>
+<li><strong>الخطوة 1:</strong> احفظ السبب وآخر نتيجة وnext_retry_at لكل صف.</li>
+<li><strong>الخطوة 2:</strong> ميّز account_blocked من فشل البيانات الدائم.</li>
+<li><strong>الخطوة 3:</strong> ضع المؤجل داخل جلسة صاحبه مع أولوية عادلة.</li>
+<li><strong>الخطوة 4:</strong> أعد إتاحته عند تغير صحة المسار أو حلول موعده.</li>
+<li><strong>اختبار القبول:</strong> كل صف مؤجل قابل للتفسير وإعادة الجدولة.</li>
+<li><strong>المخرج المطلوب:</strong> DeferredTask contract.</li>
+<li><strong>شرط الإغلاق:</strong> التأجيل ليس فشلًا نهائيًا ولا نتيجة مالية.</li>
+</ul>
+<h4 id="T080">T080 — اضبط ميزانية المحاولات</h4>
+<ul>
+<li><strong>الهدف:</strong> منع احتساب دورة البحث عن مسار كمحاولة استعلام.</li>
+<li><strong>المدخلات:</strong> مقترح ثلاث محاولات والسياسة التشغيلية.</li>
+<li><strong>الخطوة 1:</strong> حدد ما يُحتسب محاولة: طلب منفذ لا انتظار جاهزية.</li>
+<li><strong>الخطوة 2:</strong> افصل محاولات استعادة الجلسة عن محاولات قراءة الرصيد.</li>
+<li><strong>الخطوة 3:</strong> وثّق الحد النهائي لكل تصنيف ومبرره.</li>
+<li><strong>الخطوة 4:</strong> بعد الاستنفاد اعرض needs_review مع السبب والتاريخ.</li>
+<li><strong>اختبار القبول:</strong> لا تنفد الميزانية بسبب دوران داخلي دون طلب.</li>
+<li><strong>المخرج المطلوب:</strong> اختبارات retry_budget_accounting.</li>
+<li><strong>شرط الإغلاق:</strong> ثلاث محاولات من v3 لا تُطبّق عمياء على جميع الأخطاء.</li>
+</ul>
+<h4 id="T081">T081 — اختبر التعافي وعدم التجويع</h4>
+<ul>
+<li><strong>الهدف:</strong> إكمال ملفات قديمة بعد عودة المسار.</li>
+<li><strong>المدخلات:</strong> عشرة ملفات وأعطال نقل مصطنعة.</li>
+<li><strong>الخطوة 1:</strong> اجعل A مؤجلًا وB وC متاحين.</li>
+<li><strong>الخطوة 2:</strong> أعد المسار إلى half_open ثم healthy.</li>
+<li><strong>الخطوة 3:</strong> تحقق أن A يحصل على فرصة خلال سياسة العدالة.</li>
+<li><strong>الخطوة 4:</strong> اختبر جميع المسارات غير متاحة ثم عودتها.</li>
+<li><strong>اختبار القبول:</strong> لا تعلق مهمة بلا موعد أو سبب ولا تتجاوز الميزانية.</li>
+<li><strong>المخرج المطلوب:</strong> تقرير deferred_backlog_recovery.</li>
+<li><strong>شرط الإغلاق:</strong> لا تخف الصفوف المؤجلة عند حساب إجمالي الطابور.</li>
+</ul>
+<a id="chapter-28"></a>
+<h3>الفصل 28: تشخيص CPU في Chrome</h3>
+<p><strong>الغرض:</strong> تحديد السبب قبل تعديل الإعدادات أو عدد التبويبات.</p>
+<p><strong>التبعيات:</strong> الفصول 21–22 و26.</p>
+<h4 id="T082">T082 — خذ خطًا زمنيًا للعملية</h4>
+<ul>
+<li><strong>الهدف:</strong> تمييز تكلفة الصفحة من تكلفة Python والتصدير.</li>
+<li><strong>المدخلات:</strong> عمليات Browser وrenderer وGPU والتطبيق.</li>
+<li><strong>الخطوة 1:</strong> سجّل CPU لكل عملية وRSS مع عدد الطلبات والصفحات.</li>
+<li><strong>الخطوة 2:</strong> حدد نافذة الخمول ونافذة الاستعلام ونافذة التصدير.</li>
+<li><strong>الخطوة 3:</strong> سجّل عُمر السياق وعدد إعادة الإنشاء.</li>
+<li><strong>الخطوة 4:</strong> راقب الضغط على القرص وحجم الطابور في الوقت نفسه.</li>
+<li><strong>اختبار القبول:</strong> يمكن ربط ارتفاع CPU بمرحلة وعملية محددة.</li>
+<li><strong>المخرج المطلوب:</strong> cpu_memory_timeline.</li>
+<li><strong>شرط الإغلاق:</strong> عدد ثلاثة تبويبات لا يثبت سبب استهلاك CPU.</li>
+</ul>
+<h4 id="T083">T083 — قارن تبويبًا واثنين وثلاثة</h4>
+<ul>
+<li><strong>الهدف:</strong> فصل تكلفة التوازي من عيب في حلقة أو صفحة.</li>
+<li><strong>المدخلات:</strong> نسخة اختبار وعبء خدمة متكافئ.</li>
+<li><strong>الخطوة 1:</strong> نفّذ الأحجام نفسها وبمعدل طلبات مضبوط.</li>
+<li><strong>الخطوة 2:</strong> قارن throughput والأخطاء وCPU والذاكرة.</li>
+<li><strong>الخطوة 3:</strong> اختبر idle مع صفحات مفتوحة دون استعلام.</li>
+<li><strong>الخطوة 4:</strong> راجع polling والحلقات والـDOM وإعادة الإطلاق قبل الاستنتاج.</li>
+<li><strong>اختبار القبول:</strong> التقرير يشرح العائد والتكلفة لكل عدد عمال.</li>
+<li><strong>المخرج المطلوب:</strong> browser_concurrency_benchmark.</li>
+<li><strong>شرط الإغلاق:</strong> لا تزعم أن المشكلة طبيعة Chrome بلا قياس.</li>
+</ul>
+<h4 id="T084">T084 — حقق OOM بدليل العملية</h4>
+<ul>
+<li><strong>الهدف:</strong> منع تكرار نسب قتل Python إلى Chrome.</li>
+<li><strong>المدخلات:</strong> سجل dmesg أو journal المنقح وتقارير سابقة.</li>
+<li><strong>الخطوة 1:</strong> حدد اسم العملية المقتولة وPID ووقت الواقعة.</li>
+<li><strong>الخطوة 2:</strong> افصل virtual memory عن RSS الفعلي.</li>
+<li><strong>الخطوة 3:</strong> طابق الواقعة مع عدد المتصفحات ونتائج التصدير.</li>
+<li><strong>الخطوة 4:</strong> ميّز fresh-instance warning من إطلاق عملية مثبت.</li>
+<li><strong>اختبار القبول:</strong> أي نسبة للذاكرة أو عدد الإطلاقات لها دليل مباشر.</li>
+<li><strong>المخرج المطلوب:</strong> oom_incident_reconstruction.</li>
+<li><strong>شرط الإغلاق:</strong> عبارة 7.2 GB أو 42 إطلاقًا تبقى تقريرًا حتى تحقق المصدر.</li>
+</ul>
+<a id="chapter-29"></a>
+<h3>الفصل 29: دورة حياة المتصفح والجلسة</h3>
+<p><strong>الغرض:</strong> خفض التعافي غير الضروري دون قطع العمل الصحيح.</p>
+<p><strong>التبعيات:</strong> الفصول 26 و28.</p>
+<h4 id="T085">T085 — افصل رفض الخادم عن crash</h4>
+<ul>
+<li><strong>الهدف:</strong> منع إعادة إطلاق المتصفح لكل طلب مرفوض.</li>
+<li><strong>المدخلات:</strong> _heal_context وتصنيفات النقل.</li>
+<li><strong>الخطوة 1:</strong> استدع الاستشفاء عند تعطل مثبت للسياق فقط.</li>
+<li><strong>الخطوة 2:</strong> عند expiry جرّب تجديدًا منضبطًا ضمن السياق السليم.</li>
+<li><strong>الخطوة 3:</strong> عند حظر طبّق سياسة المسار دون دورة إطلاق تلقائية.</li>
+<li><strong>الخطوة 4:</strong> اختبر 200 rejection و403 وTargetClosed منفصلة.</li>
+<li><strong>اختبار القبول:</strong> الرفض لا يزيد عداد إعادة إطلاق المتصفح الصحيح.</li>
+<li><strong>المخرج المطلوب:</strong> اختبار browser_recovery_taxonomy.</li>
+<li><strong>شرط الإغلاق:</strong> لا تصنّف كل خطأ رسالة بأنه TargetClosed.</li>
+</ul>
+<h4 id="T086">T086 — اختبر تدوير السياق الوقائي</h4>
+<ul>
+<li><strong>الهدف:</strong> تقييم مقترح 250 نجاحًا دون اعتباره علاجًا مثبتًا.</li>
+<li><strong>المدخلات:</strong> سياسة v3 وخط ذاكرة المتصفح.</li>
+<li><strong>الخطوة 1:</strong> قِس منحنى الذاكرة قبل اختيار حد ثابت.</li>
+<li><strong>الخطوة 2:</strong> نفّذ التدوير بين المهام مع حفظ الحالة المطلوبة.</li>
+<li><strong>الخطوة 3:</strong> لا تغلق سياقًا يحمل استعلامًا قيد التنفيذ.</li>
+<li><strong>الخطوة 4:</strong> قارن كلفة التدوير وانخفاض الذاكرة ومعدل الفشل.</li>
+<li><strong>اختبار القبول:</strong> الحد المختار له فائدة مقاسة ولا يفقد مهمة.</li>
+<li><strong>المخرج المطلوب:</strong> context_recycling_decision.</li>
+<li><strong>شرط الإغلاق:</strong> 250 استعلامًا قيمة مقترحة وليست حقيقة علاجية.</li>
+</ul>
+<h4 id="T087">T087 — احصر عمليات المتصفح الباقية</h4>
+<ul>
+<li><strong>الهدف:</strong> منع تراكم عمليات غير مملوكة بعد التعافي.</li>
+<li><strong>المدخلات:</strong> supervisor وactor وسجل عمليات الاختبار.</li>
+<li><strong>الخطوة 1:</strong> أعط كل سياق مالكًا وهوية جلسة استخدام.</li>
+<li><strong>الخطوة 2:</strong> أغلق موارد سياق الاختبار المنتهي وفق lifecycle API.</li>
+<li><strong>الخطوة 3:</strong> لا تنفذ قتلًا عامًا لعمليات Chrome على VPS.</li>
+<li><strong>الخطوة 4:</strong> اختبر التعافي المتكرر وحصر العمليات قبل وبعد.</li>
+<li><strong>اختبار القبول:</strong> عدد العمليات المستقرة يوافق الموارد المقصودة.</li>
+<li><strong>المخرج المطلوب:</strong> browser_lifecycle_inventory.</li>
+<li><strong>شرط الإغلاق:</strong> إغلاق مورد اختبار لا يعني حذف ملف profile أو مجلد.</li>
+</ul>
+<a id="chapter-30"></a>
+<h3>الفصل 30: الرصد والتفسير التشغيلي</h3>
+<p><strong>الغرض:</strong> جعل الأعطال والبطء قابلة للفهم دون رصد مبالغ فيه.</p>
+<p><strong>التبعيات:</strong> الفصول 15 و21 و24–29.</p>
+<h4 id="T088">T088 — وحّد سجل الأحداث</h4>
+<ul>
+<li><strong>الهدف:</strong> تتبع رحلة نتيجة من الحجز إلى المخرج.</li>
+<li><strong>المدخلات:</strong> worker والمنسق والكاتب وRouteManager.</li>
+<li><strong>الخطوة 1:</strong> ضع job_id وsession_id وattempt_id وphase في الأحداث.</li>
+<li><strong>الخطوة 2:</strong> استخدم زمنًا monotonic للمدد ووقتًا مطلقًا للمطابقة.</li>
+<li><strong>الخطوة 3:</strong> سجّل الأخطاء والأسباب بدل طباعة نجاح دائم.</li>
+<li><strong>الخطوة 4:</strong> احجب الأسرار وقلل بيانات العميل في سجل الأداء.</li>
+<li><strong>اختبار القبول:</strong> يمكن تتبع فشل واحد عبر جميع المكونات.</li>
+<li><strong>المخرج المطلوب:</strong> LoggingSchema وأمثلة منقحة.</li>
+<li><strong>شرط الإغلاق:</strong> لا تنسخ credentials من سكربتات قديمة إلى التقرير.</li>
+</ul>
+<h4 id="T089">T089 — أضف مقاييس تفصل المراحل</h4>
+<ul>
+<li><strong>الهدف:</strong> كشف عودة التأخير بعد نشر النسخة.</li>
+<li><strong>المدخلات:</strong> عدادات الطلبات والطابور والكاش والمخرجات.</li>
+<li><strong>الخطوة 1:</strong> سجّل query_rate وretry و403 و429 بحسب نطاق مناسب.</li>
+<li><strong>الخطوة 2:</strong> سجّل queue_depth وdeferred_age وexport_duration.</li>
+<li><strong>الخطوة 3:</strong> سجّل source_read_count وrecalc_latency وcache_eviction.</li>
+<li><strong>الخطوة 4:</strong> ميّز تقارير مصطنعة من قياسات إنتاج فعلية.</li>
+<li><strong>اختبار القبول:</strong> توضح المقاييس موضع الاختناق دون معلومات مالية حساسة.</li>
+<li><strong>المخرج المطلوب:</strong> MetricsCatalog ولوحة متابعة مقترحة.</li>
+<li><strong>شرط الإغلاق:</strong> الرصد يكشف المشكلة؛ لا يعالج جميع أسبابها وحده.</li>
+</ul>
+<h4 id="T090">T090 — عرّف التنبيه والإجراء</h4>
+<ul>
+<li><strong>الهدف:</strong> منع تنبيهات لا يملك العامل إجراءً لها.</li>
+<li><strong>المدخلات:</strong> حالات الكاتب والمسارات والذاكرة.</li>
+<li><strong>الخطوة 1:</strong> حدد إجراءات فقد متانة WAL أو تعطل التصدير.</li>
+<li><strong>الخطوة 2:</strong> حدد إجراء زيادة المؤجلات واستمرار انعدام المسارات.</li>
+<li><strong>الخطوة 3:</strong> حدد إجراء اقتراب الذاكرة من الحد المقاس.</li>
+<li><strong>الخطوة 4:</strong> اختبر الرسالة والمالك والخطوة التالية لكل تنبيه.</li>
+<li><strong>اختبار القبول:</strong> كل تنبيه قابل للتصرف وله معيار إغلاق.</li>
+<li><strong>المخرج المطلوب:</strong> OperationalAlerts runbook.</li>
+<li><strong>شرط الإغلاق:</strong> لا تضف مراقبة دورية أو مراسلات خارجية دون طلب المستخدم.</li>
+</ul>
+<a id="chapter-31"></a>
+<h3>الفصل 31: مصفوفة القبول الوظيفي المتكامل</h3>
+<p><strong>الغرض:</strong> إثبات الحفاظ على الوظائف عبر نسخة إصدار واحدة.</p>
+<p><strong>التبعيات:</strong> الفصول 04–30.</p>
+<h4 id="T091">T091 — كوّن مصفوفة بحسب الخطر</h4>
+<ul>
+<li><strong>الهدف:</strong> تغطية الأخطاء المثبتة والعقود الجديدة دون تكرار شكلي.</li>
+<li><strong>المدخلات:</strong> قائمة المهام والعيوب المصححة.</li>
+<li><strong>الخطوة 1:</strong> اربط كل عيب باختبار قبول يلاحظ سلوكًا خارجيًا.</li>
+<li><strong>الخطوة 2:</strong> ضم المال والكاش والهوية والكاتب والمصدر والجدولة.</li>
+<li><strong>الخطوة 3:</strong> حدد شرط المتوقع بدقة بدل اسم test فقط.</li>
+<li><strong>الخطوة 4:</strong> سجّل not_run عند عدم التشغيل بدل نجاح افتراضي.</li>
+<li><strong>اختبار القبول:</strong> كل شرط إصدار حرج له دليل اختبار على نفس manifest.</li>
+<li><strong>المخرج المطلوب:</strong> ReleaseAcceptanceMatrix.</li>
+<li><strong>شرط الإغلاق:</strong> لا تستنتج صفر تراجع من 18 اختبارًا محدودًا.</li>
+</ul>
+<h4 id="T092">T092 — اختبر الواجهة والمسار الكامل</h4>
+<ul>
+<li><strong>الهدف:</strong> كشف فروق الاختبار المباشر عن استخدام المستخدم.</li>
+<li><strong>المدخلات:</strong> HTTP الحقيقي وواجهة UI المحلية.</li>
+<li><strong>الخطوة 1:</strong> ابدأ ملفًا واختر أعمدته وفلاتره من الواجهة.</li>
+<li><strong>الخطوة 2:</strong> بدّل مبلغ المقارنة أثناء الفحص وبعد الانتهاء.</li>
+<li><strong>الخطوة 3:</strong> انتقل إلى جلسة أخرى أثناء طلب مقارنة قديم.</li>
+<li><strong>الخطوة 4:</strong> تحقق من الملف الناتج والحالة والمسار المعروض.</li>
+<li><strong>اختبار القبول:</strong> يتوافق سلوك الشاشة مع API والبيانات المصدرة.</li>
+<li><strong>المخرج المطلوب:</strong> UI_end_to_end_acceptance.</li>
+<li><strong>شرط الإغلاق:</strong> الـpolling لا يعيد تشغيل المهمة أو يطمس السياسة.</li>
+</ul>
+<h4 id="T093">T093 — راجع الملفات المستوردة مجددًا</h4>
+<ul>
+<li><strong>الهدف:</strong> حماية القبول من تعديل متزامن أو إعادة مسار قديم.</li>
+<li><strong>المدخلات:</strong> manifest قبل وبعد وحزمة نتائج القبول.</li>
+<li><strong>الخطوة 1:</strong> أعد بصمات المصدر بعد الاختبارات.</li>
+<li><strong>الخطوة 2:</strong> ارفض الاعتماد إذا تغير ملف حساس أثناء التشغيل.</li>
+<li><strong>الخطوة 3:</strong> سجّل التغييرات اللاحقة كإصدار جديد.</li>
+<li><strong>الخطوة 4:</strong> أعد فقط الاختبارات المرتبطة بالتغيير وموانع الإصدار.</li>
+<li><strong>اختبار القبول:</strong> النتائج تخص ملفات إصدار ثابتة ومحددة.</li>
+<li><strong>المخرج المطلوب:</strong> SignedOffManifest محلي غير سري.</li>
+<li><strong>شرط الإغلاق:</strong> لا تعيد جميع الاختبارات دون سبب أو تدمج نتائج إصدارات.</li>
+</ul>
+<a id="chapter-32"></a>
+<h3>الفصل 32: اختبارات الأعطال والحمل الممتد</h3>
+<p><strong>الغرض:</strong> إثبات الاستقرار لا سرعة دفعة واحدة.</p>
+<p><strong>التبعيات:</strong> الفصول 14–15 و22–31.</p>
+<h4 id="T094">T094 — نفّذ أعطالًا محلية مضبوطة</h4>
+<ul>
+<li><strong>الهدف:</strong> فحص نتائج فشل القرص والمحرك والطلب.</li>
+<li><strong>المدخلات:</strong> بيئة اختبار بمجلدات مستقلة.</li>
+<li><strong>الخطوة 1:</strong> استخدم وجهات غير قابلة للكتابة أو فشلًا محقونًا معلومًا.</li>
+<li><strong>الخطوة 2:</strong> اختبر WAL failure وwriter timeout وexport failure.</li>
+<li><strong>الخطوة 3:</strong> اختبر انقطاع نقل مصطنع وعودة المسار.</li>
+<li><strong>الخطوة 4:</strong> احتفظ بكل مخرج جزئي وسجل دون حذف.</li>
+<li><strong>اختبار القبول:</strong> لا نجاح كاذب ولا مساس بخدمة الإنتاج.</li>
+<li><strong>المخرج المطلوب:</strong> FaultInjectionReport.</li>
+<li><strong>شرط الإغلاق:</strong> لا تملأ قرص VPS أو تقتل عملياته لمحاكاة الفشل.</li>
+</ul>
+<h4 id="T095">T095 — اختبر عشرة ملفات مع مؤجلات</h4>
+<ul>
+<li><strong>الهدف:</strong> إثبات الجدولة والعزل تحت العبء المقصود.</li>
+<li><strong>المدخلات:</strong> ملفات ذات نوع واحد ومختلطة ومكررات مالية.</li>
+<li><strong>الخطوة 1:</strong> نوّع الأعمدة والخيارات وأحجام الملفات.</li>
+<li><strong>الخطوة 2:</strong> أجّل الحسابات والخدمات في أوقات مختلفة.</li>
+<li><strong>الخطوة 3:</strong> راقب تزامن التصدير وعدد الجلسات والذاكرة.</li>
+<li><strong>الخطوة 4:</strong> قارن جميع مخرجات الملفات بمراجع مستقلة.</li>
+<li><strong>اختبار القبول:</strong> لا فقد أو خلط أو تجويع ضمن سياسة الاختبار.</li>
+<li><strong>المخرج المطلوب:</strong> TenJobScenarioReport.</li>
+<li><strong>شرط الإغلاق:</strong> انتهاء ملف واحد سريع لا يثبت صحة الطابور كاملًا.</li>
+</ul>
+<h4 id="T096">T096 — نفّذ تشغيلًا ممتدًا بمعيار توقف</h4>
+<ul>
+<li><strong>الهدف:</strong> كشف نمو الذاكرة وإعادة الإطلاق المتراكمة.</li>
+<li><strong>المدخلات:</strong> عبء معاد استخدامه وميزانية واضحة.</li>
+<li><strong>الخطوة 1:</strong> حدد مدة أو عدد دورات وسببها قبل التشغيل.</li>
+<li><strong>الخطوة 2:</strong> راقب ميل الذاكرة والـhandles والعمليات والطوابير.</li>
+<li><strong>الخطوة 3:</strong> توقف عند عيب جديد مع الاحتفاظ بالأدلة.</li>
+<li><strong>الخطوة 4:</strong> أعد القياس بعد إصلاح سبب محدد فقط.</li>
+<li><strong>اختبار القبول:</strong> استقرار موارد مثبت ضمن حدود مدة الاختبار.</li>
+<li><strong>المخرج المطلوب:</strong> SoakTestReport.</li>
+<li><strong>شرط الإغلاق:</strong> عدم وقوع OOM في تجربة قصيرة لا يثبت غياب التسرب.</li>
+</ul>
+<a id="chapter-33"></a>
+<h3>الفصل 33: حزمة الإصدار وتجربة Linux</h3>
+<p><strong>الغرض:</strong> منع الاعتماد على نجاح Windows في خدمة مختلفة.</p>
+<p><strong>التبعيات:</strong> الفصل 31–32.</p>
+<h4 id="T097">T097 — جهّز حزمة مصدر ثابتة</h4>
+<ul>
+<li><strong>الهدف:</strong> تسليم كل ما يلزم دون بناء أو ملفات تشغيل حساسة.</li>
+<li><strong>المدخلات:</strong> manifest الإصدار والمكتبات المتاحة.</li>
+<li><strong>الخطوة 1:</strong> ضم الوحدات المتغيرة والواجهة والمواصفات وملفات التشغيل المطلوبة.</li>
+<li><strong>الخطوة 2:</strong> سجّل الاعتماديات والإصدارات بدل تحديثها عشوائيًا.</li>
+<li><strong>الخطوة 3:</strong> استبعد credentials وبيانات العملاء من الحزمة العامة.</li>
+<li><strong>الخطوة 4:</strong> لا تضف target أو مجلدات بناء باعتبارها مصدرًا لازمًا.</li>
+<li><strong>اختبار القبول:</strong> الحزمة قابلة للجرد وبصماتها تطابق القبول.</li>
+<li><strong>المخرج المطلوب:</strong> ReleasePackage مع checksum_manifest.</li>
+<li><strong>شرط الإغلاق:</strong> استبعاد ملف من الحزمة لا يعني حذفه من القرص.</li>
+</ul>
+<h4 id="T098">T098 — أعد التشغيل في Linux معزول</h4>
+<ul>
+<li><strong>الهدف:</strong> إثبات التوافق مع بيئة قريبة من الإنتاج.</li>
+<li><strong>المدخلات:</strong> بيئة Linux منفصلة واعتماديات جاهزة.</li>
+<li><strong>الخطوة 1:</strong> لا تشغّل cargo أو pip يفرض بناء مكوّن غير متاح.</li>
+<li><strong>الخطوة 2:</strong> تحقق من وجود اعتماديات متوافقة مسبقًا أو حزم جاهزة.</li>
+<li><strong>الخطوة 3:</strong> اختر OpenXML إن غابت ثنائية Linux موثقة.</li>
+<li><strong>الخطوة 4:</strong> اختبر المسارات والترميز والملف المفتوح والمخرجات الفعلية.</li>
+<li><strong>اختبار القبول:</strong> تنجح اختبارات المنصة المطلوبة أو يسجل العائق صراحة.</li>
+<li><strong>المخرج المطلوب:</strong> LinuxRehearsalReport.</li>
+<li><strong>شرط الإغلاق:</strong> تعذر الاعتماديات يوقف هذه البوابة دون تجاوز منع البناء.</li>
+</ul>
+<h4 id="T099">T099 — راجع توافق الحالة بين الإصدارات</h4>
+<ul>
+<li><strong>الهدف:</strong> منع كسر WAL أو QueueJob عند العودة للنسخة السابقة.</li>
+<li><strong>المدخلات:</strong> نسخ schema وcheckpoint والنتائج.</li>
+<li><strong>الخطوة 1:</strong> اختبر قراءة حالة قديمة في النسخة الجديدة.</li>
+<li><strong>الخطوة 2:</strong> حدد ما إذا كانت القديمة تستطيع قراءة حالة جديدة.</li>
+<li><strong>الخطوة 3:</strong> استخدم namespaces منفصلة للحالة عند عدم التوافق.</li>
+<li><strong>الخطوة 4:</strong> دوّن خطة كل مهمة بدأت قبل الانتقال وبعده.</li>
+<li><strong>اختبار القبول:</strong> لا تعتمد خطة رجوع تتجاهل تغيير مخطط الحالة.</li>
+<li><strong>المخرج المطلوب:</strong> StateCompatibilityMatrix.</li>
+<li><strong>شرط الإغلاق:</strong> لا تحوّل قاعدة حالة الإنتاج بشكل مدمر.</li>
+</ul>
+<a id="chapter-34"></a>
+<h3>الفصل 34: الجاهزية ومراجعة قرار النشر</h3>
+<p><strong>الغرض:</strong> جمع الأدلة قبل أي تغيير فعلي للإنتاج.</p>
+<p><strong>التبعيات:</strong> الفصول 01–33.</p>
+<h4 id="T100">T100 — أغلق موانع الإصدار</h4>
+<ul>
+<li><strong>الهدف:</strong> منع نشر نسخة مع عيوب مالية أو هوية أو متانة.</li>
+<li><strong>المدخلات:</strong> سجل العيوب ونتائج القبول.</li>
+<li><strong>الخطوة 1:</strong> ارفض الإصدار عند اختلاف مالي أو خلط جلسات.</li>
+<li><strong>الخطوة 2:</strong> ارفضه عند نجاح كاذب أو فشل استرداد غير مفهوم.</li>
+<li><strong>الخطوة 3:</strong> سجّل القيود غير الحرجة وتأثيرها بدل إخفائها.</li>
+<li><strong>الخطوة 4:</strong> تحقق من إغلاق أمر الحذف ومسار Mock واختبارات النسخة الخطأ.</li>
+<li><strong>اختبار القبول:</strong> لا يبقى مانع حرج مفتوح أو دليل قبول ناقص.</li>
+<li><strong>المخرج المطلوب:</strong> ReleaseGateReview.</li>
+<li><strong>شرط الإغلاق:</strong> لا تعني جودة benchmark أن الإصدار آمن وظيفيًا.</li>
+</ul>
+<h4 id="T101">T101 — تحقق من حدود البيئة والنفاذ</h4>
+<ul>
+<li><strong>الهدف:</strong> حماية الخدمة والبيانات أثناء النسخة الموازية.</li>
+<li><strong>المدخلات:</strong> الإعدادات المنقحة وملكية المجلدات والمنافذ.</li>
+<li><strong>الخطوة 1:</strong> تأكد من أن المنفذ الجديد لا يصطدم بمنفذ قائم.</li>
+<li><strong>الخطوة 2:</strong> افصل المجلدات وWAL وprofiles وأسرار الإعداد.</li>
+<li><strong>الخطوة 3:</strong> تحقق من منع خلط قراءة مدخلات مستخدم بآخر وفق تصميم التطبيق.</li>
+<li><strong>الخطوة 4:</strong> أبق حدود الطلبات الخارجية مشتركة أثناء التجربة الموازية.</li>
+<li><strong>اختبار القبول:</strong> النسخة الموازية لا تشارك حالة قابلة للكتابة عرضًا.</li>
+<li><strong>المخرج المطلوب:</strong> ParallelEnvironmentChecklist.</li>
+<li><strong>شرط الإغلاق:</strong> هذا تحقق تشغيل لازم؛ ليس ادعاء تدقيق أمني شامل.</li>
+</ul>
+<h4 id="T102">T102 — جهّز مذكرة القرار القابلة للمراجعة</h4>
+<ul>
+<li><strong>الهدف:</strong> عرض خطة ملموسة قبل طلب تغيير التشغيل.</li>
+<li><strong>المدخلات:</strong> الحزمة والبصمات وتقارير Linux والرجوع.</li>
+<li><strong>الخطوة 1:</strong> قدّم نطاق التغيير والنتيجة المتوقعة والقيود.</li>
+<li><strong>الخطوة 2:</strong> قدّم زمن الإنهاء الكامل لا رقم الكاتب فقط.</li>
+<li><strong>الخطوة 3:</strong> حدد إجراء التحويل وموانعه وخطة رجوع مجربة.</li>
+<li><strong>الخطوة 4:</strong> اطلب قرار التشغيل الفعلي عند اكتمال الأدلة، لا قبل إعدادها.</li>
+<li><strong>اختبار القبول:</strong> القرار مبني على حزمة محددة وخطوات قابلة للتحقق.</li>
+<li><strong>المخرج المطلوب:</strong> DeploymentDecisionMemo.</li>
+<li><strong>شرط الإغلاق:</strong> هذه الوثيقة لا تمنح تلقائيًا إذن إيقاف الخدمة الحالية.</li>
+</ul>
+<a id="chapter-35"></a>
+<h3>الفصل 35: النشر الموازي والتحويل والرجوع</h3>
+<p><strong>الغرض:</strong> مسار نشر يحافظ على التشغيل ولا يفترض بنية غير موجودة.</p>
+<p><strong>التبعيات:</strong> الفصل 34؛ والتنفيذ الفعلي بحسب تعليمات المستخدم وقتها.</p>
+<h4 id="T103">T103 — جهّز نسخة خضراء مستقلة</h4>
+<ul>
+<li><strong>الهدف:</strong> تجربة الإصدار بجوار النسخة الحالية دون استبدالها.</li>
+<li><strong>المدخلات:</strong> الحزمة المعتمدة وبنية توجيه الخدمة الفعلية.</li>
+<li><strong>الخطوة 1:</strong> انشر الملفات إلى مجلد إصدار جديد محدد.</li>
+<li><strong>الخطوة 2:</strong> شغّل خدمة جديدة معزولة إذا سمحت البنية والتفويض.</li>
+<li><strong>الخطوة 3:</strong> ابدأ بمدخلات اختبار محفوظة دون طلبات زين مكررة.</li>
+<li><strong>الخطوة 4:</strong> تحقق من الصحة والبصمات والموارد والمسارات قبل التحويل.</li>
+<li><strong>اختبار القبول:</strong> تعمل النسخة الجديدة دون تغيير عملية النسخة الحالية.</li>
+<li><strong>المخرج المطلوب:</strong> GreenInstanceReadinessReport.</li>
+<li><strong>شرط الإغلاق:</strong> لا تستعمل systemctl restart للخدمة الحالية أو تحديثًا داخل مجلدها.</li>
+</ul>
+<h4 id="T104">T104 — حوّل الأعمال مع ملكية واضحة</h4>
+<ul>
+<li><strong>الهدف:</strong> منع معالجة النسختين المهمة نفسها أو قطع العملاء.</li>
+<li><strong>المدخلات:</strong> توجيه API وملكية الطابور وبروتوكول leases.</li>
+<li><strong>الخطوة 1:</strong> تحقق أولًا من وجود توجيه يسمح بالتحويل دون إيقاف.</li>
+<li><strong>الخطوة 2:</strong> وجّه المهام الجديدة فقط بعد فحص صحة النسخة الجديدة.</li>
+<li><strong>الخطوة 3:</strong> أبق المهام القديمة مع مالكها حتى نهايتها أو تسليم موثق.</li>
+<li><strong>الخطوة 4:</strong> لا تشارك queue قابلًا للكتابة بلا قفل ملكية بين النسختين.</li>
+<li><strong>اختبار القبول:</strong> لا انقطاع معلن ولا duplicate dispatch ولا خلط جلسات.</li>
+<li><strong>المخرج المطلوب:</strong> TrafficAndJobOwnershipSwitchLog.</li>
+<li><strong>شرط الإغلاق:</strong> إن غابت آلية تحويل آمنة تبقى الخطة جاهزة والنشر معلقًا على حل القيد.</li>
+</ul>
+<h4 id="T105">T105 — جرّب الرجوع دون فقد حالة</h4>
+<ul>
+<li><strong>الهدف:</strong> إعادة توجيه آمنة عند فشل المرشح.</li>
+<li><strong>المدخلات:</strong> النسخة الحالية السليمة ونسخ الحالة المنفصلة.</li>
+<li><strong>الخطوة 1:</strong> حدد إشارات الرجوع قبل بدء التحويل.</li>
+<li><strong>الخطوة 2:</strong> أعد قبول المهام الجديدة إلى النسخة السابقة السليمة.</li>
+<li><strong>الخطوة 3:</strong> عالج المهام التي بدأت في الجديدة حسب ملكية وإصدار WAL.</li>
+<li><strong>الخطوة 4:</strong> احتفظ بكل الملفات ولا ترجع حالات جديدة إلى قارئ غير متوافق.</li>
+<li><strong>اختبار القبول:</strong> الرجوع مجرب على نسخة اختبار ولا يفقد نتائج ملتزمة.</li>
+<li><strong>المخرج المطلوب:</strong> RollbackRehearsalAndRunbook.</li>
+<li><strong>شرط الإغلاق:</strong> بقاء النسخة القديمة لا يكفي إذا كانت الحالة غير متوافقة.</li>
+</ul>
+<a id="chapter-36"></a>
+<h3>الفصل 36: التحقق بعد النشر والتسليم النهائي</h3>
+<p><strong>الغرض:</strong> إنهاء المشروع بأدلة تشغيل ودليل للمستخدم والعامل.</p>
+<p><strong>التبعيات:</strong> الفصل 35 بعد تنفيذ نشر مصرح وآمن.</p>
+<h4 id="T106">T106 — تحقق من الإنتاج بمعايير مسبقة</h4>
+<ul>
+<li><strong>الهدف:</strong> إثبات أن التحسن انتقل من المحلي إلى الخدمة.</li>
+<li><strong>المدخلات:</strong> قياسات مرجعية وعينة تشغيل مصرح بها.</li>
+<li><strong>الخطوة 1:</strong> تحقق من الإصدار الفعلي والبصمات والمحرك المستخدم.</li>
+<li><strong>الخطوة 2:</strong> راقب أول مهام وفق معايير الدقة والذاكرة والإنهاء.</li>
+<li><strong>الخطوة 3:</strong> قارن المصدر والتقرير والواجهة من نتائج المهمة نفسها.</li>
+<li><strong>الخطوة 4:</strong> طبّق الرجوع المحدد عند ظهور مانع حرج.</li>
+<li><strong>اختبار القبول:</strong> تقارير إنتاج مؤرخة دون نجاح افتراضي من المحلي.</li>
+<li><strong>المخرج المطلوب:</strong> ProductionVerificationReport.</li>
+<li><strong>شرط الإغلاق:</strong> لا تنفذ ضغط 100 ألف على الإنتاج دون سعة ونطاق معتمدين.</li>
+</ul>
+<h4 id="T107">T107 — سلّم دليل التشغيل والتعامل مع الأعطال</h4>
+<ul>
+<li><strong>الهدف:</strong> جعل النظام قابلًا للإدارة دون تخمين العامل.</li>
+<li><strong>المدخلات:</strong> المقاييس والحالات وخطط الاستعادة.</li>
+<li><strong>الخطوة 1:</strong> اشرح finalizing وdeferred وneeds_review للمستخدم.</li>
+<li><strong>الخطوة 2:</strong> اشرح التصدير المحلي مقابل إعادة استعلام زين.</li>
+<li><strong>الخطوة 3:</strong> وثّق فشل القرص والمسار والمتصفح واستعادة WAL.</li>
+<li><strong>الخطوة 4:</strong> دوّن مواقع الأدلة ومالك القرار وحدود الحفظ.</li>
+<li><strong>اختبار القبول:</strong> يستطيع المنفذ اتباع إجراء محدد لكل عطل معروف.</li>
+<li><strong>المخرج المطلوب:</strong> OperatorGuide وUserGuide.</li>
+<li><strong>شرط الإغلاق:</strong> لا تدرج كلمات مرور أو أوامر حذف في دليل التسليم.</li>
+</ul>
+<h4 id="T108">T108 — أغلق المهمة مع قائمة ما بقي</h4>
+<ul>
+<li><strong>الهدف:</strong> منع إغلاق المشروع بينما بقي اختبار أو قيد تشغيل.</li>
+<li><strong>المدخلات:</strong> سجل المهام وبوابات القبول وقرار المستخدم.</li>
+<li><strong>الخطوة 1:</strong> حدد كل مهمة: مكتملة أو معلقة أو خارج نطاق الإصدار.</li>
+<li><strong>الخطوة 2:</strong> اربط الإنجاز بدليل لا بعبارة تم التنفيذ.</li>
+<li><strong>الخطوة 3:</strong> سجّل القيود والفوائد المقاسة ومحرك الإنتاج الفعلي.</li>
+<li><strong>الخطوة 4:</strong> احفظ سجل النسخة وخطة الرجوع والأدلة دون حذف.</li>
+<li><strong>اختبار القبول:</strong> لا يوجد التزام مطلوب مفقود من تقرير الإغلاق.</li>
+<li><strong>المخرج المطلوب:</strong> FinalDeliveryAndResidualWorkReport.</li>
+<li><strong>شرط الإغلاق:</strong> الكتاب خطة عمل؛ لا يحل محل تقرير تنفيذها.</li>
+</ul>
+<h3>بوابات اعتماد الإصدار</h3>
+<p>البوابات التالية شروط قرار، وليست إعلانًا بأن العمل تم.</p>
+<p>G0 — تثبيت القيود: لا حذف ولا بناء ولا تعطيل لخدمة الإنتاج.</p>
+<p>G1 — ثبوت المرجع: اكتمال جرد الإنتاج وأصل الملفات والبيئة دون أسرار.</p>
+<p>G2 — ثبوت النسخة: manifest واحد واختبارات تستورد وحداته فعلًا.</p>
+<p>G3 — السياسة المالية: حسم السماحية وسياسة المبلغين ومعنى الفرق المعروض.</p>
+<p>G4 — صحة النتائج: مقارنة جميع الصفوف والهوية والإجماليات والتنسيق المطلوب.</p>
+<p>G5 — متانة الحفظ: لا نجاح كاذب، ولا فقد غير مفسر، واستعادة WAL مجربة.</p>
+<p>G6 — خيارات المستخدم: لا إعادة استعلام بسبب تغيير المقارنة، ولا استجابة جلسة قديمة.</p>
+<p>G7 — أداء كامل: قياس كل مخرجات الإنهاء مع عدد الحفظ وذاكرة مجموعة العمليات.</p>
+<p>G8 — جدولة آمنة: تداخل ملفات حقيقي دون خلط أو تجويع أو commit مزدوج.</p>
+<p>G9 — مسارات ومتصفح: تصنيفات صحيحة وميزانية طلبات وتعافٍ لا يعيد الإطلاق لكل رفض.</p>
+<p>G10 — توافق البيئة: قبول Linux بمحرك متاح ودون بناء ممنوع.</p>
+<p>G11 — جاهزية تشغيل: فصل الحالة والمنافذ وبنية تحويل معلومة ورجوع مجرب.</p>
+<p>G12 — قرار تغيير الإنتاج: مراجعة الحزمة المحددة وخطوات التحويل وفق تفويض المستخدم.</p>
+<p>G13 — تحقق بعد النشر: نتائج إنتاج مصرح بها مع متابعة المعايير وخطة رجوع قائمة.</p>
+<p>G14 — تسليم: لا التزام مطلوب مخفي ولا بند حرج بلا دليل.</p>
+<h3>ربط البوابات بالمهام</h3>
+<div class="table-wrap"><table><thead><tr><th>البوابة</th><th>نطاق المهام</th><th>سبب الربط</th></tr></thead><tbody>
+<tr><td>G0</td><td>T001–T003</td><td>القيود والمخرجات وحدود الأهداف.</td></tr>
+<tr><td>G1</td><td>T004–T009</td><td>الأدلة والمرجع والبيئة وأصل الملفات.</td></tr>
+<tr><td>G2</td><td>T010–T015 وT093</td><td>الدمج والعقود وبصمات القبول.</td></tr>
+<tr><td>G3</td><td>T019–T024</td><td>السياسة المالية والمكررات والإجماليات.</td></tr>
+<tr><td>G4</td><td>T016–T024 وT046–T060</td><td>الهوية ومحركات المخرجات والمصدر.</td></tr>
+<tr><td>G5</td><td>T037–T048</td><td>WAL والاستعادة ودورة الكاتب واعتماد الملفات.</td></tr>
+<tr><td>G6</td><td>T025–T036</td><td>الكاش ولقطة المدخل وAPI والواجهة.</td></tr>
+<tr><td>G7</td><td>T061–T066</td><td>الأداء الكامل والذاكرة والضغط العكسي.</td></tr>
+<tr><td>G8</td><td>T067–T075 وT095</td><td>الجلسات والجدولة والحجز واختبار الملفات.</td></tr>
+<tr><td>G9</td><td>T076–T090</td><td>المسارات والتأجيل وChrome والرصد.</td></tr>
+<tr><td>G10</td><td>T097–T099</td><td>حزمة المصدر وتجربة Linux وتوافق الحالة.</td></tr>
+<tr><td>G11</td><td>T100–T102 وT105</td><td>الجاهزية والحزمة وملكية التحويل.</td></tr>
+<tr><td>G12</td><td>T102–T105</td><td>مذكرة القرار وتجهيز النسخة وتحويل العمل.</td></tr>
+<tr><td>G13</td><td>T106</td><td>إثبات النتائج في البيئة التي نُشر عليها.</td></tr>
+<tr><td>G14</td><td>T107–T108</td><td>دليل التشغيل والتقرير النهائي.</td></tr>
+</tbody></table></div>
+<h3>ترتيب الدفعات المقترح للعامل</h3>
+<p>الدفعة A: T001–T012 لتصحيح الأدلة والمرجع وتجهيز نسخة واحدة.</p>
+<p>الدفعة B: T013–T024 لتثبيت العقود والهوية والسياسة المالية.</p>
+<p>الدفعة C: T025–T036 للقراءة الواحدة والكاش والواجهة والاستجابات المتأخرة.</p>
+<p>الدفعة D: T037–T048 للمتانة والاستعادة والكاتب وعقد المحركات.</p>
+<p>الدفعة E: T049–T060 للمنصات وOpenXML والتقرير والمصدر.</p>
+<p>الدفعة F: T061–T066 لقرار الأداء والذاكرة على النسخة المتكاملة.</p>
+<p>الدفعة G: T067–T081 للجلسات والجدولة والحجز والمسارات والمؤجلات.</p>
+<p>الدفعة H: T082–T090 لتشخيص Chrome ودورة السياق والرصد.</p>
+<p>الدفعة I: T091–T099 للقبول والحمل وLinux والتوافق.</p>
+<p>الدفعة J: T100–T108 للقرار والنشر والتحقق والتسليم.</p>
+<p>لا تحدد هذه الدفعات عدد أيام؛ لا تتوفر أدلة كافية لتقدير زمني موثوق.</p>
+<p>كل دفعة تنتهي بتقرير يذكر الملفات والبصمات والاختبارات وموانع الدفعة التالية.</p>
+<p>إذا انكشف عيب مالي أو خلط جلسات، لا ينتظر نهاية الدفعة؛ يصحح قبل استمرار القبول.</p>
+<p>يمكن قياس الأداء الأولي أثناء التنفيذ، لكن لا يستخدم بدل قبول الإصدار النهائي.</p>
+<p>لا تعني تسمية دفعة J أن إذنًا بإيقاف الخدمة الحالية قد صدر.</p>
+<h3>مصفوفة سيناريوهات القبول</h3>
+<p>هذه حالات عمل لازمة للتحقق؛ عددها ليس نسبة نجاح قبل التنفيذ.</p>
+<div class="table-wrap"><table><thead><tr><th>الحالة</th><th>المدخل أو الحدث</th><th>المتوقع القابل للملاحظة</th></tr></thead><tbody>
+<tr><td>C01</td><td>تشغيل اختبارات القبول</td><td>مسارات __file__ وبصمات توافق نسخة الإصدار.</td></tr>
+<tr><td>C02</td><td>ملف يبدأ عند C3</td><td>أرقام صفوف المصدر والخلايا المستهدفة صحيحة.</td></tr>
+<tr><td>C03</td><td>ورقة بلا عناوين</td><td>لا يُسقط أول سجل باعتباره عنوانًا.</td></tr>
+<tr><td>C04</td><td>أسماء متطابقة في مسارين</td><td>لا تستخدم نسخة كاش الملف الأول للثاني.</td></tr>
+<tr><td>C05</td><td>mapping صريح مع autodetect مخالف</td><td>يطبق الاختيار الصريح المتحقق.</td></tr>
+<tr><td>C06</td><td>أرقام عربية ومختلطة</td><td>هوية رقم ونوع استعلام وفق parser المعتمد.</td></tr>
+<tr><td>C07</td><td>صفر مالي صالح</td><td>يبقى صفرًا ولا يوصف رصيدًا مفقودًا.</td></tr>
+<tr><td>C08</td><td>مبلغ فارغ أو غير صالح</td><td>حالة نقص بيانات وفق السياسة، لا مطابقة تلقائية.</td></tr>
+<tr><td>C09</td><td>مبلغ 1.005 أو قيمة سالبة</td><td>تقريب موحد ونتيجة دقيقة بالهللات.</td></tr>
+<tr><td>C10</td><td>حد السماحية النهائي</td><td>مطابقة وفق القرار المالي المثبت وحدوده.</td></tr>
+<tr><td>C11</td><td>مبلغين مطابقين معًا</td><td>أولوية اختيار طبقًا للسياسة المعتمدة.</td></tr>
+<tr><td>C12</td><td>مبلغين غير مطابقين</td><td>اختيار المرجع والفرق وفق السياسة لا الاجتهاد.</td></tr>
+<tr><td>C13</td><td>حساب مكرر بمتوقع مختلف</td><td>مشاركة الرصيد مع إعادة حساب كل صف مستقلًا.</td></tr>
+<tr><td>C14</td><td>رقم نصي واحد كحساب وخدمة</td><td>لا اختلاط بين مفاتيح الأرصدة المختلفة.</td></tr>
+<tr><td>C15</td><td>طلبان لتحميل الورقة معًا</td><td>قراءة واحدة وإجابة صحيحة لكليهما.</td></tr>
+<tr><td>C16</td><td>فشل التحميل الأول</td><td>يصل الفشل للمنتظرين ثم تنجح محاولة لاحقة.</td></tr>
+<tr><td>C17</td><td>ورقة أكبر من حد الكاش</td><td>fallback موثق لا فقد بيانات ولا ذاكرة غير مقاسة.</td></tr>
+<tr><td>C18</td><td>إخلاء بيانات مهمة نشطة</td><td>إعادة المقارنة من snapshot صالح دون استعلام خارجي.</td></tr>
+<tr><td>C19</td><td>تحديث المصدر داخل التطبيق</td><td>snapshot الإدخال لا يستبدل صامتًا ببيانات محدثة.</td></tr>
+<tr><td>C20</td><td>كتابة خارجية على المصدر</td><td>يكتشف التعارض ولا يمحو تعديلًا دون سياسة.</td></tr>
+<tr><td>C21</td><td>عشرة تغييرات مبلغ متتالية</td><td>صفر استعلامات زين إضافية بسبب التغييرات.</td></tr>
+<tr><td>C22</td><td>استجابة خيار قديم بعد جديد</td><td>لا تستبدل الاستجابة القديمة الجدول الحالي.</td></tr>
+<tr><td>C23</td><td>استجابة جلسة A بعد بدء B</td><td>ترفض UI النتيجة القديمة مهما كان رقم طلبها.</td></tr>
+<tr><td>C24</td><td>live_balances مرسلة بهوية خاطئة</td><td>رفض أو عزل واضح؛ لا استخدامها للمهمة الحالية.</td></tr>
+<tr><td>C25</td><td>فشل recalc HTTP ثم نجاح</td><td>تستعيد الواجهة تحديثها دون إعادة فحص.</td></tr>
+<tr><td>C26</td><td>فشل WAL</td><td>لا يعتبر الصف ملتزمًا ولا يزيد التقدم بنجاح كاذب.</td></tr>
+<tr><td>C27</td><td>سطر WAL أخير مبتور</td><td>حفظ الأصل والاستئناف في جزء جديد موثق.</td></tr>
+<tr><td>C28</td><td>فساد وسط WAL</td><td>فشل صريح يمنع اعتماد مجموعة غير سليمة.</td></tr>
+<tr><td>C29</td><td>WAL مهمة أجنبية</td><td>رفض الهوية قبل التصدير أو تحديث المصدر.</td></tr>
+<tr><td>C30</td><td>repair لصف موجود</td><td>أحدث نتيجة صحيحة تظهر مرة واحدة.</td></tr>
+<tr><td>C31</td><td>writer timeout</td><td>لا يبدأ اكتمال لاحق؛ يظهر أن الخيط ما زال حيًا.</td></tr>
+<tr><td>C32</td><td>خمول أكثر من 60 ثانية</td><td>لا حفظ كامل دوري إذا كانت السياسة نهائية فقط.</td></tr>
+<tr><td>C33</td><td>صفر نتائج</td><td>سلوك مخرج واضح لا نجاح مبهم بلا ملف مطلوب.</td></tr>
+<tr><td>C34</td><td>فشل Rust</td><td>بديل متحقق أو فشل منتقل، مع الاحتفاظ بالأدلة.</td></tr>
+<tr><td>C35</td><td>returncode صفر وملف غير صالح</td><td>رفض الاعتماد لا نجاح بوجود ملف فقط.</td></tr>
+<tr><td>C36</td><td>تشغيل من working directory مختلف</td><td>اكتشاف محرك ثابت عبر إعداد أو موقع وحدة.</td></tr>
+<tr><td>C37</td><td>إجبار OpenXML</td><td>قبول مستقل للبيانات والتنسيقات المطلوبة.</td></tr>
+<tr><td>C38</td><td>وصول النتائج بترتيب غير منتظم</td><td>ترتيب تقرير موحد ورقم المصدر محفوظ كقيمة.</td></tr>
+<tr><td>C39</td><td>حالة «فرق رصيد»</td><td>لون ومعنى الفروق لا لون خطأ فحص عرضًا.</td></tr>
+<tr><td>C40</td><td>XML control أو نص بسمات خاصة</td><td>معالجة موثقة وملف صالح دون إصلاح.</td></tr>
+<tr><td>C41</td><td>تقرير normal وrepair وmawarid</td><td>الأوراق والروابط والإجماليات المطلوبة محفوظة.</td></tr>
+<tr><td>C42</td><td>فشل مسار التقرير الأول</td><td>مسار جديد صالح يصل إلى الطابور والواجهة.</td></tr>
+<tr><td>C43</td><td>أصل متعدد الأوراق والصيغ</td><td>لا اختلاف خارج نطاق التدقيق المسموح.</td></tr>
+<tr><td>C44</td><td>فشل حفظ المصدرين</td><td>فشل واضح مع نتائج باقية قابلة للتصدير.</td></tr>
+<tr><td>C45</td><td>100 ألف نتيجة جاهزة</td><td>زمن إنهاء كامل وذاكرة عمليات وعدد حفظ مقاس.</td></tr>
+<tr><td>C46</td><td>منتجون أسرع من الكاتب</td><td>ضغط عكسي مضبوط بلا deadlock أو نمو مفتوح.</td></tr>
+<tr><td>C47</td><td>A مؤجل وB نشط</td><td>عزل فعلي للنتائج والخيارات وWAL والمخرجات.</td></tr>
+<tr><td>C48</td><td>إلغاء A أثناء نشاط B</td><td>لا إيقاف B أو تغيير هويته.</td></tr>
+<tr><td>C49</td><td>commit مكرر أو متأخر</td><td>لا تكرار تقدم أو فرق مالي.</td></tr>
+<tr><td>C50</td><td>جميع المسارات open</td><td>انتظار منضبط لا دوران CPU أو إطلاق متصفح.</td></tr>
+<tr><td>C51</td><td>HTTP 429 مع Retry-After</td><td>احترام الموعد والميزانية المشتركة.</td></tr>
+<tr><td>C52</td><td>HTTP 200 مع رفض تطبيقي</td><td>لا نجاح مالي ولا heal لمتصفح سليم.</td></tr>
+<tr><td>C53</td><td>TargetClosed مثبت</td><td>تعافٍ مملوك دون فقد هوية المهمة.</td></tr>
+<tr><td>C54</td><td>تدوير سياق وبين يديه طلب</td><td>لا إغلاق قبل إنهاء أو تسليم الطلب وفق السياسة.</td></tr>
+<tr><td>C55</td><td>تشغيل ممتد لعشرة ملفات</td><td>نتائج متكافئة وموارد لا تنمو بلا تفسير.</td></tr>
+<tr><td>C56</td><td>Linux بلا ثنائية Rust موثقة</td><td>بديل صحيح أو عائق معلن؛ لا بناء تلقائي.</td></tr>
+<tr><td>C57</td><td>حالة جديدة غير متوافقة مع القديم</td><td>عزل وملكية واضحة وخطة رجوع مناسبة.</td></tr>
+<tr><td>C58</td><td>نسختان موازيتان</td><td>مهمة واحدة لها مالك واحد ولا استعلام مزدوج.</td></tr>
+<tr><td>C59</td><td>فشل مرشح أثناء التحويل</td><td>رجوع مجرب مع حفظ كل WAL والنتائج.</td></tr>
+<tr><td>C60</td><td>أول مهام الإنتاج</td><td>دليل محلي للإصدار الفعلي ونتائج أداء ودقة حقيقية.</td></tr>
+</tbody></table></div>
+<h3>قالب تقرير المهمة</h3>
+<p>معرف المهمة: T___.</p>
+<p>اسم الإصدار: يحدد قبل العمل.</p>
+<p>بصمة المصدر: تسجل للملفات المؤثرة.</p>
+<p>الهدف المقصود: سلوك محدد يتغير أو يبقى صحيحًا.</p>
+<p>الملفات التي تغيرت: قائمة مع سبب لكل ملف.</p>
+<p>طريقة التحقق: مدخلات وخطوات فعلية قابلة للتكرار.</p>
+<p>المتوقع: قيم أو حالات أو قياسات محددة.</p>
+<p>المشاهد: النتيجة الخام قبل تفسيرها.</p>
+<p>حدود القياس: المحلي أو الإنتاج، الحقيقي أو المصطنع، ما شمله المؤقت.</p>
+<p>الاختلافات: عدد وقائمة مختصرة دون إخفاء فشل.</p>
+<p>الأدلة: مسارات موجودة في مجلد تشغيل محفوظ.</p>
+<p>الذاكرة: طريقة الرصد وفترة العينات والعمليات المشمولة.</p>
+<p>الحفظ: عدد عمليات Excel ومصدر القياس.</p>
+<p>الاستعلامات: عددها قبل وبعد تغيير الخيارات أو إعادة التصدير.</p>
+<p>حالة المهمة: متحققة أو بحاجة تصحيح أو معلقة مع السبب.</p>
+<p>المهمة التالية: معرف واحد أو أكثر مع بيان التبعيات.</p>
+<p>قرار المراجع: لا يكتب نجاحًا بلا دليل.</p>
+<h3>قرارات لم تُحسم بعد</h3>
+<div class="table-wrap"><table><thead><tr><th>القرار</th><th>لماذا يلزم</th><th>أين يحسم</th></tr></thead><tbody>
+<tr><td>Q01 — سماحية المطابقة</td><td>تعارض v3 مع 20 هللة في الكود.</td><td>T019 قبل اعتماد المال.</td></tr>
+<tr><td>Q02 — معنى الفرق عند المطابقة</td><td>الفرق الحقيقي والمعروض قد يختلفان.</td><td>T021 مع السياسة المالية.</td></tr>
+<tr><td>Q03 — snapshot للملف الكبير</td><td>حد الكاش قد يسبب قراءة متكررة بعد الإخلاء.</td><td>T029 بناءً على قياس.</td></tr>
+<tr><td>Q04 — متانة WAL المطلوبة</td><td>تعطل العملية ليس انقطاع طاقة أو نظام.</td><td>T038 مع هدف الفقد المقبول.</td></tr>
+<tr><td>Q05 — التقرير المطلوب في كل وضع</td><td>ملف 19 عمودًا ليس كل التقرير التنفيذي.</td><td>T055 قبل نقل writer.</td></tr>
+<tr><td>Q06 — سياسة المصدر الأصلي</td><td>نسخة محدثة وحفظ الأصل لهما التزامات مختلفة.</td><td>T058 وT060.</td></tr>
+<tr><td>Q07 — عدد الجلسات والمتصفحات</td><td>يعتمد على الذاكرة والضغط ومعدل الطلبات.</td><td>T066 وT083.</td></tr>
+<tr><td>Q08 — نطاق الحظر والميزانية</td><td>403 لا يحدد سببه وحده.</td><td>T076–T078.</td></tr>
+<tr><td>Q09 — تدوير السياق</td><td>250 رقم مقترح يحتاج قياس فائدة.</td><td>T086.</td></tr>
+<tr><td>Q10 — التحويل دون انقطاع</td><td>بنية التوجيه وملكية الطابور غير مثبتتين.</td><td>T102–T105.</td></tr>
+<tr><td>Q11 — مرحلة الإصدار</td><td>قد يفصل نشر إصلاح الحفظ عن جدولة جديدة باتفاق صريح.</td><td>T100–T102.</td></tr>
+</tbody></table></div>
+<p>لا تحتاج هذه القرارات إيقاف كتابة الاختبارات والتحليل المستقل.</p>
+<p>لا يُنفذ التغيير الذي يعتمد على قرار لازم قبل تثبيته.</p>
+<p>لا تُحوّل حالة «معلق على قرار» إلى «مكتمل» لأن الوقت مر.</p>
+<p>إذا طلب المستخدم إصدارًا مرحليًا، تعرض المهام المتبقية ووعود المنتج التي لا يشملها.</p>
+<p>الإصدار المرحلي ليس انتهاء المهمة الكاملة ما لم يتغير النطاق صراحة.</p>
+<h3>قائمة تسليم ملفات الإصدار</h3>
+<ul>
+<li>manifest كامل مع SHA-256 ومسارات الوحدات المستوردة.</li>
+<li>diff للمصدر فقط مع أسباب التغيير، دون أسرار أو ملفات نتائج ضخمة داخل الفرق.</li>
+<li>FinancialPolicy مثبتة ونتائج المكررات والتقريب.</li>
+<li>تقارير cache وAPI والواجهة والهوية والاستجابات المتأخرة.</li>
+<li>تقارير WAL والاستعادة والكاتب والفشل والمحركين.</li>
+<li>مقارنة التقرير التنفيذي والمصدر والإجماليات.</li>
+<li>بيانات benchmark ومواصفاتها وقياس الإنهاء الكامل.</li>
+<li>خط ذاكرة العمليات والطوابير وتشخيص CPU.</li>
+<li>اختبارات الجلسات المتداخلة والجدولة والمسارات والمؤجلات.</li>
+<li>تقرير Linux وتوافق الحالة وعدم الحاجة إلى بناء ممنوع.</li>
+<li>خطة نسخة موازية وملكية عمل وتحويل ورجوع مجرب.</li>
+<li>تقرير تحقق الإنتاج إذا نُشر فعليًا بتفويض مناسب.</li>
+<li>دليل المستخدم ودليل المشغّل وسجل القيود الباقية.</li>
+<li>لا تُرفق كلمات مرور أو مفاتيح أو بيانات عملاء غير لازمة للمراجعة.</li>
+</ul>
+<h3>رسالة بدء العمل للعامل</h3>
+<p>ابدأ T001 ثم T004 وT010 حسب تبعيات الفصول، ولا تبدأ بالتحسين الأسهل قياسًا فقط.</p>
+<p>صحّح حذف tempfile قبل أي تشغيل جديد للمحرك الذي يحتويه.</p>
+<p>اجعل اختباراتك تشير إلى نسخة تكامل واحدة؛ أثبت ذلك بالمسارات والبصمات.</p>
+<p>لا تبنِ ثنائية جديدة؛ افصل مصدر Rust عن الملف التنفيذي المتاح.</p>
+<p>اعرض تعارض السياسة المالية بدل حسمه بنفسك.</p>
+<p>أغلق اختلاف الحالات وترقيم الصفوف قبل قياس التفوق بين المحركين.</p>
+<p>اختبر الاستئناف والإصلاح حتى لا تختفي نتائج الجلسة السابقة من stream.</p>
+<p>قِس التقرير والمصدر مع الكاتب؛ الرقم الجزئي لا يغلق مشكلة ما بعد 100%.</p>
+<p>نفّذ عزل JobSession قبل جدولة ملفات متزامنة.</p>
+<p>فسّر رفض الخادم وCPU من أدلة ولا تقتل متصفحًا سليمًا تلقائيًا.</p>
+<p>سلّم تقرير كل دفعة مع موانعها دون تكرار ادعاء «الحل بالكامل» قبل البوابات.</p>
+<p>جهّز النشر الموازي والرجوع؛ أبق الخدمة الحالية عاملة.</p>
+<p>احتفظ بالأدلة والملفات دون حذف.</p>
+<h3>لوحة متابعة المهام</h3>
+<p>كل صف أدناه مخطط للتحقق أو التنفيذ ضمن النسخة الموحدة.</p>
+<p>وجود تنفيذ أولي سابق لا يغيّر الحالة إلى متحقق دون دليل الإصدار المستهدف.</p>
+<div class="table-wrap"><table><thead><tr><th>المهمة</th><th>الفصل</th><th>العمل</th><th>الحالة عند إنشاء الكتاب</th></tr></thead><tbody>
+<tr><td>T001</td><td>01</td><td>ثبّت القيود التشغيلية</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T002</td><td>01</td><td>حدّد المخرجات التي يجب الحفاظ عليها</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T003</td><td>01</td><td>افصل الأهداف الزمنية</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T004</td><td>02</td><td>أنشئ سجل حقائق وحالات تحقق</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T005</td><td>02</td><td>صحّح وصف القياسات الحالية</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T006</td><td>02</td><td>حقق تقرير 22,741 صفًا</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T007</td><td>03</td><td>أكمل قائمة ملفات الإنتاج</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T008</td><td>03</td><td>ثبّت البيئة دون تغييرها</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T009</td><td>03</td><td>حدد مصدر كل وحدة منسوخة</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T010</td><td>04</td><td>اختر خط أساس للتكامل</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T011</td><td>04</td><td>ادمج بحسب الوظيفة</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T012</td><td>04</td><td>أثبت وحدات الاختبارات المستوردة</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T013</td><td>05</td><td>عرّف سجل النتيجة</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T014</td><td>05</td><td>ثبّت إعدادات بدء المهمة</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T015</td><td>05</td><td>عرّف أحداث الحالة</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T016</td><td>06</td><td>احفظ مواضع الصفوف الفعلية</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T017</td><td>06</td><td>وحّد تحليل الحساب والخدمة</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T018</td><td>06</td><td>راجع Unicode والمخطط الصريح</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T019</td><td>07</td><td>احسم تعارض حد المطابقة</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T020</td><td>07</td><td>وحّد الحساب بالهللات</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T021</td><td>07</td><td>ثبّت سياسة المبلغين</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T022</td><td>08</td><td>افصل نتيجة الاستعلام عن نتيجة الصف</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T023</td><td>08</td><td>اختبر أمثلة المبالغ المكررة</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T024</td><td>08</td><td>طابق الإجماليات مع الصفوف</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T025</td><td>09</td><td>افصل البيانات الخام عن تفسير الخيارات</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T026</td><td>09</td><td>امنع قراءات متزامنة مكررة</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T027</td><td>09</td><td>اختبر تغير المدخلات</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T028</td><td>10</td><td>تحقق من حد 50 ميجابايت</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T029</td><td>10</td><td>اختر سياسة للملف الكبير النشط</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T030</td><td>10</td><td>راجع التحديث المصرح للمصدر</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T031</td><td>11</td><td>شدّد عقد إعادة المقارنة</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T032</td><td>11</td><td>خذ snapshot متسقًا للخدمة</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T033</td><td>11</td><td>راجع مدخلات التشغيل والاستجابة</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T034</td><td>12</td><td>افصل التغيير الحسابي عن بدء الفحص</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T035</td><td>12</td><td>ارفض الاستجابة القديمة كاملة</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T036</td><td>12</td><td>راجع polling وفشل التحديث</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T037</td><td>13</td><td>ثبّت ترتيب الالتزام</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T038</td><td>13</td><td>عرّف مستوى متانة السجل</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T039</td><td>13</td><td>اعزل WAL ونقطة الاستئناف</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T040</td><td>14</td><td>عالج السطر المبتور بدقة</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T041</td><td>14</td><td>اجعل الإصلاح تحديثًا بإصدار</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T042</td><td>14</td><td>اختبر دورة استعادة كاملة</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T043</td><td>15</td><td>أزل المسار الخاص باكتشاف Mock</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T044</td><td>15</td><td>اجعل حفظ Excel نهائيًا وفق السياسة</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T045</td><td>15</td><td>تحقق من انتهاء الكاتب قبل المتابعة</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T046</td><td>16</td><td>عرّف واجهة المحرك</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T047</td><td>16</td><td>اكتب مخرجًا جديدًا قبل اعتماده</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T048</td><td>16</td><td>وحّد الترتيب والحالات</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T049</td><td>17</td><td>صحّح اكتشاف الملف التنفيذي</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T050</td><td>17</td><td>تحقق من المكوّن الموجود</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T051</td><td>17</td><td>اختبر timeout والفشل والبديل</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T052</td><td>18</td><td>راجع بناء XML</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T053</td><td>18</td><td>راجع أجزاء الحزمة والتنسيق</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T054</td><td>18</td><td>اختبر البديل مستقلًا</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T055</td><td>19</td><td>احصر خصائص التقرير الحالي</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T056</td><td>19</td><td>غيّر الكاتب دون تغيير القرار المالي</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T057</td><td>19</td><td>تحقق من التصدير والمسار البديل</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T058</td><td>20</td><td>حدّد نطاق تعديل المصدر</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T059</td><td>20</td><td>قارن وسائل التحديث على دليل واحد</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T060</td><td>20</td><td>تحقق من الحفظ المزدوج والتعارض</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T061</td><td>21</td><td>أنشئ بيانات قياس صادقة</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T062</td><td>21</td><td>قِس مسار الإنهاء الكامل</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T063</td><td>21</td><td>قارن مع خط أساس عادل</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T064</td><td>22</td><td>قِس ذاكرة مجموعة العمليات</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T065</td><td>22</td><td>اضبط حجم الطابور والنسخ</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T066</td><td>22</td><td>وازن الذاكرة بين الجلسات</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T067</td><td>23</td><td>عرّف جلسة لكل مهمة</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T068</td><td>23</td><td>انقل الملكية تدريجيًا</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T069</td><td>23</td><td>اختبر تداخل A وB فعليًا</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T070</td><td>24</td><td>حدد سياسة الاختيار</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T071</td><td>24</td><td>اختبر التماثل بين الأنواع</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T072</td><td>24</td><td>امنع الدوران والانتظار النشط</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T073</td><td>25</td><td>عرّف lease بهوية كاملة</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T074</td><td>25</td><td>اختبر الالتزام المتكرر</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T075</td><td>25</td><td>اجعل الإلغاء خاصًا بالجّلْسة</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T076</td><td>26</td><td>صنّف نتائج النقل</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T077</td><td>26</td><td>طبّق كاسر دائرة مضبوطًا</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T078</td><td>26</td><td>حدد نطاق الصحة الحقيقي</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T079</td><td>27</td><td>عرّف المؤجلات لكل نوع</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T080</td><td>27</td><td>اضبط ميزانية المحاولات</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T081</td><td>27</td><td>اختبر التعافي وعدم التجويع</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T082</td><td>28</td><td>خذ خطًا زمنيًا للعملية</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T083</td><td>28</td><td>قارن تبويبًا واثنين وثلاثة</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T084</td><td>28</td><td>حقق OOM بدليل العملية</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T085</td><td>29</td><td>افصل رفض الخادم عن crash</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T086</td><td>29</td><td>اختبر تدوير السياق الوقائي</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T087</td><td>29</td><td>احصر عمليات المتصفح الباقية</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T088</td><td>30</td><td>وحّد سجل الأحداث</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T089</td><td>30</td><td>أضف مقاييس تفصل المراحل</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T090</td><td>30</td><td>عرّف التنبيه والإجراء</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T091</td><td>31</td><td>كوّن مصفوفة بحسب الخطر</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T092</td><td>31</td><td>اختبر الواجهة والمسار الكامل</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T093</td><td>31</td><td>راجع الملفات المستوردة مجددًا</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T094</td><td>32</td><td>نفّذ أعطالًا محلية مضبوطة</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T095</td><td>32</td><td>اختبر عشرة ملفات مع مؤجلات</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T096</td><td>32</td><td>نفّذ تشغيلًا ممتدًا بمعيار توقف</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T097</td><td>33</td><td>جهّز حزمة مصدر ثابتة</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T098</td><td>33</td><td>أعد التشغيل في Linux معزول</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T099</td><td>33</td><td>راجع توافق الحالة بين الإصدارات</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T100</td><td>34</td><td>أغلق موانع الإصدار</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T101</td><td>34</td><td>تحقق من حدود البيئة والنفاذ</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T102</td><td>34</td><td>جهّز مذكرة القرار القابلة للمراجعة</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T103</td><td>35</td><td>جهّز نسخة خضراء مستقلة</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T104</td><td>35</td><td>حوّل الأعمال مع ملكية واضحة</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T105</td><td>35</td><td>جرّب الرجوع دون فقد حالة</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T106</td><td>36</td><td>تحقق من الإنتاج بمعايير مسبقة</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T107</td><td>36</td><td>سلّم دليل التشغيل والتعامل مع الأعطال</td><td>مخطط ضمن نسخة التكامل</td></tr>
+<tr><td>T108</td><td>36</td><td>أغلق المهمة مع قائمة ما بقي</td><td>مخطط ضمن نسخة التكامل</td></tr>
+</tbody></table></div>
+<h2>3. <strong>Uncertainty or Limits</strong></h2>
+<p>الوثيقة أُعدت من ملفات وتقارير محلية متاحة عند وقت المراجعة.</p>
+<p>لم ينفذ مؤلف الكتاب اختبارات التطبيق أو تجميعًا أو حذفًا أو اتصالًا بالـVPS في هذه المهمة.</p>
+<p>الأرقام الواردة تحت «تقرير» ليست إعادة قياس مستقلة ولا ضمان إنتاج.</p>
+<p>المرجع النهائي للإنتاج يحتاج اكتمالًا وتحققًا حديثًا؛ لا يفترض الكتاب أن كل ملف محلي مطابق للخدمة الحالية.</p>
+<p>توجد تعديلات في نسخ منفصلة؛ دمجها وقبولها على manifest واحد عمل باقٍ.</p>
+<p>الصحة المالية تعتمد على قرار سماحية مكتوب؛ تعارض السياسة لم يُحل في هذه الوثيقة.</p>
+<p>سبب استهلاك Chrome وسبب حظر المسارات لا يثبتان من عدد التبويبات أو كود HTTP وحده.</p>
+<p>فقد نتائج اختبار مهلة الكاتب لم يُثبت؛ لا يغلق التحقيق قبل فحص النتيجة وWAL.</p>
+<p>لا يوجد وعد زمني لكل استعلامات 100 ألف صف؛ عدد الاستعلامات الفريدة وحدود المزود وأعطاله مؤثرة.</p>
+<p>هدف دقيقة للإنهاء الكامل قد يتحقق أو لا يتحقق؛ القرار يتبع قياسات جميع المخرجات.</p>
+<p>لا يقدم الكتاب ترتيبًا مطلقًا بأن Rust أسرع من كل بديل على كل بيانات.</p>
+<p>لا يضمن الكتاب حفظ جميع خصائص مصدر معقد حتى تفحص الخصائص المطلوبة فعليًا.</p>
+<p>النشر دون انقطاع مشروط ببنية تحويل مثبتة وملكية عمل وتوافق حالة.</p>
+<p>بقاء VPS عاملًا لا يعني أن تحديث خدمة قائمة يمكن أن يتم دون أثر؛ لذلك لا تتضمن الخطة restart لها.</p>
+<p>منع البناء قد يستبعد ثنائية Linux غير متاحة؛ البديل المتحقق أو تسجيل العائق هو المسار المسموح.</p>
+<p>منع الحذف يشمل أدوات الاختبار والملفات المؤقتة؛ لا يُستثنى ملف لأنه صغير أو تلقائي.</p>
+<p>أوامر التشغيل الدقيقة للإنتاج لم تُخترع لأن التوجيه والمنافذ وتعريفات الخدمة تحتاج مراجعة البيئة الحقيقية.</p>
+<p>مدة المشروع وكلفة تنفيذه لم تُقدّر لعدم وجود بيانات كافية عن الفريق والبيئة والبوابات.</p>
+<p>الأهداف التي تُرحّل إلى إصدار لاحق تبقى ظاهرة ولا تعتبر مكتملة ضمن طلب إنهاء كل المهام.</p>
+<p>إغلاق المهمة يكون بتقرير تنفيذ وتسليم مستقل يثبت اجتياز البوابات، لا بمجرد اكتمال هذا الكتاب.</p>
+</article></main>
+</body>
+</html>
+

@@ -1,0 +1,14 @@
+{
+  "passed": true,
+  "production": false,
+  "database": "admin_earnings_17d80f172d85",
+  "checks": [
+    "posted revenue",
+    "commissions",
+    "exclude topups",
+    "exact decimal totals",
+    "partner balances",
+    "admin authority",
+    "read only"
+  ]
+}

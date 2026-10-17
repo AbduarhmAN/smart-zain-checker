@@ -14,6 +14,7 @@ from openpyxl.utils import get_column_letter
 
 from domain.models import CheckError, Mismatch
 from domain.money import halalas_to_sar_float
+from services.file_client import atomic_workbook_save
 
 FILE_LOCK = threading.Lock()
 
@@ -81,6 +82,10 @@ ERROR_HEADERS = (
 
 def ensure_audit_workbook_exists(file_path: Path) -> None:
     """Initializes the Excel audit workbook if it does not already exist."""
+    from services.file_client import remote_files_enabled, file_rpc
+    if remote_files_enabled():
+        file_rpc('audit.ensure', {'path': file_path})
+        return
     with FILE_LOCK:
         if file_path.exists():
             return
@@ -122,11 +127,19 @@ def ensure_audit_workbook_exists(file_path: Path) -> None:
             cell.alignment = ALIGN_CENTER
             cell.border = THIN_BORDER
 
-        wb.save(file_path)
+        try:
+            atomic_workbook_save(wb, file_path)
+        finally:
+            wb.close()
 
 
 def append_mismatch_record(file_path: Path, mismatch: Mismatch) -> None:
     """Appends a single verified mismatch row to the workbook."""
+    from services.file_client import remote_files_enabled, file_rpc
+    if remote_files_enabled():
+        from dataclasses import asdict
+        file_rpc('audit.mismatch', {'path': file_path, 'record': asdict(mismatch)})
+        return
     ensure_audit_workbook_exists(file_path)
     cust = mismatch.customer
 
@@ -199,7 +212,7 @@ def append_mismatch_record(file_path: Path, mismatch: Mismatch) -> None:
                         elif new_row_idx % 2 == 1:
                             cell.fill = ROW_ALT_FILL
 
-                    wb.save(file_path)
+                    atomic_workbook_save(wb, file_path)
                     break
                 finally:
                     wb.close()
@@ -210,14 +223,20 @@ def append_mismatch_record(file_path: Path, mismatch: Mismatch) -> None:
                 else:
                     import logging
                     logging.getLogger("ResultsExporter").warning(f"Could not save {file_path} because file is locked by user (attempt {attempt+1}).")
+                    raise
             except Exception as e:
                 import logging
                 logging.getLogger("ResultsExporter").error(f"Error saving to {file_path}: {e}")
-                break
+                raise
 
 
 def append_error_record(file_path: Path, error: CheckError) -> None:
     """Appends an error or timeout record to the error sheet."""
+    from services.file_client import remote_files_enabled, file_rpc
+    if remote_files_enabled():
+        from dataclasses import asdict
+        file_rpc('audit.error', {'path': file_path, 'record': asdict(error)})
+        return
     ensure_audit_workbook_exists(file_path)
     amt_sar = halalas_to_sar_float(error.expected_amount) if error.expected_amount is not None else 0.0
 
@@ -250,6 +269,6 @@ def append_error_record(file_path: Path, error: CheckError) -> None:
                 if new_row_idx % 2 == 0:
                     cell.fill = ROW_ALT_FILL
 
-            wb.save(file_path)
+            atomic_workbook_save(wb, file_path)
         finally:
             wb.close()

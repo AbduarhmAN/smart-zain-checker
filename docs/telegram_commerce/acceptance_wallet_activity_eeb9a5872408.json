@@ -1,0 +1,17 @@
+{
+  "passed": true,
+  "database": "wallet_activity_eeb9a5872408",
+  "production": false,
+  "refund_rows": 2368,
+  "checks": [
+    "whole-file totals",
+    "charge/refund signs",
+    "both buckets",
+    "grouped pagination",
+    "distinct topups",
+    "customer isolation",
+    "suspended customer",
+    "read-only records",
+    "backend-only access"
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "app_pid": 2628,
+  "bot_polling": true,
+  "last_bot_error": null,
+  "code_read_only_status": [
+    {
+      "kind": "cash_credit",
+      "active": true,
+      "credit_minor": 5000,
+      "cash_redeemed_minor": 0,
+      "uses": 0
+    }
+  ],
+  "code_redeemed_by_agent": false,
+  "legacy_financial_files_unchanged": {
+    "user_wallets.json": true,
+    "pending_payments.json": true
+  },
+  "commerce_tests": 265,
+  "telegram_tests": 247,
+  "sql_acceptance": "acceptance_commerce_cash_code_e398c55342de.json",
+  "legacy_balances": "retained and shown separately pending audited migration",
+  "new_wallet_customer_checkout_enabled_by_owner": true,
+  "legacy_wallet_writes_fenced_for_new_wallet_owners": true,
+  "automatic_queue_enabled": false
+}

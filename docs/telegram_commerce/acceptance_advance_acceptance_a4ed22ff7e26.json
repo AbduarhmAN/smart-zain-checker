@@ -1,0 +1,18 @@
+{
+  "at": "2026-10-16T16:28:56.328625+00:00",
+  "database": "advance_acceptance_a4ed22ff7e26",
+  "production": false,
+  "checks": [
+    "seven earned, ten paid, minus three balance",
+    "future commission recovery",
+    "ordinary withdrawal limits",
+    "customer funds and existing holds preserved",
+    "receipt and actor authentication",
+    "two competing advances",
+    "eight concurrent confirmation replays",
+    "two concurrent future credits",
+    "balanced journals"
+  ],
+  "fixture_sha256": "5463c515ed148a178a1bbd81fd493d1c07d10ac016c07c42b09819f249edf3b5",
+  "migration_sha256": "4b80e5f8243273097525d448bf6a9562c3b48e29e647bbef06d293bb2c7280db"
+}

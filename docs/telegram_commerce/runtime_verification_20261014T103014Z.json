@@ -1,0 +1,41 @@
+{
+  "at": "2026-10-14T10:30:12.141165+00:00",
+  "project_ref": "avuzwbmiiavbuaxmnitp",
+  "backend_health": {
+    "status": "ok",
+    "currency": "EGP",
+    "schema_version": 17
+  },
+  "foundation": {
+    "project_ref": "avuzwbmiiavbuaxmnitp",
+    "metadata": [
+      {
+        "commerce_tables": 27,
+        "all_rls": true,
+        "anon_storage_access": false,
+        "client_storage_access": false,
+        "rpc_functions": 54,
+        "rpc_grants_correct": true,
+        "public_tables": 10
+      }
+    ],
+    "pricing": [
+      {
+        "unit": "check",
+        "unit_price_minor": 3000,
+        "currency": "EGP",
+        "refund_destination": "wallet",
+        "refund_requires_consent": true
+      }
+    ],
+    "migration_hashes_match": true
+  },
+  "anonymous_denied": true,
+  "anonymous_denial": "Commerce RPC HTTP 401",
+  "exposed_schemas": [
+    "public",
+    "graphql_public",
+    "commerce_rpc"
+  ],
+  "test_users_created": false
+}

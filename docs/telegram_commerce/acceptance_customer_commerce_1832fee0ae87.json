@@ -1,0 +1,15 @@
+{
+  "database": "customer_commerce_1832fee0ae87",
+  "production": false,
+  "passed": true,
+  "checks": [
+    {
+      "test": "commerce_customer_pricing.sql",
+      "passed": true
+    },
+    {
+      "test": "commerce_promotional_expiry.sql",
+      "passed": true
+    }
+  ]
+}

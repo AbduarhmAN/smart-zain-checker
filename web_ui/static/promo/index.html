@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="عرض هدية تشيك: أول تشيكتين مجانًا، وبعدهما تشيكة مجانية يوميًا حتى نهاية العرض، ومدته أسبوعان. حتى 3000 عميل لكل شيت.">
+  <meta name="theme-color" content="#123f35">
+  <title>هدية تشيك · وقتك للمتابعة</title>
+  <link rel="stylesheet" href="assets/campaign.css">
+  <script defer src="assets/vendor/gsap.min.js"></script>
+  <script defer src="assets/campaign-data.js"></script>
+  <script defer src="assets/campaign-videos.js"></script><script defer src="assets/art.js"></script>
+  <script defer src="assets/motion.js"></script>
+  <script defer src="assets/landing.js"></script>
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="index.html" aria-label="تشيك، الصفحة الرئيسية"><span class="brand-mark" aria-hidden="true">✓</span><span>تشيك<span class="brand-tag">وقتُك للمتابعة</span></span></a>
+    <nav aria-label="أقسام العرض"><a href="#offer">تفاصيل الهدية</a><a href="#start">كيف أبدأ؟</a></nav>
+    <button class="button button-small copy-keyword">انسخ كلمة العرض <span aria-hidden="true">↗</span></button>
+  </header>
+  <main>
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="offer-label"><span class="small-star" aria-hidden="true">✳</span> التشييك واخد وقت المتابعة؟</p>
+        <h1><span>أول تشيكتين.</span><strong>مجانًا.</strong></h1>
+        <p class="hero-description">خلّي مراجعة شيتك مع بيانات زين علينا، وركّز على متابعات عملائك.<br>وبعد أول تشيكتين، لك تشيكة مجانية كل يوم لحد نهاية العرض. مدة العرض أسبوعين.</p>
+        <div class="hero-actions"><button class="button button-lime copy-keyword">انسخ «هدية تشيك» <span aria-hidden="true">↗</span></button><a class="text-link" href="#offer">اعرف تفاصيل العرض <span aria-hidden="true">↓</span></a></div>
+        <p class="message-note">انسخ الكلمة وابعتها في ماسنجر صفحتنا. هنوضح لك المطلوب ونأكد معاك موعدك.</p>
+        <div class="hero-note"><span class="tiny-sheet" aria-hidden="true">▦</span><span>حتى <b>3000</b> عميل لكل شيت · التنفيذ حسب دور الحجز</span></div>
+      </div>
+      <div class="film-column">
+        <div class="film-frame">
+          <canvas id="promoFilm" width="1080" height="1920" aria-label="إعلان هدية تشيك الصامت: أول تشيكتين مجانًا، وبعدهما تشيكة يوميًا خلال أسبوعين"></canvas>
+          <button class="film-toggle" id="filmPlay" aria-label="إيقاف الإعلان مؤقتًا">Ⅱ</button>
+          <span class="silent-label">إعلان صامت <span aria-hidden="true">◌</span></span>
+        </div>
+        <div class="film-progress" aria-hidden="true"><span id="filmProgress"></span></div>
+        <p class="film-caption">التشييك علينا. ووقتك للمتابعة.</p>
+      </div>
+    </section>
+    <section id="offer" class="offer-section">
+      <div class="section-intro"><p>إيه اللي ليك في العرض؟</p><h2>أول اتنين علينا.<br>وبعدهم واحدة كل يوم.</h2></div>
+      <div class="offer-details">
+        <div class="offer-line"><span class="step-number">01</span><div><h3>أول تشيكتين مجانًا</h3><p>كل تشيكة لشيت إكسل واحد لحد 3000 عميل.</p></div><span class="line-symbol" aria-hidden="true">✓✓</span></div>
+        <div class="offer-line"><span class="step-number">02</span><div><h3>بعدهم، تشيكة مجانية كل يوم</h3><p>لحد نهاية العرض. مدة العرض أسبوعين للجميع.</p></div><span class="line-symbol" aria-hidden="true">↻</span></div>
+        <div class="offer-line"><span class="step-number">03</span><div><h3>ابعت «هدية تشيك»</h3><p>اكتبها في ماسنجر صفحتنا. هنساعدك تجهّز شيتك ونأكد معاك موعد التنفيذ.</p></div><span class="line-symbol" aria-hidden="true">↗</span></div>
+      </div>
+    </section>
+    <section id="start" class="start-section">
+      <div><p>تبدأ إزاي؟</p><h2>جهّز شيتك.<br>وابعت لنا.</h2></div>
+      <ol class="start-steps"><li><span>1</span><h3>جهّز عمودين</h3><p>عمود رقم الحساب أو العقد أو الخدمة، وعمود المبلغ اللي عايز تراجعه. اسم العميل اختياري.</p></li><li><span>2</span><h3>ابعت كلمة العرض</h3><p>اكتب «هدية تشيك» في ماسنجر صفحتنا وابعت طلبك.</p></li><li><span>3</span><h3>نأكد معاك موعدك</h3><p>هنراجع طلبك ونأكد معاك موعد التشييك حسب دور الحجز.</p></li></ol>
+    </section>
+    <section class="closing-section"><div class="closing-symbol" aria-hidden="true">✳</div><p>عندك شيت محتاج تشييك؟</p><h2>جرّب الخدمة.<br>أول اتنين علينا.</h2><button class="button button-dark copy-keyword">انسخ «هدية تشيك» <span aria-hidden="true">↗</span></button><p class="closing-terms">العرض مرة واحدة لكل محصّل. أول تشيكتين مجانًا، وبعدهم تشيكة مجانية يوميًا لحد نهاية العرض. مدة العرض أسبوعين. كل تشيكة لشيت واحد لحد 3000 عميل. التنفيذ حسب دور الحجز.</p></section>
+  </main>
+  <footer class="site-footer"><span>تشيك · وقتك للمتابعة</span><a href="studio.html#videoCollection">البوستات والفيديوهات الخمسة</a></footer>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+</body>
+</html>

@@ -1,0 +1,23 @@
+{
+  "database": "customer_commerce_1b084ddffb46",
+  "production": false,
+  "passed": true,
+  "checks": [
+    {
+      "test": "commerce_customer_pricing.sql",
+      "passed": true
+    },
+    {
+      "test": "commerce_promotional_expiry.sql",
+      "passed": true
+    },
+    {
+      "test": "commerce_customer_stop.sql",
+      "passed": true
+    },
+    {
+      "test": "commerce_cent_discount.sql",
+      "passed": true
+    }
+  ]
+}

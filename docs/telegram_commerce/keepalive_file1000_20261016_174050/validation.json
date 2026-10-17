@@ -1,0 +1,42 @@
+{
+  "exactly_first_1000_once": true,
+  "source_rows_in_original_order": true,
+  "queries_per_thread": [
+    100,
+    100,
+    100,
+    100,
+    100,
+    100,
+    100,
+    100,
+    100,
+    100
+  ],
+  "minimum_gap_half_second": true,
+  "total_payload_reconciles": true,
+  "source_file_unchanged": true,
+  "one_connection_per_thread": true,
+  "all_sockets_open_at_test_end": true,
+  "outcomes": {
+    "ok": 1000
+  },
+  "http_statuses": {
+    "200": 1000
+  },
+  "reconnects_by_thread": {
+    "1": [],
+    "2": [],
+    "3": [],
+    "4": [],
+    "5": [],
+    "6": [],
+    "7": [],
+    "8": [],
+    "9": [],
+    "10": []
+  },
+  "connection_close_reasons": {
+    "client_eof": 10
+  }
+}

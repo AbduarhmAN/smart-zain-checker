@@ -1,0 +1,45 @@
+{
+  "at": "2026-10-16T16:06:54.982150+00:00",
+  "production": true,
+  "migrations": [
+    {
+      "version": "202610160036_commerce_admin_partner_payouts",
+      "sha256": "3596f6e64be7515faee1f899405f51bf1c846a2ca5013645629a949597a13872",
+      "status": "applied"
+    },
+    {
+      "version": "202610160037_commerce_payout_notifications",
+      "sha256": "767c12100143d7eea50c8a5aeaa701533e7161ac8b35f30ec929b18f2e77217b",
+      "status": "applied"
+    }
+  ],
+  "test_financial_writes": false,
+  "historical_financial_backfill": false,
+  "verification": [
+    {
+      "proname": "claim_payout_notification",
+      "service_allowed": true,
+      "clients_denied": true
+    },
+    {
+      "proname": "complete_payout_notification",
+      "service_allowed": true,
+      "clients_denied": true
+    },
+    {
+      "proname": "configure_payout_notice_channels",
+      "service_allowed": true,
+      "clients_denied": true
+    },
+    {
+      "proname": "payout_notification_status",
+      "service_allowed": true,
+      "clients_denied": true
+    },
+    {
+      "proname": "record_partner_payout",
+      "service_allowed": true,
+      "clients_denied": true
+    }
+  ]
+}

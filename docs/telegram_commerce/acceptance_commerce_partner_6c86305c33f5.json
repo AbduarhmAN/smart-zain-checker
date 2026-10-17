@@ -1,0 +1,19 @@
+{
+  "passed": true,
+  "at": "2026-10-14T01:30:28.216106+00:00",
+  "database": "commerce_partner_6c86305c33f5",
+  "production": false,
+  "external_telegram_checker_and_payouts": "synthetic, no messages, checks, transfers or invoices",
+  "charged_minor": 3000,
+  "refund_minor": 3000,
+  "commission_minor": 900,
+  "paid_checks": 1,
+  "withdrawn_minor": 500,
+  "available_partner_minor": 400,
+  "reserved_partner_minor": 0,
+  "request_lost_ack_recovered": true,
+  "payout_lost_ack_recovered": true,
+  "rejection_released_once": true,
+  "customer_wallet_separate": true,
+  "no_commission_before_delivery": true
+}

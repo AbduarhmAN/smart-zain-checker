@@ -1,0 +1,79 @@
+{
+  "at": "2026-10-14T23:12:25.794640+00:00",
+  "health": {
+    "status": "ok",
+    "currency": "EGP",
+    "schema_version": 31,
+    "money_precision": "exact_decimal"
+  },
+  "foundation_verification": {
+    "project_ref": "avuzwbmiiavbuaxmnitp",
+    "metadata": [
+      {
+        "commerce_tables": 35,
+        "all_rls": true,
+        "anon_storage_access": false,
+        "client_storage_access": false,
+        "rpc_functions": 78,
+        "rpc_grants_correct": true,
+        "public_tables": 10
+      }
+    ],
+    "pricing": [
+      {
+        "unit": "check",
+        "unit_price_minor": "1",
+        "currency": "EGP",
+        "refund_destination": "wallet",
+        "refund_requires_consent": true
+      }
+    ],
+    "migration_hashes_match": true
+  },
+  "commerce_tests": {
+    "tests_run": 287,
+    "passed": true,
+    "failures": 0,
+    "errors": 0,
+    "fixtures_retained_at": "C:\\Users\\DELLHQ~1\\AppData\\Local\\Temp\\commerce-suite-retained-xuplbinu",
+    "network": "blocked",
+    "filesystem_deletion": "blocked; XML fixture files retained"
+  },
+  "telegram_tests": {
+    "tests_run": 261,
+    "passed": true,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "fixture": "E:\\Projects\\smart_zainchecker_gemini\\outputs\\telegram_audit_20261007\\isolated_run_6xcd6j1f",
+    "patterns": [
+      "test_access_boundaries.py",
+      "test_customer_commerce_runtime.py",
+      "test_telegram_order_history.py",
+      "test_telegram_transport_reliability.py",
+      "test_telegram_queue_durability.py",
+      "test_telegram_workflow_reliability.py",
+      "test_telegram_payment_reliability.py",
+      "test_telegram_notifier_reliability.py",
+      "test_telegram_ui.py",
+      "test_sheet_workflow.py",
+      "test_dashboard_controls.py",
+      "test_pricing.py"
+    ],
+    "real_network": "external I/O blocked; isolated loopback HTTP fixtures allowed",
+    "filesystem_deletion": "blocked; fixture XML retained"
+  },
+  "sql_financial_acceptance": "docs/telegram_commerce/acceptance_commerce_partner_campaign_526bcd2e50c3.json",
+  "sql_database_regression": "docs/telegram_commerce/acceptance_commerce_acceptance_9d79a61ab162.json",
+  "agent_production_business_financial_writes": false,
+  "schema_migrations_applied": true,
+  "same_preserved_request": {
+    "job_id": "job_1792015839_ecfeec",
+    "status": "active",
+    "completed": 2278,
+    "remaining": 90,
+    "new_payment_or_hold_created": false
+  },
+  "telegram_polling_enabled": true,
+  "application_running": true
+}

@@ -1,0 +1,203 @@
+{
+  "at_utc": "2026-10-15T16:35:03.991684+00:00",
+  "production_code_changed": false,
+  "method": "Same native SocksiPyConnectionS/stdlib TLS and title-cased headers as production. Only connection close vs keep-alive differs. Opaque TCP payload counted in both directions.",
+  "limits": "Small sample. DNS, TCP/IP headers, retransmissions, idle timeouts and future reconnects excluded.",
+  "privacy": "No account numbers, proxy URLs, credentials, response bodies or amounts retained.",
+  "routes": [
+    {
+      "route": 1,
+      "fresh": {
+        "connections": 3,
+        "samples": [
+          {
+            "index": 1,
+            "reuse_enabled": false,
+            "status": "ok",
+            "http_status": 200,
+            "server_will_close": true,
+            "body_bytes": 980,
+            "sent_bytes": 1175,
+            "received_bytes": 5697,
+            "total_bytes": 6872,
+            "new_connections": 1,
+            "seconds": 1.795
+          },
+          {
+            "index": 2,
+            "reuse_enabled": false,
+            "status": "ok",
+            "http_status": 200,
+            "server_will_close": true,
+            "body_bytes": 979,
+            "sent_bytes": 1175,
+            "received_bytes": 5693,
+            "total_bytes": 6868,
+            "new_connections": 1,
+            "seconds": 1.674
+          },
+          {
+            "index": 3,
+            "reuse_enabled": false,
+            "status": "ok",
+            "http_status": 200,
+            "server_will_close": true,
+            "body_bytes": 981,
+            "sent_bytes": 1175,
+            "received_bytes": 5697,
+            "total_bytes": 6872,
+            "new_connections": 1,
+            "seconds": 1.639
+          }
+        ]
+      },
+      "persistent": {
+        "connections": 1,
+        "samples": [
+          {
+            "index": 1,
+            "reuse_enabled": true,
+            "status": "ok",
+            "http_status": 200,
+            "server_will_close": false,
+            "body_bytes": 980,
+            "sent_bytes": 1180,
+            "received_bytes": 5670,
+            "total_bytes": 6850,
+            "new_connections": 1,
+            "seconds": 1.664
+          },
+          {
+            "index": 2,
+            "reuse_enabled": true,
+            "status": "ok",
+            "http_status": 200,
+            "server_will_close": false,
+            "body_bytes": 979,
+            "sent_bytes": 510,
+            "received_bytes": 2355,
+            "total_bytes": 2865,
+            "new_connections": 0,
+            "seconds": 0.7
+          },
+          {
+            "index": 3,
+            "reuse_enabled": true,
+            "status": "ok",
+            "http_status": 200,
+            "server_will_close": false,
+            "body_bytes": 981,
+            "sent_bytes": 510,
+            "received_bytes": 2353,
+            "total_bytes": 2863,
+            "new_connections": 0,
+            "seconds": 0.808
+          }
+        ]
+      }
+    },
+    {
+      "route": 2,
+      "fresh": {
+        "connections": 3,
+        "samples": [
+          {
+            "index": 1,
+            "reuse_enabled": false,
+            "status": "ok",
+            "http_status": 200,
+            "server_will_close": true,
+            "body_bytes": 980,
+            "sent_bytes": 1175,
+            "received_bytes": 5696,
+            "total_bytes": 6871,
+            "new_connections": 1,
+            "seconds": 1.73
+          },
+          {
+            "index": 2,
+            "reuse_enabled": false,
+            "status": "ok",
+            "http_status": 200,
+            "server_will_close": true,
+            "body_bytes": 979,
+            "sent_bytes": 1175,
+            "received_bytes": 5692,
+            "total_bytes": 6867,
+            "new_connections": 1,
+            "seconds": 1.71
+          },
+          {
+            "index": 3,
+            "reuse_enabled": false,
+            "status": "ok",
+            "http_status": 200,
+            "server_will_close": true,
+            "body_bytes": 981,
+            "sent_bytes": 1175,
+            "received_bytes": 5692,
+            "total_bytes": 6867,
+            "new_connections": 1,
+            "seconds": 2.099
+          }
+        ]
+      },
+      "persistent": {
+        "connections": 1,
+        "samples": [
+          {
+            "index": 1,
+            "reuse_enabled": true,
+            "status": "ok",
+            "http_status": 200,
+            "server_will_close": false,
+            "body_bytes": 980,
+            "sent_bytes": 1180,
+            "received_bytes": 5672,
+            "total_bytes": 6852,
+            "new_connections": 1,
+            "seconds": 1.691
+          },
+          {
+            "index": 2,
+            "reuse_enabled": true,
+            "status": "ok",
+            "http_status": 200,
+            "server_will_close": false,
+            "body_bytes": 979,
+            "sent_bytes": 510,
+            "received_bytes": 2345,
+            "total_bytes": 2855,
+            "new_connections": 0,
+            "seconds": 0.695
+          },
+          {
+            "index": 3,
+            "reuse_enabled": true,
+            "status": "ok",
+            "http_status": 200,
+            "server_will_close": false,
+            "body_bytes": 981,
+            "sent_bytes": 510,
+            "received_bytes": 2367,
+            "total_bytes": 2877,
+            "new_connections": 0,
+            "seconds": 0.793
+          }
+        ]
+      }
+    }
+  ],
+  "summary": {
+    "fresh_successes": 6,
+    "steady_reused_successes": 4,
+    "persistent_connection_counts": [
+      1,
+      1
+    ],
+    "mean_fresh_bytes": 6869.5,
+    "mean_steady_reused_bytes": 2865.0,
+    "reduction_percent": 58.293907853555574,
+    "steady_GB_per_200k": 0.573
+  }
+}

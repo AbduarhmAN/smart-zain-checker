@@ -60,8 +60,8 @@ const API = {
     return this.post('/api/queue/remove', { job_id: jobId });
   },
 
-  startQueue() {
-    return this.post('/api/queue/start');
+  startQueue(jobId = null) {
+    return this.post('/api/queue/start', jobId ? {job_id:jobId} : {});
   },
 
   testTelegramPing() {

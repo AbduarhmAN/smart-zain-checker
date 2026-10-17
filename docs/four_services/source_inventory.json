@@ -1,0 +1,56 @@
+{
+  "root": "E:\\Projects\\smart_zainchecker_gemini",
+  "head": "00767bf6ada3c88cf42016b4e1cba896d88e4754",
+  "branch": "main",
+  "local_platform": "Windows-11-10.0.26100-SP0",
+  "local_python": "3.14.0",
+  "other_checkout_exists": true,
+  "sources": {
+    "app.py": {
+      "current_sha256": "a6f1439f73d5cb750727432b96e2a51d8d24c63802a6818f5a140da65201bbd5",
+      "other_sha256": null,
+      "identical": false
+    },
+    "main.py": {
+      "current_sha256": "db47f64237b67ba7cab965847a694225aeca7adee564e2f11968fd24fb363116",
+      "other_sha256": "32288cd2d29987d1c32e4e7a5994c3684f92323d121a39c23a18ab2c1b979ab3",
+      "identical": false
+    },
+    "manager/orchestrator.py": {
+      "current_sha256": "aa5f6c54ab4b0244fb2aed4cdece84120cfb8460241e61030d06df26e9e924d4",
+      "other_sha256": null,
+      "identical": false
+    },
+    "manager/queue.py": {
+      "current_sha256": "b1710b9c66a9d80578c825614b8bf6005930d9778284b4c4efb7987d8d1385d6",
+      "other_sha256": null,
+      "identical": false
+    },
+    "telegram_bot/bot.py": {
+      "current_sha256": "28e03f5c9fa63d324ff3a4a61b5e4fac3d0f8e904efd41d5eeec34b8ece912c7",
+      "other_sha256": null,
+      "identical": false
+    },
+    "domain/workbook.py": {
+      "current_sha256": "db618cec5a803c9bedb3f3097aac9a8ddbf73a917e29ed285988e9e20dbeb093",
+      "other_sha256": null,
+      "identical": false
+    },
+    "workers/actor.py": {
+      "current_sha256": "0a04cbc37ae5b6431f7f8d4d4a122b3a1a41ff53ac3433e6b10a195b25014a06",
+      "other_sha256": null,
+      "identical": false
+    },
+    "workers/stealth_service_engine.py": {
+      "current_sha256": "ea40ba8e42f412c0aa522452995acdd109521472eebf5d64b624d28b5b136718",
+      "other_sha256": null,
+      "identical": false
+    },
+    "server/gateway.py": {
+      "current_sha256": "5d006e58d3845ecad7132b9946afba5adafb6c86ee4ba54cf230eaadf7c00940",
+      "other_sha256": null,
+      "identical": false
+    }
+  },
+  "production_vps_verified": false
+}

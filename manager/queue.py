@@ -3,7 +3,9 @@ Manages multi-sheet audit jobs, persistence, and execution ordering.
 """
 from __future__ import annotations
 
-import json
+from domain import decimal_json as json
+import os
+import copy
 import logging
 import re
 import threading
@@ -14,6 +16,7 @@ from typing import Any, List, Optional
 
 from domain.models import QueueJob
 from manager.event_bus import EVENT_BUS
+from manager.pricing import PricingSettings, normalize_quote
 
 logger = logging.getLogger("QueueService")
 
@@ -23,6 +26,7 @@ class QueueService:
         self.storage_path = storage_path
         self._lock = threading.RLock()
         self._jobs: List[QueueJob] = []
+        self.pricing_settings = PricingSettings(storage_path.parent / '.zain-pricing.json')
         self._load_from_disk()
 
     def _load_from_disk(self) -> None:
@@ -38,21 +42,60 @@ class QueueService:
                 for item in data:
                     job = QueueJob(**item)
                     # Self-Healing: Reset orphaned 'active' jobs to 'pending' if uncompleted
-                    if job.status == "active" and (job.total_records == 0 or job.completed < job.total_records):
+                    if job.status == "active":
                         logger.info(f"Self-healing orphaned active job {job.filename} -> reset to 'pending'")
                         job.status = "pending"
+                    if job.status == 'pending':
+                        from manager.checkpoint import CheckpointManager
+                        checkpoint = self.storage_path.parent / (job.checkpoint_file or f'.checkpoint_{Path(job.filename).stem}_{job.sheet_index}.json')
+                        if checkpoint.exists() or checkpoint.with_suffix(checkpoint.suffix+'.bak').exists():
+                            saved = CheckpointManager(checkpoint).load()
+                            completed = {i for i in saved.get('completed_indices', []) if isinstance(i, int) and 0 <= i < job.total_records}
+                            job.completed = len(completed)
+                            job.remaining = max(0, job.total_records-job.completed)
+                            job.matches = int(saved.get('matches_count', job.matches))
+                            job.mismatches = len(saved.get('mismatches', []))
+                            job.errors = int(saved.get('errors_count', job.errors))
                     self._jobs.append(job)
         except Exception as exc:
             logger.warning(f"Could not load queue from disk: {exc}")
 
     def _save_to_disk(self) -> None:
-        try:
-            self.storage_path.parent.mkdir(parents=True, exist_ok=True)
-            with self._lock:
+        # Serialize and replace under the same lock: a second writer must not
+        # publish an older snapshot after a newer job has been committed.
+        with self._lock:
+            try:
+                self.storage_path.parent.mkdir(parents=True, exist_ok=True)
                 data = [j.to_dict() for j in self._jobs]
-            self.storage_path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
-        except Exception as exc:
-            logger.error(f"Could not save queue to disk: {exc}")
+                encoded = json.dumps(data, ensure_ascii=False, indent=2)
+                temporary = self.storage_path.with_name(self.storage_path.name + '.' + uuid.uuid4().hex + '.tmp')
+                with temporary.open('x', encoding='utf-8') as stream:
+                    stream.write(encoded)
+                    stream.flush()
+                    os.fsync(stream.fileno())
+                os.replace(temporary, self.storage_path)
+            except Exception as exc:
+                # Preserve the original queue and unsuccessful temporary file.
+                logger.error('Could not commit queue to disk (%s).', type(exc).__name__)
+                raise
+
+    def _existing_payment_job(self, candidate: QueueJob) -> Optional[QueueJob]:
+        """An invoice token identifies one job; ordinary file rechecks stay distinct."""
+        token = candidate.column_mapping.get('payment_token')
+        if token is None or token == '':
+            return None
+        if not isinstance(token, str):
+            raise ValueError('payment_token must be a non-empty string')
+        for existing in self._jobs:
+            if existing.column_mapping.get('payment_token') != token:
+                continue
+            identity = ('filename', 'sheet_index', 'sheet_name', 'mode', 'amount_target', 'target_url')
+            if (any(getattr(existing, field) != getattr(candidate, field) for field in identity)
+                    or existing.column_mapping != candidate.column_mapping
+                    or existing.total_records != candidate.total_records):
+                raise ValueError('Payment token is already assigned to a different queue job')
+            return existing
+        return None
 
     def add_job(
         self,
@@ -65,32 +108,37 @@ class QueueService:
         column_mapping: Optional[dict[str, Any]] = None,
         total_records: int = 0,
         force_clean: bool = False,
+        pricing: Optional[dict[str, Any]] = None,
     ) -> QueueJob:
+        price_snapshot = self.pricing_settings.quote(pricing)
         job_id = f"job_{int(time.time())}_{uuid.uuid4().hex[:6]}"
         safe_stem = re.sub(r'[\\/*?:"<>|]', '_', file_path.stem)
         safe_sheet = re.sub(r'[\\/*?:"<>|]', '_', sheet_name)
-        res_filename = f"نتائج فحص زين - {safe_stem} - {safe_sheet}.xlsx"
+        res_filename = f"نتائج فحص زين - {safe_stem} - {safe_sheet} - {job_id}.xlsx"
 
-        chk_filename = f".checkpoint_{safe_stem}_{sheet_index}.json"
-        if force_clean:
-            # Purge any old checkpoint files for this sheet
-            for p in (file_path.parent / chk_filename, file_path.parent / f".checkpoint_{file_path.stem}_{sheet_index}.json"):
-                try:
-                    p.unlink(missing_ok=True)
-                    bak = p.with_suffix(p.suffix + ".bak")
-                    bak.unlink(missing_ok=True)
-                except Exception:
-                    pass
+        chk_filename = f".checkpoint_{safe_stem}_{sheet_index}_{job_id}.json"
 
+        filename = file_path.name
+        if (column_mapping or {}).get('commerce_order_id'):
+            # Commerce quotes and commissions belong to PostgreSQL. The legacy
+            # dashboard quote assumes a fixed 30% partner share and all rows paid.
+            price_snapshot = None
+            digest = column_mapping.get('commerce_input_sha256','')
+            if not isinstance(digest,str) or not re.fullmatch(r'[a-f0-9]{64}',digest):
+                raise ValueError('Frozen commerce input hash required')
+            expected = (self.storage_path.parent/'.commerce'/'inputs'/(digest+'.xlsx')).resolve()
+            if file_path.resolve() != expected:
+                raise ValueError('Commerce job must use its frozen checkout input')
+            filename = expected.relative_to(self.storage_path.parent.resolve()).as_posix()
         job = QueueJob(
             id=job_id,
-            filename=file_path.name,
+            filename=filename,
             sheet_index=sheet_index,
             sheet_name=sheet_name,
             mode=mode,
             amount_target=amount_target,
             target_url=target_url,
-            column_mapping=column_mapping or {},
+            column_mapping=copy.deepcopy(column_mapping or {}),
             total_records=total_records,
             status="pending",
             created_at=time.strftime("%Y-%m-%d %H:%M:%S"),
@@ -101,12 +149,19 @@ class QueueService:
             matches=0,
             mismatches=0,
             errors=0,
+            pricing=price_snapshot,
         )
 
         with self._lock:
+            existing = self._existing_payment_job(job)
+            if existing:
+                return existing
             self._jobs.append(job)
-
-        self._save_to_disk()
+            try:
+                self._save_to_disk()
+            except Exception:
+                self._jobs.remove(job)
+                raise
         EVENT_BUS.publish("queue_job_added", job.to_dict())
         return job
 
@@ -121,7 +176,7 @@ class QueueService:
             for j in self._jobs:
                 if exclude_job_id and j.id == exclude_job_id:
                     continue
-                if j.status == "completed":
+                if j.status in {"completed", "archived"}:
                     continue
                 if j.status == "pending":
                     return j
@@ -137,10 +192,12 @@ class QueueService:
 
             return None
 
-    def claim_next_pending_job(self, exclude_job_id: Optional[str] = None) -> Optional[QueueJob]:
+    def claim_next_pending_job(self, exclude_job_id: Optional[str] = None, job_id: Optional[str] = None) -> Optional[QueueJob]:
         """Reserve the next job atomically against queue edits and removal."""
         with self._lock:
-            job = self.get_next_pending_job(exclude_job_id)
+            job = self.get_job(job_id) if job_id else self.get_next_pending_job(exclude_job_id)
+            if job and job_id and job.status != 'pending':
+                return None
             if job:
                 self.mark_job_active(job.id)
             return job
@@ -174,12 +231,15 @@ class QueueService:
                     break
         self._save_to_disk()
 
-    def mark_job_completed(self, job_id: str) -> None:
+    def mark_job_completed(self, job_id: str, *, cancelled_count: int = 0) -> None:
         job_data = None
         with self._lock:
             for j in self._jobs:
                 if j.id == job_id:
+                    if type(cancelled_count) is not int or not 0<=cancelled_count<=j.total_records:
+                        raise ValueError('Invalid cancelled-row count')
                     j.status = "completed"
+                    j.cancelled_count=cancelled_count
                     j.remaining = 0
                     j.completed = j.total_records
                     job_data = j.to_dict()
@@ -200,6 +260,10 @@ class QueueService:
     def remove_job(self, job_id: str) -> bool:
         removed = False
         with self._lock:
+            if any(j.id==job_id and j.column_mapping.get('commerce_order_id') for j in self._jobs):
+                # Keep the payment-to-job identity recoverable. Financial
+                # cancellation/archiving must use an order-aware operation.
+                return False
             if any(j.id == job_id and j.status == "active" for j in self._jobs):
                 return False
             orig_len = len(self._jobs)
@@ -218,12 +282,32 @@ class QueueService:
             job = next((j for j in self._jobs if j.id == job_id), None)
             if not job or job.status != "pending" or job.completed:
                 return False
-            job.column_mapping = dict(column_mapping)
+            updated_mapping = copy.deepcopy(dict(column_mapping))
+            # These fields bind a paid invoice and result ownership to one job.
+            # A column editor may omit internal fields, but cannot replace them.
+            job_mapping = getattr(job, 'column_mapping', {}) or {}
+            if job_mapping.get('commerce_order_id'):
+                if (updated_mapping != job_mapping or mode != job.mode or amount_target != job.amount_target
+                        or total_records != job.total_records):
+                    raise ValueError('A funded commerce job cannot change its priced input')
+                return True
+            for key in ('payment_token', 'telegram_chat_id'):
+                if key in job_mapping:
+                    if key in updated_mapping and updated_mapping[key] != job_mapping[key]:
+                        raise ValueError('Paid queue job identity cannot be changed')
+                    updated_mapping[key] = job_mapping[key]
+            previous = (job_mapping, getattr(job, 'mode', None), getattr(job, 'amount_target', None), getattr(job, 'total_records', 0), getattr(job, 'remaining', 0))
+            job.column_mapping = updated_mapping
             job.mode = mode
             job.amount_target = amount_target
             job.total_records = total_records
             job.remaining = total_records
-            self._save_to_disk()
+            try:
+                self._save_to_disk()
+            except Exception:
+                (job.column_mapping, job.mode, job.amount_target,
+                 job.total_records, job.remaining) = previous
+                raise
         EVENT_BUS.publish("queue_job_updated", job.to_dict())
         return True
 
@@ -234,12 +318,86 @@ class QueueService:
                     return j
             return None
 
+    def request_customer_stop(self,job_id: str,owner: int,reference: str) -> bool:
+        if type(owner) is not int or owner<=0 or not isinstance(reference,str) or not reference.strip():
+            raise ValueError('Authenticated customer stop receipt required')
+        with self._lock:
+            job=self.get_job(job_id)
+            if not job or job.column_mapping.get('telegram_chat_id')!=owner:
+                raise ValueError('Customer stop belongs to another request')
+            if job.status not in {'pending','active','paused'}:return False
+            if job.column_mapping.get('customer_stop'):return True
+            previous=copy.deepcopy(job.column_mapping)
+            job.column_mapping['customer_stop']={'actor':owner,'reference':reference,'requested_at':time.time()}
+            try:self._save_to_disk()
+            except Exception:
+                job.column_mapping=previous;raise
+        EVENT_BUS.publish('customer_job_stop_requested',{'job_id':job_id,'owner':owner})
+        return True
+
+    def attach_legacy_financial_order(self,job_id,owner,token,order_id,source,rows,amount_minor):
+        with self._lock:
+            job=self.get_job(job_id)
+            if not job or job.column_mapping.get('payment_token')!=f'telegram:{owner}:{token}':
+                raise ValueError('Legacy financial order belongs to another persistent job')
+            if job.column_mapping.get('commerce_order_id'):
+                if job.column_mapping['commerce_order_id']!=order_id:raise ValueError('Conflicting financial order transition')
+                return
+            if job.status not in {'pending','paused','active'}:raise ValueError('Legacy execution is not resumable')
+            previous=copy.deepcopy(job.to_dict())
+            job.column_mapping.update(commerce_order_id=order_id,commerce_input_sha256=source['file_sha256'],
+                commerce_rows=rows,commerce_quoted_minor=amount_minor,commerce_pricing_snapshot={'legacy_price_preserved':True},
+                telegram_chat_id=owner,legacy_policy_pending=True)
+            job.filename='.commerce/inputs/'+source['file_sha256']+'.xlsx'
+            job.total_records=len(rows);job.remaining=max(0,len(rows)-job.completed)
+            job.status='pending'
+            try:self._save_to_disk()
+            except Exception:
+                self._jobs[self._jobs.index(job)]=QueueJob(**previous);raise
+
+    def update_job_pricing(self, job_id: str, value: dict) -> bool:
+        quote = normalize_quote(value)
+        with self._lock:
+            job = next((j for j in self._jobs if j.id == job_id), None)
+            if not job or job.status != 'pending' or job.completed:
+                return False
+            if job.column_mapping.get('commerce_order_id'):
+                raise ValueError('Commerce pricing is fixed by the server order')
+            previous = job.pricing
+            job.pricing = quote
+            try:
+                # Persist before reporting success; protect the price snapshot.
+                self._save_to_disk()
+            except Exception:
+                job.pricing = previous
+                raise
+        return True
+
     def get_job_by_file_and_sheet(self, filename: str, sheet_index: int) -> Optional[QueueJob]:
         with self._lock:
-            for j in self._jobs:
+            for j in reversed(self._jobs):
                 if j.filename == filename and j.sheet_index == sheet_index:
                     return j
             return None
+
+    def fork_job(self, job_id: str) -> Optional[QueueJob]:
+        """Create a fresh run and retain previous progress/files as history."""
+        with self._lock:
+            source = self.get_job(job_id)
+            if not source or source.status == 'active':
+                return None
+            if source.column_mapping.get('commerce_order_id'):
+                raise ValueError('A new paid check requires a new commerce order')
+            price = {'mode':source.pricing['mode'], 'unit_price':f"{source.pricing['unit_minor']/100:.2f}"} if source.pricing else None
+            fork_mapping = copy.deepcopy(source.column_mapping)
+            # An explicit new round is a separate job, not a replay of payment.
+            fork_mapping.pop('payment_token', None)
+            job = self.add_job(self.storage_path.parent/source.filename, source.sheet_index,
+                source.sheet_name, source.mode, source.amount_target, source.target_url,
+                fork_mapping, source.total_records, pricing=price)
+            source.status = 'archived'
+            self._save_to_disk()
+            return job
 
     def restart_job(self, job_id: str) -> Optional[QueueJob]:
         """Resets a job to pending status with 0 progress for a fresh restart."""

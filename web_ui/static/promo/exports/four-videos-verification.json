@@ -1,0 +1,82 @@
+[
+  {
+    "id": "time",
+    "name": "وقتك للمتابعة",
+    "file": "hadiyat-check-time-35s.mp4",
+    "metadata": {
+      "programs": [],
+      "stream_groups": [],
+      "streams": [
+        {
+          "codec_type": "video",
+          "width": 1080,
+          "height": 1920,
+          "avg_frame_rate": "30/1"
+        }
+      ],
+      "format": {
+        "duration": "35.000000"
+      }
+    }
+  },
+  {
+    "id": "offer",
+    "name": "العرض خطوة بخطوة",
+    "file": "hadiyat-check-offer-35s.mp4",
+    "metadata": {
+      "programs": [],
+      "stream_groups": [],
+      "streams": [
+        {
+          "codec_type": "video",
+          "width": 1080,
+          "height": 1920,
+          "avg_frame_rate": "30/1"
+        }
+      ],
+      "format": {
+        "duration": "35.000000"
+      }
+    }
+  },
+  {
+    "id": "sheet",
+    "name": "جهّز شيتك صح",
+    "file": "hadiyat-check-sheet-35s.mp4",
+    "metadata": {
+      "programs": [],
+      "stream_groups": [],
+      "streams": [
+        {
+          "codec_type": "video",
+          "width": 1080,
+          "height": 1920,
+          "avg_frame_rate": "30/1"
+        }
+      ],
+      "format": {
+        "duration": "35.000000"
+      }
+    }
+  },
+  {
+    "id": "journey",
+    "name": "من الرسالة إلى النتيجة",
+    "file": "hadiyat-check-journey-35s.mp4",
+    "metadata": {
+      "programs": [],
+      "stream_groups": [],
+      "streams": [
+        {
+          "codec_type": "video",
+          "width": 1080,
+          "height": 1920,
+          "avg_frame_rate": "30/1"
+        }
+      ],
+      "format": {
+        "duration": "35.000000"
+      }
+    }
+  }
+]

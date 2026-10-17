@@ -1,0 +1,24 @@
+{
+  "at": "2026-10-14T11:02:14.383449+00:00",
+  "database": "commerce_support_42b7be19b536",
+  "production": false,
+  "telegram": "synthetic only; no outbound network",
+  "order_id": "03f1708b-766f-473f-914c-9aa7f8ca6b68",
+  "native_bot": true,
+  "original_preserved": true,
+  "edited_record_preserved": true,
+  "lost_record_ack_recovered": true,
+  "concurrent_original_replays": 16,
+  "source_records": 3,
+  "synthetic_sends": 1,
+  "receipt_recovered_after_enqueue_failure": true,
+  "cross_owner_denied": true,
+  "financial_side_effects": false,
+  "commands": {
+    "done": 4
+  },
+  "deliveries": {
+    "confirmed": 1
+  },
+  "fixture": "E:\\Projects\\smart_zainchecker_gemini\\scratch\\commerce_support_42b7be19b536"
+}

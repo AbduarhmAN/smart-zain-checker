@@ -1,0 +1,11 @@
+{
+  "database": "customer_commerce_e39666900f99",
+  "production": false,
+  "passed": true,
+  "checks": [
+    {
+      "test": "commerce_customer_pricing.sql",
+      "passed": true
+    }
+  ]
+}

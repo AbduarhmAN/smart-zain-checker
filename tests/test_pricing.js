@@ -1,0 +1,24 @@
+import fs from 'node:fs';
+import vm from 'node:vm';
+import assert from 'node:assert/strict';
+const elements=new Map();
+const el=id=>{if(!elements.has(id))elements.set(id,{id,textContent:'',value:'',hidden:false,setAttribute(name,value){this[name]=value;}});return elements.get(id);};
+const cells=[{dataset:{billingJob:'a'},textContent:''}];
+const sandbox={document:{getElementById:el,querySelectorAll:()=>cells},Dashboard:{icon:()=>'',toast:()=>{}},API:{},ColumnMapper:{currentAnalysis:{estimated_rows:2000}}};
+vm.createContext(sandbox);vm.runInContext(fs.readFileSync('web_ui/static/js/pricing.js','utf8')+'\nthis.Pricing=Pricing;',sandbox);
+const p=sandbox.Pricing;
+assert.equal(p.readPrice('٠٫١٥'),'0.15');
+for(const value of ['-1','NaN','Infinity','1.005','', '1000001'])assert.throws(()=>p.readPrice(value));
+const quote={mode:'customer',unit_minor:15};
+const bill=p.calculate(quote,2000,900,'active');
+assert.equal(bill.billed_minor,13500);assert.equal(bill.partner_minor,4050);assert.equal(bill.owner_minor,9450);
+for(let n=1;n<100;n++){const b=p.calculate({mode:'customer',unit_minor:1},n,n,'completed');assert.equal(b.owner_minor+b.partner_minor,b.billed_minor);}
+assert.equal(p.calculate({mode:'sheet',unit_minor:2000},100,50,'active').billed_minor,0);
+assert.equal(p.calculate({mode:'sheet',unit_minor:2000},100,100,'completed').billed_minor,2000);
+p.available=true;p.loading=false;p.onJobs([{id:'a',pricing:quote,total_records:2000,completed:900,status:'active'}]);
+assert.equal(el('billingValues').hidden,false);assert.ok(cells[0].textContent.includes('بالعميل'));assert.ok(cells[0].textContent.includes('••••'));assert.equal(el('billingTotal').textContent,'•••');
+p.toggle();assert.equal(el('billingValues').hidden,false);assert.ok(el('billingTotal').textContent.includes('١٣٥'));assert.ok(cells[0].textContent.includes('/ صف'));
+p.toggle();assert.equal(el('billingValues').hidden,false);assert.equal(el('billingPartner').textContent,'•••');
+p.onJobs([{id:'legacy',total_records:2000,completed:2000,status:'completed'}]);p.toggle();assert.ok(el('billingStatus').textContent.includes('لم يُحدّد'));
+el('mapPricingMode').value='customer';el('mapPricingPrice').value='٠٫١٥';p.updateMapEstimate();assert.ok(el('mapPriceEstimate').textContent.includes('٣٠٠'));
+console.log('PASS: checked-row fees, fixed-sheet fee, Arabic prices, exact revenue split and default-hidden billing.');

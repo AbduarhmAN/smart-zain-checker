@@ -1,0 +1,17 @@
+{
+  "passed": true,
+  "at": "2026-10-14T18:49:58.613577+00:00",
+  "production": false,
+  "database": "commerce_code_creation_caa8921fafd2",
+  "checks": [
+    "Generated cash code retained until authenticated approval",
+    "Funding calculated at 6002 piastres",
+    "Cash issuance replay funded one code once",
+    "Current small campaign limits reject before creating a campaign",
+    "Explicit limit update returns to retained draft",
+    "Campaign save and replay create one campaign",
+    "No customer payment or partner commission created"
+  ],
+  "telegram_messages": "mocked",
+  "deletion": "blocked; fixtures retained"
+}

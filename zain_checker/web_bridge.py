@@ -186,7 +186,9 @@ class WebRunState:
                 try:
                     expected_halalas = round(float(row.get("expected_amount") or 0) * 100)
                     live_halalas = round(float(row.get("live_amount") or 0) * 100)
-                    self.mismatch_total_halalas += expected_halalas - live_halalas
+                    diff_halalas = expected_halalas - live_halalas
+                    if diff_halalas > 0:
+                        self.mismatch_total_halalas += diff_halalas
                 except (TypeError, ValueError):
                     pass
             elif row.get("status") == "error":
@@ -1419,7 +1421,9 @@ class WebBridgeHandler(BaseHTTPRequestHandler):
                                 try:
                                     expected_halalas = round(float(item.get("expected_amount") or 0) * 100)
                                     live_halalas = round(float(item.get("live_amount") or 0) * 100)
-                                    mismatch_total_halalas += expected_halalas - live_halalas
+                                    diff_halalas = expected_halalas - live_halalas
+                                    if diff_halalas > 0:
+                                        mismatch_total_halalas += diff_halalas
                                 except (TypeError, ValueError):
                                     pass
                             elif st == "error":

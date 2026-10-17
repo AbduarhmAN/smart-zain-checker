@@ -9,7 +9,7 @@ import logging
 import os
 import signal
 import sys
-import time
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -52,6 +52,8 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
+    from server.runtime_guard import AppRuntimeGuard
+    runtime_guard = AppRuntimeGuard(PROJECT_ROOT).acquire(args.host, (args.port, args.bridge_port))
 
     print("=" * 65)
     print("🛡️  SMART ZAIN CHECKER - MODULAR MONOLITH ARCHITECTURE v3.0")
@@ -87,19 +89,16 @@ def main() -> None:
     # 4. Initialize Telegram Bot Module (Decoupled EventBus Listener)
     tg_notifier = None
     tg_runner = None
+    from telegram_bot.commerce.secret_store import load_service_key,CredentialUnavailable
+    try:
+        load_service_key()
+        logger.info('Commerce local credential load verified.')
+    except CredentialUnavailable as exc:
+        logger.warning('Commerce local credential load failed: reason=%s windows=%s',exc.reason,exc.windows_code)
+    except (RuntimeError,OSError,ValueError):
+        logger.warning('Commerce local credential load failed: reason=credential_unavailable')
     from telegram_bot.integration import TelegramIntegration
     orchestrator.telegram_integration = TelegramIntegration(orchestrator, queue_service, PROJECT_ROOT)
-    if not args.no_telegram:
-        try:
-            orchestrator.telegram_integration.set_enabled(True)
-            tg_notifier = orchestrator.telegram_integration.notifier
-            tg_runner = orchestrator.telegram_integration.runner
-            logger.info("Telegram Bot & Event Subscriber active.")
-        except Exception as exc:
-            logger.warning(f"Telegram Bot failed to start: {exc}")
-    else:
-        logger.info("Telegram integration disabled via --no-telegram.")
-
     # 5. Initialize Server Gateway (Ports 5050 & 8766)
     from server.gateway import ServerGateway
     gateway = ServerGateway(
@@ -114,9 +113,30 @@ def main() -> None:
     gateway.start()
     logger.info("Server Gateway online. Ready to accept connections.")
 
+    if not args.no_telegram:
+        try:
+            orchestrator.telegram_integration.set_enabled(True)
+            tg_notifier = orchestrator.telegram_integration.notifier
+            tg_runner = orchestrator.telegram_integration.runner
+            logger.info("Telegram Bot & Event Subscriber active.")
+        except Exception as exc:
+            logger.warning(f"Telegram Bot failed to start: {exc}")
+    else:
+        logger.info("Telegram integration disabled via --no-telegram.")
+
+    from manager.continuous_service import ContinuousQueueService
+    continuous_service=ContinuousQueueService(orchestrator,queue_service,PROJECT_ROOT,
+        orchestrator.telegram_integration.commerce_bridge.worker.client)
+    orchestrator.continuous_service=continuous_service
+    continuous_service.start()
+
+    shutdown_requested = threading.Event()
     # Graceful Shutdown Handler
     def shutdown_handler(signum: int, frame: Any) -> None:
+        if shutdown_requested.is_set():return
+        shutdown_requested.set()
         print("\n🛑 Shutdown signal received. Performing graceful cleanup...")
+        continuous_service.stop()
         orchestrator.cancel_session()
         gateway.stop()
         if tg_runner:
@@ -125,15 +145,16 @@ def main() -> None:
         supervisor.stop_all()
         from workers.stealth_service_engine import stop_service_browsers
         stop_service_browsers()
+        from workers.account_transport import close_account_sessions
+        close_account_sessions()
         print("✓ All workers, servers, and processes safely terminated.")
-        sys.exit(0)
 
     signal.signal(signal.SIGINT, shutdown_handler)
     signal.signal(signal.SIGTERM, shutdown_handler)
 
     try:
-        while True:
-            time.sleep(1)
+        while not shutdown_requested.wait(1):
+            pass
     except KeyboardInterrupt:
         shutdown_handler(0, None)
 

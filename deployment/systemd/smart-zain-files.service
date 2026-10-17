@@ -1,0 +1,31 @@
+[Unit]
+Description=Smart Zain file processing application
+After=network-online.target
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=smart-zain
+Group=smart-zain
+WorkingDirectory=/srv/smart-zain
+EnvironmentFile=/etc/smart-zain/services.env
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/srv/smart-zain/.venv/bin/python -B -m services files --root /srv/smart-zain
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=60
+KillMode=control-group
+OOMPolicy=kill
+CPUAccounting=yes
+MemoryAccounting=yes
+IOAccounting=yes
+CPUWeight=100
+IOWeight=100
+UMask=0077
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=smart-zain-files
+
+[Install]
+WantedBy=multi-user.target

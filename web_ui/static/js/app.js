@@ -98,10 +98,12 @@ const App = {
     this.pollTimer = setInterval(() => this.poll(), 1000);
 
     // Setup live clock
-    setInterval(() => {
+    const clockFormatter=new Intl.DateTimeFormat('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23',timeZone:'Asia/Baghdad'});
+    const renderClock=()=>{
       const el = document.getElementById('clockBox');
-      if (el) el.textContent = new Date().toTimeString().split(' ')[0];
-    }, 1000);
+      if(el){const now=new Date();el.textContent=clockFormatter.format(now);el.dateTime=now.toISOString();}
+    };
+    renderClock();setInterval(renderClock,1000);
   },
 
   async handleFilesUpload(files) {
@@ -207,7 +209,7 @@ const App = {
             remaining:0,matches:count('match'),mismatches:count('mismatch'),
             verified:count('match')+count('mismatch'),errors:count('error'),
             needs_review:count('needs_review'),not_found:count('not_found'),deferred:0,
-            mismatch_total:rows.filter(row=>row.status==='mismatch').reduce((sum,row)=>sum+Math.abs(Number(row.diff_sar)||0),0)}};
+            mismatch_total:rows.filter(row=>row.status==='mismatch' && (Number(row.diff_sar)||0) > 0).reduce((sum,row)=>sum+(Number(row.diff_sar)||0),0)}};
       }
       Dashboard.update(viewData);
 
@@ -221,6 +223,7 @@ const App = {
       notice.textContent = note;
       notice.style.display = note ? 'block' : 'none';
       this.renderVerifications(data.verifications || []);
+      QueueUI.renderRecovery(QueueUI.lastJobs || []);
 
       // Keep Queue table and tab badge in real-time sync
       this._pollCount = (this._pollCount || 0) + 1;
@@ -243,13 +246,14 @@ const App = {
     const another=document.getElementById('btnCheckAnotherFile');
     const waitingFiles=(QueueUI.lastJobs || []).filter(job=>job.status==='pending').length;
     if(another){another.style.display=!this.isRunning && waitingFiles ? 'inline-flex':'none';another.disabled=!Dashboard.connected || !!this.actionBusy || !document.getElementById('selectWorkbook').value;}
-    btn.disabled = !Dashboard.connected || !!this.actionBusy || !!this.pendingVerifications || !!this.uploading || !!this.uploadBatch || !!QueueUI.starting;
+    btn.disabled = !Dashboard.connected || !!this.actionBusy || !!this.uploading || !!this.uploadBatch || !!QueueUI.starting || !!Dashboard.live?.finalizing;
+    if(btnCancel)btnCancel.disabled=!!Dashboard.live?.finalizing;
     if(QueueUI.starting && !this.isRunning){btn.textContent='جارٍ التحقق من ملفات الجولة…';return;}
 
     if (this.isRunning) {
       btnCancel.style.display = 'inline-flex';
       if (this.isPaused) {
-        btn.innerHTML = this.pendingVerifications ? 'أكمل تحقق زين أولًا' : 'استئناف الفحص ' + Dashboard.icon('arrow');
+        btn.innerHTML = 'استئناف الفحص ' + Dashboard.icon('arrow');
         btn.className = 'btn btn-primary';
         btn.onclick = () => Dashboard.sessionAction('resume');
       } else {

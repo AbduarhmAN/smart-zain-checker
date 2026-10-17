@@ -1,0 +1,15 @@
+{
+  "passed": true,
+  "at": "2026-10-14T00:18:04.029572+00:00",
+  "database": "commerce_manual_2ca9d0d0260e",
+  "production": false,
+  "provider_and_telegram": "synthetic, no live transfers or messages",
+  "raw_reference_credited": false,
+  "preview_credited": false,
+  "approved_payments": 1,
+  "queued_jobs": 1,
+  "lost_approval_ack_recovered": true,
+  "charged_minor": 3000,
+  "refunded_minor": 3000,
+  "assignment_actor": 9
+}

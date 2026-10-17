@@ -10,6 +10,11 @@ const ColumnMapper = {
     
     if (!wb || !document.getElementById('selectWorkbook').value) {Dashboard.toast('اختر ملف العملاء أولًا');return;}
     this.currentAnalysis = null;
+    this.recovery = null;
+    document.getElementById('mapperRecovery').hidden=true;
+    document.getElementById('mapPricingMode').disabled=false;
+    document.getElementById('mapPricingPrice').disabled=false;
+    if (typeof Pricing !== 'undefined') Pricing.prepareMap();
     this.currentValidated=false;
     const analysisRevision=this.analysisRequest=(this.analysisRequest || 0)+1;
     this.analyzing=true;
@@ -17,7 +22,14 @@ const ColumnMapper = {
     document.getElementById('mapHasHeaders').disabled=true;
     this.validationRequest=(this.validationRequest || 0)+1;
     if(!this.validationBound){
-      document.getElementById('modalOverlay').addEventListener('change',()=>this.scheduleValidation());
+      document.getElementById('modalOverlay').addEventListener('change',event=>{
+        if(event.target.closest('#mapperPricing')){Pricing.updateMapEstimate();return;}
+        if(event.target.closest('#mapperRecovery'))return;
+        this.scheduleValidation();
+      });
+      document.getElementById('mapMawaridFormat')?.addEventListener('change', (e) => {
+        this.lastMawaridFormat = !!e.target.checked;
+      });
       document.getElementById('mapperAdvanced').addEventListener('toggle',()=>{
         if(this.skipAdvancedToggle){this.skipAdvancedToggle=false;return;}
         if(this.currentAnalysis)this.scheduleValidation();
@@ -37,7 +49,11 @@ const ColumnMapper = {
       if (res.status === 'ok') {
         this.analyzing=false;
         this.currentAnalysis = res.analysis;
+        document.getElementById('mapperTitle').textContent='مراجعة '+wb+' · '+(res.analysis.sheet_name || 'ورقة العمل');
         this.renderAnalysis(res.analysis);
+        await this.prepareRecovery(wb,sheetIdx,analysisRevision);
+        if(analysisRevision!==this.analysisRequest)return;
+        if (typeof Pricing !== 'undefined') Pricing.updateMapEstimate();
         await this.validateCurrent();
       } else {
         Dashboard.toast('تعذر فحص الشيت: ' + res.message);
@@ -90,13 +106,14 @@ const ColumnMapper = {
       }
       const result=await API.validateSheet({workbook:document.getElementById('selectWorkbook').value,
         sheet_index:Number(document.getElementById('selectSheet').value || 0),column_mapping:mapping,
-        mode:document.getElementById('selectAuditMode').value,amount_target:mapping.amount_target});
+        mode:this.recovery && document.getElementById('mapRecoveryChoice').value==='resume' ? this.recovery.mode : document.getElementById('selectAuditMode').value,amount_target:mapping.amount_target});
       if(revision!==this.validationRequest)return;
       this.currentValidated=!!result.validation?.ok;
       badge.textContent=this.currentValidated?'✓ البيانات مناسبة للفحص':'راجع البيانات والأعمدة';
       badge.style.background=this.currentValidated?'var(--status-match-bg)':'var(--status-mismatch-bg)';
       badge.style.color=this.currentValidated?'var(--status-match)':'var(--status-mismatch)';
       document.getElementById('docEstimatedRows').textContent=(result.validation?.rows || 0).toLocaleString()+' سجل';
+      if(this.currentValidated){this.currentAnalysis.estimated_rows=result.validation.rows;Pricing.updateMapEstimate();}
     } catch(error) {
       if(revision!==this.validationRequest)return;
       badge.textContent='⚠ راجع الأعمدة والبيانات';badge.style.background='var(--status-mismatch-bg)';badge.style.color='var(--status-mismatch)';
@@ -161,6 +178,10 @@ const ColumnMapper = {
     const toggle=document.getElementById('mapHasHeaders');
     toggle.checked=analysis.has_headers !== false;
     toggle.disabled=typeof analysis.has_headers!=='boolean';
+    const mawaridToggle = document.getElementById('mapMawaridFormat');
+    if (mawaridToggle) {
+      mawaridToggle.checked = !!(analysis?.mawarid_format !== undefined ? analysis.mawarid_format : (analysis?.letters?.mawarid_format !== undefined ? analysis.letters.mawarid_format : this.lastMawaridFormat));
+    }
     document.getElementById('docTypeLabel').textContent = analysis.document_type || 'شيت مديونيات زين';
     
     const badge = document.getElementById('docAcceptBadge');
@@ -194,6 +215,11 @@ const ColumnMapper = {
     this.populateSelect('mapCustomerCol', columns, defCust, true);
     this.populateSelect('mapCollectorCol', columns, defColl, true);
 
+    // Sync audit mode between sidebar and modal
+    const activeMode = document.getElementById('selectAuditMode')?.value || 'smart_hybrid';
+    const modalMode = document.getElementById('mapAuditMode');
+    if (modalMode) modalMode.value = activeMode;
+
     // If it's an errors or results sheet, default to 'remaining' which maps to المبلغ بالشيت
     const targetValue = 'remaining';
     const advanced=document.getElementById('mapperAdvanced');
@@ -202,6 +228,15 @@ const ColumnMapper = {
     const rRadio = document.querySelector(`input[name="amtTarget"][value="${targetValue}"]`);
     if (rRadio) rRadio.checked = true;
     this.renderPreview();
+  },
+
+  syncAuditMode(val) {
+    this.userSelectedMode = true;
+    const sidebar = document.getElementById('selectAuditMode');
+    if (sidebar) sidebar.value = val;
+    const modalSel = document.getElementById('mapAuditMode');
+    if (modalSel) modalSel.value = val;
+    this.onMappingChanged();
   },
 
   populateSelect(elementId, columns, defaultLetter, allowEmpty = false) {
@@ -229,15 +264,20 @@ const ColumnMapper = {
   },
 
   getMappingPayload() {
+    if(this.recovery?.column_mapping && document.getElementById('mapRecoveryChoice').value==='resume'){
+      return {...this.recovery.column_mapping,amount_target:this.recovery.amount_target || 'remaining'};
+    }
     const letters = this.currentAnalysis?.letters || {};
     const lookup = document.getElementById('mapLookupCol')?.value ?? letters.lookup_col ?? '';
-    const service = document.getElementById('mapperAdvanced')?.open ? (document.getElementById('mapServiceCol')?.value ?? letters.service_col ?? '') : lookup;
+    const service = document.getElementById('mapServiceCol')?.value || letters.service_col || lookup;
     const remAmt = document.getElementById('mapRemainingCol')?.value ?? letters.amount_col ?? '';
     const contAmt = document.getElementById('mapContractCol')?.value ?? letters.amount_col_2 ?? '';
     const cust = document.getElementById('mapCustomerCol')?.value ?? letters.customer_col ?? '';
     const coll = document.getElementById('mapCollectorCol')?.value ?? letters.collector_col ?? '';
     const sourceRow = letters.source_row_col || '';
-    const amtTarget = document.getElementById('mapperAdvanced')?.open ? (document.querySelector('input[name="amtTarget"]:checked')?.value || 'remaining') : 'remaining';
+    const amtTarget = document.querySelector('input[name="amtTarget"]:checked')?.value || 'remaining';
+
+    const isMawarid = !!document.getElementById('mapMawaridFormat')?.checked;
 
     return {
       lookup_col: lookup,
@@ -247,9 +287,57 @@ const ColumnMapper = {
       customer_col: cust,
       collector_col: coll,
       source_row_col: sourceRow,
-      has_headers:document.getElementById('mapHasHeaders')?.checked !== false,
+      has_headers: document.getElementById('mapHasHeaders')?.checked !== false,
       amount_target: amtTarget,
+      mawarid_format: isMawarid,
     };
+  },
+
+  async prepareRecovery(workbook,sheetIndex,revision) {
+    const previous=await API.checkSheetStatus(workbook,sheetIndex);
+    if(revision!==this.analysisRequest || !previous.completed_count)return;
+    this.recovery=previous;
+    document.getElementById('mapRecoveryStats').textContent='تم فحص '+previous.completed_count.toLocaleString('ar-EG')+' صف سابقًا. اختر المتابعة أو جولة جديدة.';
+    const choice=document.getElementById('mapRecoveryChoice');
+    const canResume=!previous.is_completed && previous.can_resume!==false;
+    choice.value=canResume?'resume':'new';
+    choice.querySelector('option[value="resume"]').disabled=!canResume;
+    if(previous.column_mapping && !previous.is_completed){
+      if(previous.column_mapping.has_headers!==this.currentAnalysis.has_headers){
+        const inspected=await API.inspectSheetColumns(workbook,sheetIndex,previous.column_mapping.has_headers!==false);
+        if(revision!==this.analysisRequest)return;
+        this.currentAnalysis=inspected.analysis;
+      }
+      this.currentAnalysis.letters={...this.currentAnalysis.letters,...previous.column_mapping};
+      this.currentAnalysis.has_headers=previous.column_mapping.has_headers!==false;
+      this.currentAnalysis.mawarid_format=!!previous.column_mapping.mawarid_format;
+      this.renderAnalysis(this.currentAnalysis);
+      if(previous.mode && !this.userSelectedMode) {
+        if (document.getElementById('selectAuditMode')) document.getElementById('selectAuditMode').value=previous.mode;
+        if (document.getElementById('mapAuditMode')) document.getElementById('mapAuditMode').value=previous.mode;
+      }
+      if(previous.column_mapping.service_col && previous.column_mapping.service_col!==previous.column_mapping.lookup_col){
+        this.skipAdvancedToggle=true;
+        document.getElementById('mapperAdvanced').open=true;
+      }
+
+    }
+    this.recoverySelectionChanged();
+    document.getElementById('mapperRecovery').hidden=false;
+  },
+  recoverySelectionChanged() {
+    const resume=this.recovery && document.getElementById('mapRecoveryChoice').value==='resume';
+    Pricing.prepareMap();
+    if(resume && this.recovery.pricing){
+      document.getElementById('mapPricingMode').value=this.recovery.pricing.mode;
+      document.getElementById('mapPricingPrice').value=(this.recovery.pricing.unit_minor/100).toFixed(2);
+    }
+    document.getElementById('mapPricingMode').disabled=!!resume;
+    document.getElementById('mapPricingPrice').disabled=!!resume;
+    document.querySelectorAll('#modalOverlay input, #modalOverlay select').forEach(el=>{
+      if(!['mapPricingMode','mapPricingPrice','mapRecoveryChoice','mapAuditMode'].includes(el.id))el.disabled=!!resume;
+    });
+    Pricing.updateMapEstimate();
   },
 
 
@@ -260,8 +348,9 @@ const ColumnMapper = {
     const mapping = this.getMappingPayload();
     const wb = document.getElementById('selectWorkbook').value;
     const sheetIdx = Number(document.getElementById('selectSheet').value || 0);
+    const activeMode = document.getElementById('mapAuditMode')?.value || document.getElementById('selectAuditMode')?.value || 'smart_hybrid';
     const payload = {workbook:wb, sheet_index:sheetIdx, column_mapping:mapping,
-      mode:document.getElementById('selectAuditMode').value,
+      mode:activeMode,
       amount_target:mapping.amount_target, force_restart:false};
     try {
       const check = await API.checkSheetStatus(wb,sheetIdx);
@@ -282,13 +371,22 @@ const ColumnMapper = {
     if (!this.currentAnalysis || !this.currentValidated || this.adding) return;
     this.adding=true;document.getElementById('btnMapperQueue').disabled=true;
     const mapping=this.getMappingPayload();
+    const activeMode = document.getElementById('mapAuditMode')?.value || document.getElementById('selectAuditMode')?.value || 'smart_hybrid';
     const payload={workbook:document.getElementById('selectWorkbook').value,
       sheet_index:Number(document.getElementById('selectSheet').value || 0),
       sheet_name:this.currentAnalysis.sheet_name || 'Sheet1',
       column_mapping:mapping, amount_target:mapping.amount_target,
-      mode:document.getElementById('selectAuditMode').value,
+      mode:activeMode,
       total_records:this.currentAnalysis.estimated_rows || 0};
     try {
+      if (typeof Pricing !== 'undefined') payload.pricing=Pricing.mapQuote();
+      if(this.recovery){
+        payload.recovery_choice=document.getElementById('mapRecoveryChoice').value;
+        if(payload.recovery_choice==='resume' && this.recovery.mode && !this.userSelectedMode) payload.mode=this.recovery.mode;
+        else payload.mode=activeMode;
+        if(this.recovery.job_id)payload.recovery_job_id=this.recovery.job_id;
+        else payload.recovery_legacy=true;
+      }
       await API.addQueueJob(payload);
       this.closeModal();LiveFeed.switchTab('queue');
       await QueueUI.refresh();App.updateControlButtons();

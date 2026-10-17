@@ -1,0 +1,35 @@
+{
+  "database": "customer_commerce_94381ee48c9d",
+  "production": false,
+  "passed": true,
+  "checks": [
+    {
+      "test": "commerce_customer_pricing.sql",
+      "passed": true
+    },
+    {
+      "test": "commerce_promotional_expiry.sql",
+      "passed": true
+    },
+    {
+      "test": "commerce_customer_stop.sql",
+      "passed": true
+    },
+    {
+      "test": "commerce_cent_discount.sql",
+      "passed": true
+    },
+    {
+      "test": "commerce_legacy_transition.sql",
+      "passed": true
+    },
+    {
+      "test": "commerce_customer_history.sql",
+      "passed": true
+    },
+    {
+      "test": "commerce_bound_invoice_monitor.sql",
+      "passed": true
+    }
+  ]
+}

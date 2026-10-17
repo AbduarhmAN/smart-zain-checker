@@ -30,6 +30,30 @@ class ProgressTimingTests(unittest.TestCase):
         a.complete('account',10)
         self.assertEqual(b.snapshot(20)['recent_completions'],[])
 
+    def test_automatic_wait_remains_in_wall_clock_intervals(self):
+        timing=ProgressTiming(['service']*3)
+        timing.complete('service',10)
+        timing.complete('service',430)
+        events=timing.snapshot(430)['recent_completions']
+        self.assertEqual(events[0]['age_seconds']-events[1]['age_seconds'],420)
+
+    def test_explicit_pause_is_excluded_without_resetting_history(self):
+        timing=ProgressTiming(['service']*3)
+        timing.complete('service',10)
+        timing.pause(20)
+        timing.resume(440)
+        timing.complete('service',450)
+        events=timing.snapshot(450)['recent_completions']
+        self.assertEqual(events[0]['age_seconds']-events[1]['age_seconds'],20)
+
+    def test_fast_contracts_do_not_evict_service_history(self):
+        timing=ProgressTiming(['service']*3+['account']*100)
+        timing.complete('service',10);timing.complete('service',430)
+        for i in range(100):timing.complete('account',431+i)
+        snapshot=timing.snapshot(540)
+        self.assertTrue(all(e['kind']=='account' for e in snapshot['recent_completions']))
+        self.assertEqual(len(snapshot['recent_by_type']['service']),2)
+
 
 if __name__ == '__main__':
     unittest.main()

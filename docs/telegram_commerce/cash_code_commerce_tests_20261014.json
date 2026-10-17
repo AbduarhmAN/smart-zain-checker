@@ -1,0 +1,9 @@
+{
+  "tests_run": 319,
+  "passed": true,
+  "failures": 0,
+  "errors": 0,
+  "fixtures_retained_at": "C:\\Users\\DELLHQ~1\\AppData\\Local\\Temp\\commerce-suite-retained-y72_tvxi",
+  "network": "blocked",
+  "filesystem_deletion": "blocked; XML fixture files retained"
+}

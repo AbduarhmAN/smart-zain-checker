@@ -1,0 +1,23 @@
+{
+  "completed_threads": 10,
+  "attempts_per_thread": [
+    100,
+    100,
+    100,
+    100,
+    100,
+    100,
+    100,
+    100,
+    100,
+    100
+  ],
+  "csv_request_rows": 1000,
+  "csv_connection_rows": 224,
+  "all_request_indices_complete": true,
+  "all_gaps_at_least_0_5s": true,
+  "all_payload_bytes_reconcile": true,
+  "no_403_or_429": true,
+  "peak_simultaneous_queries": 10,
+  "production_state_modified": false
+}

@@ -32,15 +32,20 @@ class TestWorkerIsolation(unittest.TestCase):
         self.assertFalse(is_cmdline_for_worker_profile(cmd_worker_1, prof_2))
 
     def test_resolve_worker_proxy(self):
-        """Worker 1 without proxy resolves to None (direct network). Worker 2 resolves to configured proxy."""
-        # Worker 1 (router / direct)
+        """Worker 1 without proxy resolves to None (direct network). All 3 workers are direct Business API."""
+        # Worker 1 (direct Business API)
         proxy_1 = resolve_worker_proxy("worker_1")
         self.assertIsNone(proxy_1)
 
-        # Worker 3 (proxy)
+        # Worker 3 (direct Business API)
         proxy_3 = resolve_worker_proxy("worker_3")
-        self.assertIsNotNone(proxy_3)
-        self.assertIn("195.40.62.31", proxy_3)
+        self.assertIsNone(proxy_3)
+
+        # Configured proxy resolution test
+        from unittest.mock import patch
+        mock_cfg = [{"worker_id": "worker_custom", "proxy": "socks5://1.2.3.4:1080"}]
+        with patch("zain_checker.config.WORKERS_CONFIG", mock_cfg):
+            self.assertEqual(resolve_worker_proxy("worker_custom"), "socks5://1.2.3.4:1080")
 
     def test_per_worker_stalled_handoff(self):
         """Handoff stall on Worker 1 should isolate Worker 1 only, without impacting Worker 2."""

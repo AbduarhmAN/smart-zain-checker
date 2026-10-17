@@ -1,0 +1,20 @@
+{
+  "passed": true,
+  "at": "2026-10-13T23:51:32.268795+00:00",
+  "database": "commerce_checkout_cf888d6fc133",
+  "production": false,
+  "fixture": "C:\\Users\\DELLHQ~1\\AppData\\Local\\Temp\\commerce-checkout-retained-oielddni",
+  "telegram_and_checker": "synthetic, no external messages or checks",
+  "reserved_minor": 6000,
+  "charged_minor": 3000,
+  "refunded_minor": 3000,
+  "ending_available_minor": 6000,
+  "quoted_checks": 2,
+  "raw_rows": 3,
+  "queued_jobs": 1,
+  "refunds": 1,
+  "lost_reservation_ack_recovered": true,
+  "immutable_input_after_original_replaced": true,
+  "explicit_policy_consent": true,
+  "no_settlement_before_delivery": true
+}

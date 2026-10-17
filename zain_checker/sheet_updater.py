@@ -20,6 +20,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 import openpyxl
 from openpyxl import load_workbook
+from services.file_client import atomic_workbook_save
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
@@ -80,10 +81,12 @@ def _find_sheet_by_keywords(wb: openpyxl.Workbook, keywords: tuple[str, ...]) ->
 
 def _write_diff_row(ws: Any, row_idx: int, rec: Dict[str, Any]) -> None:
     """Writes an 11-column difference or match row into ws at row_idx."""
+    mawarid = bool(rec.get("mawarid_format"))
     method, identifier, url = build_hyperlink_and_method(
         account=rec.get("account") or "",
         service=rec.get("service") or "",
         contract=rec.get("contract") or "",
+        mawarid_format=mawarid,
     )
     exp_sar = float(rec.get("expected_sar") or 0.0)
     live_sar_val = rec.get("live_sar")
@@ -98,7 +101,7 @@ def _write_diff_row(ws: Any, row_idx: int, rec: Dict[str, Any]) -> None:
     c1.alignment = ALIGN_CENTER
     c1.border = BORDER_THIN
 
-    # 2: الحساب / الخدمة
+    # 2: الحساب / الخدمة أو رقم الحساب
     c2 = ws.cell(row=row_idx, column=2, value=identifier)
     c2.font = FONT_DATA_REGULAR
     c2.fill = FILL_DATA
@@ -113,8 +116,9 @@ def _write_diff_row(ws: Any, row_idx: int, rec: Dict[str, Any]) -> None:
     c3.alignment = ALIGN_CENTER
     c3.border = BORDER_THIN
 
-    # 4: اسم العميل
-    c4 = ws.cell(row=row_idx, column=4, value=rec.get("name") or "عميل غير محدد")
+    # 4: اسم العميل أو اسم المحصل
+    col4_val = (rec.get("collector") or rec.get("collector_name") or "محصل غير محدد") if mawarid else (rec.get("name") or "عميل غير محدد")
+    c4 = ws.cell(row=row_idx, column=4, value=col4_val)
     c4.font = FONT_DATA_REGULAR
     c4.fill = FILL_DATA
     c4.alignment = ALIGN_RIGHT
@@ -171,6 +175,14 @@ def _write_diff_row(ws: Any, row_idx: int, rec: Dict[str, Any]) -> None:
     c11.fill = FILL_DATA
     c11.alignment = ALIGN_RIGHT
     c11.border = BORDER_THIN
+
+    # 12: الزمن
+    time_val = rec.get("timestamp") or rec.get("time") or rec.get("occurred_at") or "-"
+    c12 = ws.cell(row=row_idx, column=12, value=str(time_val))
+    c12.font = FONT_DATA_REGULAR
+    c12.fill = FILL_DATA
+    c12.alignment = ALIGN_CENTER
+    c12.border = BORDER_THIN
 
 
 def _append_to_diff_sheet(
@@ -234,7 +246,7 @@ def _append_to_diff_sheet(
     ws.cell(summary_row_idx, 1, value=total_label)
     ws.cell(summary_row_idx, 2, value=f"{total_data_count} {count_suffix}")
 
-    for c_idx in (1, 2, 3, 4, 5, 9, 10, 11):
+    for c_idx in (1, 2, 3, 4, 5, 9, 10, 11, 12):
         c = ws.cell(summary_row_idx, c_idx)
         c.font = FONT_SUMMARY
         c.fill = FILL_SUMMARY
@@ -284,14 +296,19 @@ def _create_or_get_matched_sheet(wb: openpyxl.Workbook, matched_records: List[Di
     for col_letter, width in WIDTHS_DIFF_TABS.items():
         ws.column_dimensions[col_letter].width = width
 
-    # Row 1: Header
-    ws.row_dimensions[1].height = 30.0
-    for col_idx, header_text in enumerate(HEADERS_DIFF_TAB, start=1):
-        cell = ws.cell(row=1, column=col_idx, value=header_text)
-        cell.font = FONT_HEADER
-        cell.fill = FILL_HEADER_TEAL
-        cell.alignment = ALIGN_CENTER
-        cell.border = BORDER_THIN
+        # Row 1: Header
+        ws.row_dimensions[1].height = 30.0
+        has_mawarid = any(bool(r.get("mawarid_format")) for r in matched_records if isinstance(r, dict))
+        headers = list(HEADERS_DIFF_TAB)
+        if has_mawarid:
+            headers[1] = "رقم الحساب"
+            headers[3] = "اسم المحصل"
+        for col_idx, header_text in enumerate(headers, start=1):
+            cell = ws.cell(row=1, column=col_idx, value=header_text)
+            cell.font = FONT_HEADER
+            cell.fill = FILL_HEADER_TEAL
+            cell.alignment = ALIGN_CENTER
+            cell.border = BORDER_THIN
 
     current_row = 2
     for rec in matched_records:
@@ -458,16 +475,17 @@ def update_errors_or_results_sheet(
 
     # Save to disk: In-place with fallback copy
     updated_path = workbook_path.with_name(f"{workbook_path.stem}_محدث.xlsx")
-    final_return_path = updated_path
+    final_return_path = None
 
     try:
-        wb.save(updated_path)
+        atomic_workbook_save(wb, updated_path)
+        final_return_path = updated_path
         logger.info(f"Saved distributed results to {updated_path}")
     except Exception as e:
         logger.warning(f"Failed to save {updated_path}: {e}")
 
     try:
-        wb.save(workbook_path)
+        atomic_workbook_save(wb, workbook_path)
         logger.info(f"Updated original results file in-place at {workbook_path}")
         final_return_path = workbook_path
     except PermissionError:
@@ -476,6 +494,8 @@ def update_errors_or_results_sheet(
         logger.warning(f"Could not overwrite {workbook_path}: {e}")
 
     wb.close()
+    if final_return_path is None:
+        return False, None, "تعذر حفظ ملف النتائج؛ لم تُنشر نسخة مكتملة."
     return True, final_return_path, (
         f"تم بنجاح تحديث ملف النتائج الأصلي وتوزيع السجلات في تبويباتها الصحيحة: "
         f"({len(match_records)} مطابقة، {len(diff_pos_records)} فروقات إيجابية، "
@@ -655,16 +675,17 @@ def update_raw_portfolio_sheet(
         updated_count += 1
 
     updated_path = workbook_path.with_name(f"{workbook_path.stem}_محدث_بالفحص.xlsx")
-    final_return_path = updated_path
+    final_return_path = None
 
     try:
-        wb.save(updated_path)
+        atomic_workbook_save(wb, updated_path)
+        final_return_path = updated_path
         logger.info(f"Saved updated master portfolio to {updated_path}")
     except Exception as e:
         logger.warning(f"Failed to save {updated_path}: {e}")
 
     try:
-        wb.save(workbook_path)
+        atomic_workbook_save(wb, workbook_path)
         logger.info(f"Updated original master file in-place at {workbook_path}")
         final_return_path = workbook_path
     except PermissionError:
@@ -673,6 +694,8 @@ def update_raw_portfolio_sheet(
         logger.warning(f"Could not overwrite {workbook_path}: {e}")
 
     wb.close()
+    if final_return_path is None:
+        return False, None, "تعذر حفظ ملف النتائج؛ لم تُنشر نسخة مكتملة."
     return True, final_return_path, f"تم بنجاح تحديث وتوثيق نتائج فحص {updated_count} صف في ملف المحفظة."
 
 
@@ -684,6 +707,10 @@ def update_source_workbook_after_job(
     has_headers: bool = True,
 ) -> Tuple[bool, Optional[Path], str]:
     """Inspects the sheet and delegates to either results distributor or master portfolio updater."""
+    from services.file_client import remote_files_enabled, file_rpc
+    if remote_files_enabled():
+        return tuple(file_rpc('source.update', {'path': workbook_path, 'records': records,
+            'sheet_index': sheet_index, 'is_repair_session': is_repair_session, 'has_headers': has_headers}))
     if not workbook_path or not workbook_path.exists():
         return False, None, "لم يتم تحديد مسار ملف صالح للتحديث"
 

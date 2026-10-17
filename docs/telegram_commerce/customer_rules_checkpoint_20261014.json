@@ -1,0 +1,50 @@
+{
+  "status": "in_progress",
+  "production_schema_version": 28,
+  "staged_migrations": [],
+  "confirmed_rules": {
+    "currency": "EGP",
+    "default_minor": 1,
+    "sheet_limit": 4000,
+    "service_threshold": 500,
+    "service_excess": "admin_configurable",
+    "stop": "drain_inflight_deliver_partial_refund_unused",
+    "promotion": "expire_unused_preserve_paid_cash_and_held_requests",
+    "continuous_queue": true
+  },
+  "current_app_pid": 17596,
+  "bot_intake": "temporarily_disabled_to_prevent_duplicate_legacy_deposit_claims",
+  "financial_files_mutated_by_agent": false,
+  "legacy_transition_not_committed": true,
+  "live_findings": {
+    "wallet_operation_261014_0002": "active_paused_partial_593_rows_at_last_read",
+    "wallet_operation_261014_0004": "pending_preserved",
+    "duplicate_deposit_aliases": [
+      442426326,
+      545342618
+    ],
+    "duplicate_credit_minor": 47524,
+    "ownership_question_pending": true
+  },
+  "local_postgres": {
+    "data_directory": "E:\\Projects\\smart_zainchecker_gemini\\scratch\\commerce_pg_20261014\\data",
+    "port": 63782
+  },
+  "passed_checks": [
+    "SQL pricing, promotional expiry, partial stop and cent-percent rounding in acceptance_customer_commerce_1b084ddffb46.json",
+    "15 offline customer runtime and pricing UI tests",
+    "223 commerce unit tests",
+    "225 previous Telegram regressions"
+  ],
+  "remaining": [
+    "controlled incoming note echo and pin verified receiver UID before enabling automatic Binance note credits",
+    "review old duplicated receipt ownership without choosing first claimant",
+    "complete audited legacy wallet adoption and preserve partial progress",
+    "load new local runtime and activate queue after financial reconciliation",
+    "preserve all A01-A77 unfinished scope"
+  ],
+  "ownership_question_pending": false,
+  "binance_note_live_test_pending": true,
+  "user_current_choice": "keep ordinary Binance account; verify pre-payment private note without Merchant",
+  "cash_commit_fix": "cash_commit_fix_20261015.json"
+}

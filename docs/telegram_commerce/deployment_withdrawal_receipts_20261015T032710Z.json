@@ -1,0 +1,16 @@
+{
+  "at": "2026-10-15T03:27:10.770454+00:00",
+  "project": "avuzwbmiiavbuaxmnitp",
+  "migration": "202610150034_commerce_withdrawal_receipts",
+  "sha256": "41a6499c9786314bc28aaa179d477189faa3c51a84d877a4281468eb047d7a14",
+  "status": "applied",
+  "verification": [
+    {
+      "receipt_storage_available": true,
+      "public_access_denied": true,
+      "direct_evidence_edits_denied": true
+    }
+  ],
+  "financial_records_modified": false,
+  "partner_messages_sent": false
+}

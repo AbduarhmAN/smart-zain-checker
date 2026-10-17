@@ -130,7 +130,8 @@ class MinimalSheetTests(unittest.TestCase):
         wb = workbook([['1000000001', 0], ['2000000001', 125.50]])
         handler = object.__new__(WebApiHandler)
         handler.send_json = Mock()
-        with patch('openpyxl.load_workbook', return_value=wb):
+        handler.project_root = Path('.').resolve()
+        with patch('domain.workbook.load_fast_workbook', return_value=wb):
             mapped, name, count = handler._validate_input_sheet(Path('fixture.xlsx'), 0,
                 {'lookup_col':'A', 'amount_col':'B', 'has_headers':False}, 'smart_hybrid', 'remaining')
         self.assertFalse(mapped['has_headers'])
@@ -142,24 +143,26 @@ class MinimalSheetTests(unittest.TestCase):
         wb.save = Mock()
         records = [{'row':1, 'account':'1000000001', 'status':'match', 'live_sar':0, 'diff_sar':0},
                    {'row':2, 'service':'2000000001', 'status':'match', 'live_sar':125.50, 'diff_sar':0}]
-        with patch('pathlib.Path.exists', return_value=True), patch('zain_checker.sheet_updater.load_workbook', return_value=wb):
+        with patch('pathlib.Path.exists', return_value=True), patch('zain_checker.sheet_updater.load_workbook', return_value=wb), \
+                patch('zain_checker.sheet_updater.atomic_workbook_save') as save:
             ok, _, _ = update_raw_portfolio_sheet(Path('fixture.xlsx'), records, has_headers=False)
         self.assertTrue(ok)
         self.assertEqual(wb.active['A1'].value, '1000000001')
         self.assertEqual(wb.active['B1'].value, 0)
         self.assertEqual(wb.active['C1'].value, 0)
         self.assertEqual(wb.active['C2'].value, 125.50)
-        self.assertTrue(wb.save.called)
+        self.assertEqual(save.call_count,2)
+        self.assertIs(save.call_args.args[0],wb)
 
     def test_worker_loader_receives_headerless_flag(self):
         wb = workbook([['1000000001', 0], ['2000000001', 125.50]])
         orchestrator = object.__new__(Orchestrator)
         orchestrator.lock = threading.RLock()
         orchestrator.is_running = False
-        with patch('openpyxl.load_workbook', return_value=wb), patch('manager.orchestrator.extract_customer_records', return_value=[]) as extract:
+        with patch('domain.workbook.load_fast_workbook', return_value=wb), patch('domain.workbook.extract_session_customers', return_value=[]) as extract:
             self.assertFalse(orchestrator.start_session_from_config(Path('fixture.xlsx'), 0,
                 {'lookup_col':'A', 'service_col':'A', 'amount_col':'B', 'has_headers':False}, amount_target='remaining'))
-        self.assertFalse(extract.call_args.kwargs['has_headers'])
+        self.assertFalse(extract.call_args.args[1]['has_headers'])
         self.assertFalse(orchestrator.source_has_headers)
 
 

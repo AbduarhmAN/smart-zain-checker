@@ -1,0 +1,556 @@
+{
+  "source": "https://app.notion.com/p/3f8d55ae856080fb8ed8f647a32e7048",
+  "read_at": "2026-10-14",
+  "source_last_edited_at": "2026-10-13T21:39:07.688Z",
+  "decisions": {
+    "unit_price_egp": "0.01",
+    "unit": "check",
+    "partner_entitlement_modes": [
+      "checks",
+      "duration",
+      "forever"
+    ],
+    "refund_destination": "wallet",
+    "refund_requires_consent": true,
+    "entitlement_anchor": "first_completed_paid_service",
+    "entitlement_count_basis": "successful_paid_checks",
+    "billing_rule": "valid_result_paid_technical_failure_refunded",
+    "commission_basis": "collected_after_discounts_and_refunds",
+    "commission_expenses_deducted": false,
+    "archive_original_timing": "after_completion",
+    "archive_protection": "plaintext_with_sha256",
+    "archive_original_retention_days": 15,
+    "archive_result_retention_days": 15,
+    "automatic_file_deletion": false,
+    "customer_sheet_limit": 4000,
+    "service_tier_threshold": 500,
+    "service_tier_excess_price": "admin_configurable",
+    "customer_unit_price_overrides": true,
+    "promotional_credit_expires_with_offer": true,
+    "continuous_funded_queue": true,
+    "customer_stop": "confirm_then_drain_inflight_deliver_partial_result_refund_unexecuted_and_technical_failures",
+    "live_price_change_rule": "New quotes only; preserve paid operation 261014-0004 and all existing frozen amounts",
+    "latest_human_confirmation": "Voice session 2026-10-14; currency explicitly confirmed EGP, 0.01 per customer",
+    "binance_personal_payment_binding": "private_pre_payment_note_pinned_to_customer_quote_and_payer_uid",
+    "binance_raw_txid_auto_credit": false,
+    "binance_note_live_echo_required": true,
+    "partner_discount_funding": "original_share_of_current_campaign_order_no_prior_earnings_required",
+    "partner_discount_example": {
+      "gross_egp": "100",
+      "approved_share_percent": "30",
+      "discount_percent": "20",
+      "customer_egp": "80",
+      "partner_egp": "10",
+      "platform_egp": "70"
+    },
+    "financial_money_precision": "PostgreSQL numeric plus Python Decimal; exact sub-piastre amounts; no percentage rounding",
+    "customer_referral_ui": "hidden; attribution preserved internally; partner/admin tools remain visible",
+    "partner_campaign_creation": "partner_self_service_within_approved_share_and_admin_limits",
+    "latest_partner_confirmation": "2026-10-15: no previous-profit funding; preserve and display 0.00001 EGP exactly"
+  },
+  "items": [
+    {
+      "id": "A01",
+      "requirement": "تحويل المتطلبات إلى مخطط Supabase يشمل المستخدمين والشركاء والأكواد والطلبات/التشييكات والمدفوعات والمحافظ والعمولات والسحوبات.",
+      "status": "database_applied_and_verified_runtime_pending"
+    },
+    {
+      "id": "A02",
+      "requirement": "تحديد بيانات حساب المستخدم: User ID، هوية Telegram، تاريخ أول استخدام، المحفظة، والشريك/مصدر الإحالة عند وجوده.",
+      "status": "database_applied_and_verified_runtime_pending"
+    },
+    {
+      "id": "A03",
+      "requirement": "فصل حالة تسجيل المستخدم عن حالة الطلب والدفع والتنفيذ واستحقاق العمولة.",
+      "status": "database_applied_and_verified_runtime_pending"
+    },
+    {
+      "id": "A04",
+      "requirement": "مراجعة ما يرسله ويستقبله البوت ونظام التشييك القائم، والحقول المحفوظة فعلياً، قبل بناء الربط المالي.",
+      "status": "review_documented"
+    },
+    {
+      "id": "A05",
+      "requirement": "تحديد كيف تصل نتائج النجاح والفشل النهائية من نظام التشييك إلى Supabase، دون افتراض إعادة بناء نظام المعالجة القائم.",
+      "status": "checkout_queue_and_delivery_bridge_verified_live_cutover_pending"
+    },
+    {
+      "id": "A06",
+      "requirement": "وضع قواعد تمنع تسجيل العملية المدفوعة أو القيد المالي أو العمولة مرتين عند تكرار المحاولة/الحدث.",
+      "status": "constraints_commission_withdrawal_concurrency_and_lost_ack_verified_gated"
+    },
+    {
+      "id": "A07",
+      "requirement": "**مقترح:** ترتيب التنفيذ على مراحل تبدأ بالأساسيات والعمليات المدفوعة والمحافظ، ثم ربط العمولات وبقية الإضافات.",
+      "status": "execution_sequence_documented"
+    },
+    {
+      "id": "A08",
+      "requirement": "إنشاء كود إحالة خاص لكل شريك.",
+      "status": "database_and_bot_routing_verified_live_bot_not_restarted"
+    },
+    {
+      "id": "A09",
+      "requirement": "إنشاء رابط Telegram ترويجي يحمل مصدر إحالة الشريك.",
+      "status": "database_and_bot_routing_verified_live_bot_not_restarted"
+    },
+    {
+      "id": "A10",
+      "requirement": "دعم إدخال كود الإحالة يدوياً داخل البوت، وليس عبر الرابط فقط.",
+      "status": "database_and_bot_routing_verified_live_bot_not_restarted"
+    },
+    {
+      "id": "A11",
+      "requirement": "توحيد التحقق والإسناد بين رابط الشريك والكود اليدوي.",
+      "status": "database_and_bot_routing_verified_live_bot_not_restarted"
+    },
+    {
+      "id": "A12",
+      "requirement": "تحديد أهلية العميل الجديد وفق عدم وجود خدمة مدفوعة سابقة، لا وفق فتح البوت أو مرور يوم/عدة أيام على التسجيل.",
+      "status": "database_and_bot_routing_verified_live_bot_not_restarted"
+    },
+    {
+      "id": "A13",
+      "requirement": "إبقاء العميل الذي شحن محفظته ولم ينفذ خدمة مدفوعة مؤهلاً للإحالة قبل أول عملية خدمة مدفوعة.",
+      "status": "database_and_bot_routing_verified_live_bot_not_restarted"
+    },
+    {
+      "id": "A14",
+      "requirement": "التحقق من أهلية الكود وعدم وجود ارتباط متعارض بشريك آخر قبل قبول الإحالة.",
+      "status": "database_and_bot_routing_verified_live_bot_not_restarted"
+    },
+    {
+      "id": "A15",
+      "requirement": "تسجيل أول مصدر إحالة صحيح وتطبيق أولوية «أول كود صحيح» عند تعارض رابط A مع كود B.",
+      "status": "database_and_bot_routing_verified_live_bot_not_restarted"
+    },
+    {
+      "id": "A16",
+      "requirement": "تثبيت ارتباط العميل بالشريك عند أول خدمة مدفوعة؛ **قرار مطلوب:** توضيح الفرق بين حفظ المصدر مسبقاً وتثبيت الارتباط، وهل يسمح بتغييره قبل تلك العملية.",
+      "status": "database_and_durable_checker_delivery_bridge_verified_paid_ui_cutover_pending"
+    },
+    {
+      "id": "A17",
+      "requirement": "فصل إسناد العميل للشريك عن أثر الخصم؛ لا يُلغى مصدر العميل عند تطبيق عرض آخر، ويمكن وجود إحالة بلا خصم أو خصم بلا إحالة.",
+      "status": "platform_discount_selection_preserves_referral_verified_partner_funded_campaign_pending"
+    },
+    {
+      "id": "A18",
+      "requirement": "**قرار مطلوب:** تحديد مدة استحقاق الشريك عن العميل: مدى حياة العميل أم مدة/سقف محدد، وعدم تحويل المثال المطروح إلى قاعدة دون اعتماد.",
+      "status": "checks_duration_forever_settings_and_commission_application_verified_gated"
+    },
+    {
+      "id": "A19",
+      "requirement": "حساب عدد التشييكات داخل الملف وتكلفته تلقائياً؛ وحدة التسعير هي التشييك لا عدد الملفات.",
+      "status": "per_check_order_and_immutable_input_checkout_verified_gated"
+    },
+    {
+      "id": "A20",
+      "requirement": "دعم شحن محفظة العميل ثم دفع تكلفة الطلب من رصيده.",
+      "status": "cryptopay_manual_transfer_and_cash_wallet_topup_verified_gated_legacy_cutover_pending"
+    },
+    {
+      "id": "A21",
+      "requirement": "دعم دفع تكلفة الطلب مباشرة دون تسجيلها كشحن لمحفظة العميل.",
+      "status": "server_wallet_ui_topup_and_reservation_verified_legacy_migration_pending"
+    },
+    {
+      "id": "A22",
+      "requirement": "تخصيص/حجز المبلغ المطلوب قبل بدء التنفيذ، ثم ربط التحصيل النهائي بإكمال الخدمة وتسليم النتيجة.",
+      "status": "direct_checkout_manual_claim_approval_and_recovery_verified_gated"
+    },
+    {
+      "id": "A23",
+      "requirement": "احتساب المبلغ النهائي وفق نتائج التشييكات، وإعادة قيمة الجزء الفاشل حتى عندما تكون الأخطاء قليلة.",
+      "status": "database_and_durable_checker_delivery_bridge_verified_paid_ui_cutover_pending"
+    },
+    {
+      "id": "A24",
+      "requirement": "ربط كل استرداد بـOrder ID في Supabase وتسجيله مرة واحدة فقط.",
+      "status": "database_and_durable_checker_delivery_bridge_verified_paid_ui_cutover_pending"
+    },
+    {
+      "id": "A25",
+      "requirement": "منع رد الجزء نفسه لطريقة الدفع الأصلية وإضافته كرصيد محفظة في الوقت نفسه.",
+      "status": "database_and_durable_checker_delivery_bridge_verified_paid_ui_cutover_pending"
+    },
+    {
+      "id": "A26",
+      "requirement": "**قرار مطلوب:** تحديد متى يعد الفشل نهائياً بعد المعالجة/محاولات الإعادة الحالية، ومتى تبدأ تسويته المالية.",
+      "status": "database_and_durable_checker_delivery_bridge_verified_paid_ui_cutover_pending"
+    },
+    {
+      "id": "A27",
+      "requirement": "مراجعة وسائل الدفع المذكورة: Crypto وBinance/Direct Pay والدفع النقدي؛ تحديد كيفية التحقق من وصول الدفعة وربطها بالعميل والطلب.",
+      "status": "cryptopay_invoice_binance_note_binding_and_cash_code_topup_verified_gated"
+    },
+    {
+      "id": "A28",
+      "requirement": "تصميم أكواد إضافة الرصيد مقابل الدفع النقدي كمنفعة مالية مختلفة عن أكواد الخصم والإحالة، حتى لو كانت واجهة الإدخال موحدة.",
+      "status": "funded_cash_credit_codes_shared_receipt_registry_and_customer_redemption_verified_gated"
+    },
+    {
+      "id": "A29",
+      "requirement": "**قرار مطلوب:** توضيح هل «الحجز» في الدفع المباشر هو تفويض لدى مزود الدفع ثم تحصيل، أم تخصيص محاسبي داخلي بعد استلام المال.",
+      "status": "internal_accounting_reservation_after_payment_receipt_verified_gated"
+    },
+    {
+      "id": "A30",
+      "requirement": "التحقق من دعم مزود الدفع المختار للحجز والتحصيل الجزئي ورد جزء من المبلغ إلى المصدر الأصلي.",
+      "status": "wallet_reservation_and_unexecuted_partial_refund_to_wallet_verified_gated"
+    },
+    {
+      "id": "A31",
+      "requirement": "**قرار مطلوب:** اعتماد سياسة رد قيمة الفشل إلى المحفظة الداخلية أو المصدر الأصلي، وتحديد الحالات المتاحة لكل وسيلة دفع.",
+      "status": "database_and_durable_checker_delivery_bridge_verified_paid_ui_cutover_pending"
+    },
+    {
+      "id": "A32",
+      "requirement": "توضيح سياسة الاسترداد للعميل والحصول على موافقته، خصوصاً إذا كان رد الدفع المباشر رصيداً يستخدم لاحقاً لا رداً نقدياً.",
+      "status": "financial_rpc_applied_and_verified_runtime_flow_pending"
+    },
+    {
+      "id": "A33",
+      "requirement": "فصل محفظة العميل عن محفظة أرباح الشريك.",
+      "status": "customer_partner_wallets_commissions_and_withdrawals_separate_verified_gated"
+    },
+    {
+      "id": "A34",
+      "requirement": "فصل سجلات شحن الرصيد والمدفوعات المباشرة والعمولات، وعدم اعتبار كل مبلغ يدخل النظام عمولة مستحقة.",
+      "status": "topup_direct_service_commission_and_payout_ledger_separate_verified_gated"
+    },
+    {
+      "id": "A35",
+      "requirement": "تمييز الأموال/العمولات المعلّقة عن الرصيد المتاح والرصيد المسحوب.",
+      "status": "pending_service_available_earnings_held_and_paid_withdrawals_verified_gated"
+    },
+    {
+      "id": "A36",
+      "requirement": "احتساب العمولة بعد إنجاز الخدمة وعلى الدخل الفعلي؛ استبعاد التشييكات الفاشلة أو غير المحققة لإيراد، وعدم احتسابها بمجرد شحن المحفظة.",
+      "status": "net_paid_checks_commission_after_confirmed_delivery_verified_gated"
+    },
+    {
+      "id": "A37",
+      "requirement": "**قرار مطلوب:** تثبيت معادلة العمولة عند وجود خصومات ومصروفات واستردادات، وتحديد أساس النسبة بدقة.",
+      "status": "net_collected_no_expenses_frozen_rate_half_up_per_check_verified_gated"
+    },
+    {
+      "id": "A38",
+      "requirement": "حفظ نسبة/شروط العمولة السارية وقت العملية حتى لا تختلط العمليات القديمة بتعديلات النسب الجديدة.",
+      "status": "frozen_order_and_late_referral_terms_commission_application_verified_gated"
+    },
+    {
+      "id": "A39",
+      "requirement": "تسجيل سحوبات الشريك ومبالغها وربطها برصيده ومستحقاته.",
+      "status": "partner_withdrawals_hold_approve_receipt_reject_and_replay_verified_gated"
+    },
+    {
+      "id": "A40",
+      "requirement": "**مقترح:** إعداد عرض ترحيبي للعملاء الجدد المؤهلين، دون اشتراط أن يكونوا تابعين لشريك.",
+      "status": "admin_created_new_customer_platform_offer_and_immutable_activation_verified_gated"
+    },
+    {
+      "id": "A41",
+      "requirement": "إعداد خصم الشريك وفق اتفاق يوضح أنه ممول من حصته.",
+      "status": "partner_original_share_discount_database_telegram_and_runtime_verified"
+    },
+    {
+      "id": "A42",
+      "requirement": "**مقترح:** دعم عرض للاحتفاظ بالعميل دون إنشاء إحالة لشريك أو تغيير إحالته الأصلية.",
+      "status": "existing_customer_platform_campaign_preserves_referral_verified_gated"
+    },
+    {
+      "id": "A43",
+      "requirement": "بناء قواعد حملة قابلة للضبط تدعم نسبة خصم، مبلغاً ثابتاً، تشييكات مجانية أو رصيد محفظة؛ لا يلزم كتابة نظام مستقل لكل عرض جديد.",
+      "status": "platform_percent_fixed_free_and_classified_wallet_credit_verified_partner_and_cash_code_engine_pending"
+    },
+    {
+      "id": "A44",
+      "requirement": "تحديد أهلية العميل وأنواع التشييكات المشمولة بكل حملة، مع تسعير الأنواع غير المشمولة بالطريقة المعتادة.",
+      "status": "platform_campaign_check_type_and_customer_cohort_eligibility_verified_partner_offers_pending"
+    },
+    {
+      "id": "A45",
+      "requirement": "تحديد مدة الحملة ولحظة بدايتها وانتهائها؛ عرض «ثلاثة أيام» يبدأ من التفعيل وفق المثال المطروح.",
+      "status": "activation_duration_immutable_replay_and_expiry_verified_global_schedule_ui_pending"
+    },
+    {
+      "id": "A46",
+      "requirement": "حساب استهلاك حد العرض تراكمياً بعدد التشييكات عبر الملفات، وليس بعدد الملفات المرفوعة.",
+      "status": "cross_order_platform_campaign_reservation_consumption_and_failure_release_verified_gated"
+    },
+    {
+      "id": "A47",
+      "requirement": "تطبيق العرض على الجزء المتبقي من حدّه فقط إذا تجاوز الملف الحد، وتسعير الباقي دون ذلك الخصم.",
+      "status": "remaining_check_and_money_limits_price_uncovered_rows_normally_verified_gated"
+    },
+    {
+      "id": "A48",
+      "requirement": "**قرار مطلوب:** اختيار حدود عدد التشييكات أو التكلفة المالية للعروض، وخاصة عروض الأيام المجانية؛ عدم اعتماد الأرقام التوضيحية كحدود نهائية.",
+      "status": "explicit_admin_percentage_check_money_budget_duration_and_activation_limits_verified_gated"
+    },
+    {
+      "id": "A49",
+      "requirement": "إعلان حدود العرض ومدته والأنواع المؤهلة بوضوح للعميل، وعدم وصف عرض محدود بأنه مجاني بلا حدود.",
+      "status": "platform_offer_limits_duration_funder_and_usage_display_verified_partner_offers_pending"
+    },
+    {
+      "id": "A50",
+      "requirement": "تسجيل من يمول كل خصم: الشريك أم المنصة، وأثر الخصم على العمولة بشكل منفصل عن رصيد المحفظة الحقيقي.",
+      "status": "platform_and_partner_discount_funding_classified_without_debiting_prior_partner_earnings_verified"
+    },
+    {
+      "id": "A51",
+      "requirement": "**قرار مطلوب:** تحديد حد التضحية بعمولة الشريك (أول عدد من التشييكات أو سقف مبلغ)، ومتى تعود العمولة المعتادة بعد انتهاء العرض.",
+      "status": "bounded_checks_money_duration_and_campaign_caps_verified_normal_share_after_offer"
+    },
+    {
+      "id": "A52",
+      "requirement": "**مقترح:** منع عرض الشريك إذا تجاوز الخصم حصته، إلا بموافقة الإدارة على تمويل الفرق.",
+      "status": "partner_discount_above_current_or_frozen_approved_share_rejected_verified"
+    },
+    {
+      "id": "A53",
+      "requirement": "تطبيق أفضل خصم مؤهل تلقائياً بدلاً من جمع الخصومات افتراضياً.",
+      "status": "automatic_best_single_eligible_platform_campaign_verified_partner_and_stack_selection_pending"
+    },
+    {
+      "id": "A54",
+      "requirement": "حفظ جميع العروض/الخصومات المفعلة للعميل وتسجيل أيّها استُخدم فعلياً وأثره في العملية.",
+      "status": "all_platform_activations_and_selected_order_discount_snapshots_verified_gated"
+    },
+    {
+      "id": "A55",
+      "requirement": "جعل الجمع بين الخصومات استثناءً يحتاج سماحاً صريحاً، مع عدم تغيير ملكية الإحالة بسبب اختيار الخصم.",
+      "status": "default_no_stacking_and_referral_preservation_verified_explicit_stack_exception_pending"
+    },
+    {
+      "id": "A56",
+      "requirement": "إنشاء لوحة للشريك تعرض أرباح اليوم، العملاء الذين جلبهم، عدد التشييكات ومبالغ النشاط الناتج عنهم، لا عدد الملفات وحده.",
+      "status": "partner_dashboard_today_clients_paid_checks_and_net_activity_verified_gated"
+    },
+    {
+      "id": "A57",
+      "requirement": "إظهار أرصدة الشريك وسحوباته وحالة المستحقات ضمن المتابعة.",
+      "status": "partner_balances_and_owned_persistent_withdrawal_history_verified_gated"
+    },
+    {
+      "id": "A58",
+      "requirement": "إنشاء لوحة إدارة للتحكم في نسب الشركاء والأكواد المستخدمة ومتابعة العمليات ومصدر كل عميل.",
+      "status": "admin_partner_management_panels_roles_and_pricing_controls_verified_gated"
+    },
+    {
+      "id": "A59",
+      "requirement": "تمكين الإدارة من ضبط الحد الأقصى للخصم، أنواع العروض، الحدود المالية، وقرار السماح بعروض مفتوحة أو تمويل الفرق.",
+      "status": "admin_limits_and_partner_share_limits_verified_unbounded_offers_and_over_share_subsidies_not_enabled"
+    },
+    {
+      "id": "A60",
+      "requirement": "**مقترح للنسخة الأولى:** قصر إنشاء الحملات على الإدارة، مع إتاحة تقديم طلبات عروض من الشركاء للموافقة عليها.",
+      "status": "superseded_by_human_20261015_partner_self_creation_within_share_and_admin_limits_verified"
+    },
+    {
+      "id": "A61",
+      "requirement": "**مقترح لاحق:** فتح إنشاء العروض للشركاء داخل الحدود المعتمدة فقط بعد التحقق من صحة الحسابات.",
+      "status": "partner_campaign_self_service_within_admin_policy_limits_verified_gated"
+    },
+    {
+      "id": "A62",
+      "requirement": "إنشاء قناة Telegram خاصة للأرشيف ومنح البوت الصلاحيات اللازمة للنشر/النسخ إليها.",
+      "status": "private_channel_bot_permissions_and_synthetic_live_send_verified"
+    },
+    {
+      "id": "A63",
+      "requirement": "تخصيص Order ID فريد لكل طلب لا يتكرر بين جميع المستخدمين والعمليات.",
+      "status": "global_order_uuid_database_and_checkout_verified_live_cutover_pending"
+    },
+    {
+      "id": "A64",
+      "requirement": "حفظ الملف الأصلي وملف النتيجة مع Order ID نفسه لإثبات ما استُلم وما سُلّم عند النزاع.",
+      "status": "immutable_original_result_uuid_sha256_and_archive_index_verified_gated"
+    },
+    {
+      "id": "A65",
+      "requirement": "إعداد Caption يتضمن رقم الطلب وهوية العميل وعدد التشييكات والنتيجة/المبلغ والهاش عند الحاجة.",
+      "status": "exact_final_counts_charge_refund_and_sha256_caption_verified"
+    },
+    {
+      "id": "A66",
+      "requirement": "**مقترح تقني يحتاج تحققاً:** استخدام `copyMessage` أو `file_id` لنسخ ملف موجود على Telegram بدلاً من تنزيله ورفعه مجدداً.",
+      "status": "bot_scoped_file_id_reuse_verified_live_no_reupload"
+    },
+    {
+      "id": "A67",
+      "requirement": "رفع ملف النتيجة مرة واحدة، ثم إعادة استخدامه للعميل والأرشيف دون رفع متكرر عندما تدعم الطريقة ذلك.",
+      "status": "one_binary_upload_and_archive_reuse_verified_synthetic_live_customer_cutover_pending"
+    },
+    {
+      "id": "A68",
+      "requirement": "حفظ فهرس Supabase للطلب ومعرّفات رسائل الأرشيف وfile ID والهاشات والبيانات المالية؛ إبقاء الملفات نفسها على Telegram وفق التصور منخفض التكلفة.",
+      "status": "archive_index_schema17_applied_rpc_rls_verified_no_production_order_created"
+    },
+    {
+      "id": "A69",
+      "requirement": "دعم العثور على الأصل والنتيجة برقم الطلب داخل القناة، واستخدام الفهرس المحفوظ في Supabase للوصول البرمجي بدلاً من الاعتماد على بحث كامل في Bot API.",
+      "status": "owned_archive_result_callback_gate_corrected_and_verified_admin_reconciliation_gated"
+    },
+    {
+      "id": "A70",
+      "requirement": "**قرار مطلوب:** حسم توقيت أرشفة الأصل: عند الاستلام أم بعد نجاح الطلب، وتحديد ما يحتفظ به للطلبات التي تفشل بالكامل.",
+      "status": "after_terminal_delivery_settlement_full_refund_archive_verified"
+    },
+    {
+      "id": "A71",
+      "requirement": "**قرار مطلوب:** تحديد مدة الاحتفاظ بالملفات والبيانات، مع مراعاة طلب حفظ الأصل لمدة لا تقل عن 24 ساعة والاحتفاظ بالهاش/الفهرس عند الحاجة بعد حذف الملف.",
+      "status": "15_day_immutable_deadline_recorded_no_automatic_deletion"
+    },
+    {
+      "id": "A72",
+      "requirement": "التحقق من حدود الرفع والتنزيل والنسخ في إعداد البوت الفعلي؛ عدم تقديم وعود بأحجام الملفات بناءً على أرقام الاجتماع وحدها.",
+      "status": "hosted_limits_documented_small_file_upload_reuse_download_sha_verified_live_max_size_not_probed"
+    },
+    {
+      "id": "A73",
+      "requirement": "**مقترح:** وضع نسخة احتياطية/خطة بديلة وعدم اعتبار Telegram ضماناً وحيداً للتخزين الدائم أو لاستمرار الوصول إلى القناة.",
+      "status": "local_hash_verified_fallback_implemented_off_host_backup_plan_documented_provider_not_configured"
+    },
+    {
+      "id": "A74",
+      "requirement": "**مقترح:** تسجيل رسائل الدعم والردود المهمة لحظة ورودها للاستفادة منها في النزاعات؛ عدم الاعتماد على استعادة الرسائل المحذوفة أو سجل كامل لاحقاً.",
+      "status": "order_linked_support_durable_arrival_source_edits_owned_history_admin_review_delivery_receipts_verified_gated"
+    },
+    {
+      "id": "A75",
+      "requirement": "ضبط الوصول للمعلومات والأرصدة بحيث لا يتمكن مستخدم من تعديل الأموال أو بيانات غير مخوّل بها.",
+      "status": "service_role_rpc_isolation_105_functions_local_http_and_bridge_token_verified"
+    },
+    {
+      "id": "A76",
+      "requirement": "وضع حدود وآلية لمنع استغلال العروض والعمولات عبر إنشاء حسابات متعددة؛ هوية Telegram تعرّف الحساب العائد لكنها لا تحسم هوية الشخص عبر عدة حسابات.",
+      "status": "anti_abuse_immutable_referrals_net_cash_commissions_and_target_dedup_audit_verified"
+    },
+    {
+      "id": "A77",
+      "requirement": "**قرار مطلوب:** تقييم الحاجة لتشفير الملفات قبل رفعها؛ إذا اعتمد، حفظ المفتاح بأمان خارج الأرشيف وإدراج فك التشفير في الاسترجاع.",
+      "status": "user_approved_plaintext_sha256_implemented_hash_is_not_encryption"
+    }
+  ],
+  "payment_progress": {
+    "migration": "202610140010_commerce_payment_requests",
+    "unit_tests": 89,
+    "local_database_concurrency_evidence": "acceptance_commerce_acceptance_16642b2eb9eb.json",
+    "invoice_recovery_evidence": "acceptance_commerce_payment_d648c1c361ff.json",
+    "runtime_verification": "runtime_verification_20261013T233019Z.json",
+    "legacy_payment_ui_cutover": false,
+    "production_bot_restarted": false
+  },
+  "checkout_progress": {
+    "migration": "202610140011_commerce_checkout",
+    "commerce_tests": 101,
+    "telegram_tests": 193,
+    "local_checkout_evidence": "acceptance_commerce_checkout_cf888d6fc133.json",
+    "database_evidence": "acceptance_commerce_acceptance_3096d35a593f.json",
+    "production_bot_restarted": false,
+    "checkout_enabled": false,
+    "wallet_migration": false
+  },
+  "manual_payment_progress": {
+    "migration": "202610140012_commerce_payment_claims",
+    "commerce_tests": 121,
+    "telegram_tests": 193,
+    "database_evidence": "acceptance_commerce_acceptance_9f6e5e30b2c6.json",
+    "manual_assignment_evidence": "acceptance_commerce_manual_2ca9d0d0260e.json",
+    "production_bot_restarted": false,
+    "checkout_enabled": false
+  },
+  "legacy_wallet_preview": {
+    "wallet_accounts": 3,
+    "conflicts": 0,
+    "total_available_minor": 0,
+    "unresolved_payments": 3,
+    "paid_service_candidates": 1,
+    "cutover_ready": false,
+    "balances_changed": false,
+    "provider_probe": {
+      "stored_matching_invoices": 3,
+      "stored_invoice_status": "active",
+      "malformed_bsc_reference": 1,
+      "declared_binance_deposit_verified": false,
+      "financial_decisions_committed": false
+    }
+  },
+  "wallet_progress": {
+    "migration": "202610140013_commerce_cash_topups",
+    "commerce_tests": 138,
+    "telegram_tests": 193,
+    "local_funding_evidence": "acceptance_commerce_wallet_8e1d5774f64b.json",
+    "concurrency_evidence": "acceptance_commerce_acceptance_9869204034ac.json",
+    "production_bot_restarted": false,
+    "balances_migrated": false
+  },
+  "archive_progress": {
+    "migration": "202610140017_commerce_archive",
+    "configuration_enabled": true,
+    "local_sql_evidence": "acceptance_commerce_acceptance_205d716d076c.json",
+    "archive_local_evidence": "acceptance_commerce_archive_eb69cf8d45bd.json",
+    "archive_live_evidence": "acceptance_commerce_archive_bb500a9a4e72.json",
+    "runtime_evidence": "runtime_verification_20261014T103014Z.json",
+    "commerce_tests": 200,
+    "telegram_tests": 193,
+    "production_financial_records_created": false,
+    "production_bot_restarted": false,
+    "automatic_deletion": false,
+    "support_message_capture": false,
+    "at": "2026-10-14T10:32:15.840290+00:00"
+  },
+  "support_progress": {
+    "migrations": [
+      "202610140018_commerce_support",
+      "202610140019_commerce_support_authority"
+    ],
+    "schema_version": 19,
+    "commerce_tables": 30,
+    "backend_rpcs": 61,
+    "commerce_tests": 223,
+    "telegram_tests": 193,
+    "local_sql_evidence": "acceptance_commerce_acceptance_74cd4810c4ca.json",
+    "native_ui_sql_evidence": "acceptance_commerce_support_42b7be19b536.json",
+    "runtime_evidence": "runtime_verification_20261014T111003Z.json",
+    "configured_support_administrators": 2,
+    "production_support_threads": 0,
+    "production_support_messages": 0,
+    "actual_customer_sends": 0,
+    "production_bot_restarted": false,
+    "public_checkout_enabled": false,
+    "at": "2026-10-14T11:13:36.295425+00:00"
+  },
+  "access_resume_progress": {
+    "source_thread_id": "01a0d2d3-1ecb-7b72-ab5e-0fd9d2bb85b2",
+    "source_recovered_locally": true,
+    "security_tests": 19,
+    "javascript_checks": 6,
+    "telegram_tests": 269,
+    "commerce_tests": 319,
+    "evidence": "access_resume_20261014.json",
+    "production_bot_restarted": false,
+    "public_checkout_enabled": false,
+    "general_financial_access_audit_complete": true
+  },
+  "latest_runtime_checkpoint": {
+    "at": "2026-10-17T08:18:00+00:00",
+    "schema_version": 39,
+    "commerce_tables": 46,
+    "backend_rpcs": 105,
+    "telegram_tests": 269,
+    "commerce_tests": 319,
+    "database_acceptance_tests": [
+      "acceptance_customer_commerce_c9e34dde1ad3.json",
+      "acceptance_advance_acceptance_8e2a456bf4e9.json",
+      "acceptance_commerce_partner_campaign_36a2ebc373cd.json"
+    ],
+    "legacy_wallet_imported": false,
+    "public_checkout_enabled": false,
+    "binance_note_automatic_enabled": false,
+    "required_next_step": "controlled Binance Pay note echo test and confirmed receiver UID; retain old ambiguous credits for review"
+  }
+}

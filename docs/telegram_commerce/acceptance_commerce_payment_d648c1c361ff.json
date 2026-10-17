@@ -1,0 +1,12 @@
+{
+  "passed": true,
+  "at": "2026-10-13T23:32:22.524755+00:00",
+  "database": "commerce_payment_d648c1c361ff",
+  "production": false,
+  "external_provider": "synthetic, no real invoices or transfers",
+  "external_invoice_creations": 1,
+  "ledger_payments": 1,
+  "credited_minor": 3000,
+  "invoice_restart_recovery": true,
+  "lost_confirmation_recovery": true
+}

@@ -1,0 +1,110 @@
+{
+  "at_utc": "2026-10-15T16:28:47.935193+00:00",
+  "measurement": "Both directions of opaque TCP payload between native urllib/SOCKS worker and configured proxy; includes proxy negotiation and TLS records.",
+  "excluded": "DNS, TCP/IP and link headers, TCP retransmissions, independent proxy health checks, retries beyond these attempts, other application activity.",
+  "privacy": "No account numbers, response bodies, amounts, proxy URLs or credentials saved.",
+  "samples": [
+    {
+      "route_index": 1,
+      "sample_index": 1,
+      "sent_bytes": 1175,
+      "received_bytes": 5688,
+      "total_bytes": 6863,
+      "status": "ok",
+      "seconds": 2.537,
+      "relay_failed": false
+    },
+    {
+      "route_index": 1,
+      "sample_index": 2,
+      "sent_bytes": 1175,
+      "received_bytes": 5694,
+      "total_bytes": 6869,
+      "status": "ok",
+      "seconds": 2.313,
+      "relay_failed": false
+    },
+    {
+      "route_index": 1,
+      "sample_index": 3,
+      "sent_bytes": 1175,
+      "received_bytes": 5689,
+      "total_bytes": 6864,
+      "status": "ok",
+      "seconds": 1.948,
+      "relay_failed": false
+    },
+    {
+      "route_index": 2,
+      "sample_index": 1,
+      "sent_bytes": 1175,
+      "received_bytes": 5693,
+      "total_bytes": 6868,
+      "status": "ok",
+      "seconds": 1.747,
+      "relay_failed": false
+    },
+    {
+      "route_index": 2,
+      "sample_index": 2,
+      "sent_bytes": 1175,
+      "received_bytes": 5687,
+      "total_bytes": 6862,
+      "status": "ok",
+      "seconds": 1.696,
+      "relay_failed": false
+    },
+    {
+      "route_index": 2,
+      "sample_index": 3,
+      "sent_bytes": 1175,
+      "received_bytes": 5694,
+      "total_bytes": 6869,
+      "status": "ok",
+      "seconds": 1.986,
+      "relay_failed": false
+    },
+    {
+      "route_index": 3,
+      "sample_index": 1,
+      "sent_bytes": 1175,
+      "received_bytes": 5697,
+      "total_bytes": 6872,
+      "status": "ok",
+      "seconds": 1.895,
+      "relay_failed": true
+    },
+    {
+      "route_index": 3,
+      "sample_index": 2,
+      "sent_bytes": 1175,
+      "received_bytes": 5691,
+      "total_bytes": 6866,
+      "status": "ok",
+      "seconds": 2.102,
+      "relay_failed": true
+    },
+    {
+      "route_index": 3,
+      "sample_index": 3,
+      "sent_bytes": 1175,
+      "received_bytes": 5699,
+      "total_bytes": 6874,
+      "status": "ok",
+      "seconds": 1.73,
+      "relay_failed": true
+    }
+  ],
+  "summary": {
+    "sample_attempts": 9,
+    "successful_attempts": 6,
+    "status_counts": {
+      "ok": 9
+    },
+    "mean_bytes_per_successful_attempt": 6865.833333333333,
+    "min_bytes": 6862,
+    "max_bytes": 6869,
+    "estimated_GB_per_200k_attempts": 1.3731666666666664,
+    "estimated_GiB_per_200k_attempts": 1.2788611153761544
+  }
+}

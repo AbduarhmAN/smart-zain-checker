@@ -1,0 +1,85 @@
+{
+  "at": "2026-10-14T00:19:27.766580+00:00",
+  "project_ref": "avuzwbmiiavbuaxmnitp",
+  "preflight": [
+    {
+      "database_name": "postgres",
+      "postgres_version": "17.6",
+      "commerce_exists": true,
+      "rpc_exists": true,
+      "anon_exists": true,
+      "authenticated_exists": true,
+      "service_role_exists": true,
+      "existing_public_tables": 10
+    }
+  ],
+  "migrations": [
+    {
+      "version": "202610140001_commerce_foundation",
+      "sha256": "1c2357fcdc4179b2665c16292b7646af2152c34923278a85d7baa6e5be45381f",
+      "status": "already_applied"
+    },
+    {
+      "version": "202610140002_commerce_identity_events",
+      "sha256": "99b5ffc58f349f5db5aab42c3fbf9cc4b34d50ab6406abb976a26a94d44297d5",
+      "status": "already_applied"
+    },
+    {
+      "version": "202610140003_commerce_journal_integrity",
+      "sha256": "ee40c67a664854d8e05f4cb8063849ac141c91c8bdfaee94ba75593fb19225bb",
+      "status": "already_applied"
+    },
+    {
+      "version": "202610140004_commerce_agreed_policies",
+      "sha256": "5458867ca8df113362c343bcc13f85225022338af12359ea711bb259b3e1e156",
+      "status": "already_applied"
+    },
+    {
+      "version": "202610140005_commerce_referrals",
+      "sha256": "6ac60f928909e44e5faf41c89d98abb1688474f40ef554ce3fa0f0b5fdb3bcbe",
+      "status": "already_applied"
+    },
+    {
+      "version": "202610140006_commerce_partner_controls",
+      "sha256": "76a06d82dbc7e25eac01a5a667ca03819e64a2bc3940181985a9d0a2265a07bc",
+      "status": "already_applied"
+    },
+    {
+      "version": "202610140007_commerce_order_quotes",
+      "sha256": "dcb9fae437912642089b99f269d4b61a948aa2725f7ba1de23d33e2a865f6ec2",
+      "status": "already_applied"
+    },
+    {
+      "version": "202610140008_commerce_funding_reservations",
+      "sha256": "da15cd7dd3164ffd02b0233e21beefc1bb8ff709e24df8cffdf6943caf3f203d",
+      "status": "already_applied"
+    },
+    {
+      "version": "202610140009_commerce_terminal_settlement",
+      "sha256": "aa66fab840a6d8fa6e093c7c4692f6aeac068960b791f3373d45c88661560ee5",
+      "status": "already_applied"
+    },
+    {
+      "version": "202610140010_commerce_payment_requests",
+      "sha256": "30f967006329c82ee1147e11e62972d68fbeaf949b595924ab38a05b7b70b8e0",
+      "status": "already_applied"
+    },
+    {
+      "version": "202610140011_commerce_checkout",
+      "sha256": "e021ccd0c34a455047eeaa84fb06003ac6be1fee273be95f48f36d8da9d73285",
+      "status": "already_applied"
+    },
+    {
+      "version": "202610140012_commerce_payment_claims",
+      "sha256": "19996a070f9c7adbf9407982e23f3792dc93420b853ad9527a85b4ff058032a6",
+      "status": "applied"
+    }
+  ],
+  "verification": [
+    {
+      "schemaname": "commerce",
+      "tables": 25,
+      "all_tables_have_rls": true
+    }
+  ]
+}

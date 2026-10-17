@@ -1,0 +1,89 @@
+{
+  "environment": "isolated WSL development, not production VPS",
+  "os_release": {
+    "PRETTY_NAME": "\"Ubuntu 24.04.4 LTS\"",
+    "NAME": "\"Ubuntu\"",
+    "VERSION_ID": "\"24.04\"",
+    "VERSION": "\"24.04.4 LTS (Noble Numbat)\"",
+    "VERSION_CODENAME": "noble",
+    "ID": "ubuntu",
+    "ID_LIKE": "debian",
+    "HOME_URL": "\"https://www.ubuntu.com/\"",
+    "SUPPORT_URL": "\"https://help.ubuntu.com/\"",
+    "BUG_REPORT_URL": "\"https://bugs.launchpad.net/ubuntu/\"",
+    "PRIVACY_POLICY_URL": "\"https://www.ubuntu.com/legal/terms-and-policies/privacy-policy\"",
+    "UBUNTU_CODENAME": "noble",
+    "LOGO": "ubuntu-logo"
+  },
+  "kernel": "Linux 6.6.123.2-microsoft-standard-WSL2+",
+  "python": "3.12.3",
+  "pid1": "systemd",
+  "uid": 1000,
+  "systemd": "systemd 255 (255.4-1ubuntu8.17)",
+  "cgroup_controllers": [
+    "cpuset",
+    "cpu",
+    "io",
+    "memory",
+    "hugetlb",
+    "pids",
+    "rdma"
+  ],
+  "modules": {
+    "playwright": false,
+    "psutil": false,
+    "openpyxl": true
+  },
+  "chrome_installed": false,
+  "actual_chromium_tested": false,
+  "external_requests": false,
+  "production_modified": false,
+  "units_original_verify": {
+    "exit_code": 1,
+    "stdout": "",
+    "stderr": "Configuration file /mnt/e/Projects/smart_zainchecker_gemini/deployment/systemd/smart-zain-browser.service is marked executable. Please remove executable permission bits. Proceeding anyway.\nConfiguration file /mnt/e/Projects/smart_zainchecker_gemini/deployment/systemd/smart-zain-browser.service is marked world-writable. Please remove world writability permission bits. Proceeding anyway.\nConfiguration file /mnt/e/Projects/smart_zainchecker_gemini/deployment/systemd/smart-zain-engine.service is marked executable. Please remove executable permission bits. Proceeding anyway.\nConfiguration file /mnt/e/Projects/smart_zainchecker_gemini/deployment/systemd/smart-zain-engine.service is marked world-writable. Please remove world writability permission bits. Proceeding anyway.\nConfiguration file /mnt/e/Projects/smart_zainchecker_gemini/deployment/systemd/smart-zain-files.service is marked executable. Please remove executable permission bits. Proceeding anyway.\nConfiguration file /mnt/e/Projects/smart_zainchecker_gemini/deployment/systemd/smart-zain-files.service is marked world-writable. Please remove world writability permission bits. Proceeding anyway.\nConfiguration file /mnt/e/Projects/smart_zainchecker_gemini/deployment/systemd/smart-zain-telegram.service is marked executable. Please remove executable permission bits. Proceeding anyway.\nConfiguration file /mnt/e/Projects/smart_zainchecker_gemini/deployment/systemd/smart-zain-telegram.service is marked world-writable. Please remove world writability permission bits. Proceeding anyway.\nsmart-zain-browser.service: Command /srv/smart-zain/.venv/bin/python is not executable: No such file or directory\nsmart-zain-engine.service: Command /srv/smart-zain/.venv/bin/python is not executable: No such file or directory\nsmart-zain-files.service: Command /srv/smart-zain/.venv/bin/python is not executable: No such file or directory\nsmart-zain-telegram.service: Command /srv/smart-zain/.venv/bin/python is not executable: No such file or directory"
+  },
+  "units_syntax_verify_with_existing_python": {
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  "owned_process_group": {
+    "actual_linux_subprocesses": true,
+    "fixture": "Python stand-in, not Chromium",
+    "dedicated_group": true,
+    "termination_reported": true,
+    "parent_terminal": true,
+    "child_terminal": true,
+    "stale_pid_refused": true
+  },
+  "owned_transient_user_unit": {
+    "start": {
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": "Running as unit: smart-zain-fixture-f8d1b070aa2d4b9490c799d20dde7d71.service; invocation ID: 39e3fd18cf1d4e079e78cbe16dd1f727"
+    },
+    "fixture": "Python stand-in, not Chromium",
+    "properties": {
+      "MainPID": "418",
+      "ControlGroup": "/user.slice/user-1000.slice/user@1000.service/app.slice/smart-zain-fixture-f8d1b070aa2d4b9490c799d20dde7d71.service",
+      "MemoryCurrent": "10035200",
+      "CPUWeight": "50",
+      "IOWeight": "50"
+    },
+    "child_in_unit_cgroup": true,
+    "stop": {
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    "child_terminal_after_stop": true,
+    "cgroup_removed_after_stop": true
+  },
+  "limitations": [
+    "WSL host is not the production VPS.",
+    "Chrome and Playwright are absent, so browser correctness, browser resource baselines and actual Chromium crash recovery remain unverified.",
+    "Units were syntax-verified with an existing Python path; production /srv/smart-zain virtualenv and service account were not provisioned.",
+    "Relative weights verified on a synthetic user unit; production CPU/memory ceilings need measured workload tuning."
+  ]
+}

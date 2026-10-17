@@ -1,0 +1,17 @@
+{
+  "passed": true,
+  "production": false,
+  "database": "withdrawal_receipts_f2750cc214fd",
+  "checks": [
+    "paid-only receipt",
+    "exact amount snapshot",
+    "native recipient identity",
+    "owner-only access",
+    "idempotent confirmation",
+    "immutable original response",
+    "recorded dispute",
+    "no extra financial writes",
+    "retained history",
+    "admin authority"
+  ]
+}

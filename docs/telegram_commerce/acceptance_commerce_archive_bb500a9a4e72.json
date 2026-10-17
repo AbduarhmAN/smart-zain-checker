@@ -1,0 +1,178 @@
+{
+  "at": "2026-10-14T10:28:35.314032+00:00",
+  "database": "commerce_archive_bb500a9a4e72",
+  "production_financial_records": false,
+  "live_telegram": true,
+  "telegram_data": "synthetic XLSX only",
+  "order_id": "c1c2acdf-f2c4-47e2-8fcc-6e7860d17c37",
+  "binary_uploads": 2,
+  "file_id_reuses": 2,
+  "documents_confirmed": 2,
+  "verified_downloads": [
+    {
+      "sha256": "1f7a71429974a79e25c08db9fcc61355e60a1efaf4a6e040e71705266cacaab9",
+      "bytes": 1440,
+      "verified": true
+    },
+    {
+      "sha256": "8d08d2de7646caa5260d517f5e20dacf30b1e8235e503aa799b29906f73761e6",
+      "bytes": 1438,
+      "verified": true
+    }
+  ],
+  "index": {
+    "files": [
+      {
+        "kind": "original",
+        "state": "confirmed",
+        "sha256": "1f7a71429974a79e25c08db9fcc61355e60a1efaf4a6e040e71705266cacaab9",
+        "order_id": "c1c2acdf-f2c4-47e2-8fcc-6e7860d17c37",
+        "file_size": 1440,
+        "archived_at": "2026-10-14T13:28:32.804641+03:00",
+        "policy_snapshot": {
+          "protection": "plaintext_sha256",
+          "hash_algorithm": "sha256",
+          "original_timing": "after_completion",
+          "automatic_deletion": false,
+          "decision_reference": "synthetic-probe:user-approved-after-completion-sha256-15-days",
+          "result_retention_days": 15,
+          "original_retention_days": 15
+        },
+        "retention_until": "2026-10-29T13:28:32.804641+03:00",
+        "telegram_chat_id": -1004319960104,
+        "telegram_file_id": "BQACAgQAAyEGAAMBAX1cKAADA2rPWU0In8ciVCVm_Bj27vRxC0kiAAI1IQAC2daAUs4AAUNBdGEK2z0E",
+        "metadata_snapshot": {
+          "state": "ready",
+          "currency": "EGP",
+          "order_id": "c1c2acdf-f2c4-47e2-8fcc-6e7860d17c37",
+          "completed_at": "2026-10-14T13:28:30.839301+03:00",
+          "valid_checks": 1,
+          "charged_minor": 3000,
+          "payment_state": "partial_refund",
+          "result_sha256": "8d08d2de7646caa5260d517f5e20dacf30b1e8235e503aa799b29906f73761e6",
+          "refunded_minor": 3000,
+          "original_sha256": "1f7a71429974a79e25c08db9fcc61355e60a1efaf4a6e040e71705266cacaab9",
+          "requested_checks": 2,
+          "telegram_user_id": 889990,
+          "technical_failures": 1
+        },
+        "telegram_message_id": 5,
+        "telegram_file_unique_id": "AgADNSEAAtnWgFI"
+      },
+      {
+        "kind": "result",
+        "state": "confirmed",
+        "sha256": "8d08d2de7646caa5260d517f5e20dacf30b1e8235e503aa799b29906f73761e6",
+        "order_id": "c1c2acdf-f2c4-47e2-8fcc-6e7860d17c37",
+        "file_size": 1438,
+        "archived_at": "2026-10-14T13:28:34.554362+03:00",
+        "policy_snapshot": {
+          "protection": "plaintext_sha256",
+          "hash_algorithm": "sha256",
+          "original_timing": "after_completion",
+          "automatic_deletion": false,
+          "decision_reference": "synthetic-probe:user-approved-after-completion-sha256-15-days",
+          "result_retention_days": 15,
+          "original_retention_days": 15
+        },
+        "retention_until": "2026-10-29T13:28:34.554362+03:00",
+        "telegram_chat_id": -1004319960104,
+        "telegram_file_id": "BQACAgQAAyEGAAMBAX1cKAADBGrPWU0FkqdKsGLy_ILHRLnyarHiAAI2IQAC2daAUhmajCju0GcrPQQ",
+        "metadata_snapshot": {
+          "state": "ready",
+          "currency": "EGP",
+          "order_id": "c1c2acdf-f2c4-47e2-8fcc-6e7860d17c37",
+          "completed_at": "2026-10-14T13:28:30.839301+03:00",
+          "valid_checks": 1,
+          "charged_minor": 3000,
+          "payment_state": "partial_refund",
+          "result_sha256": "8d08d2de7646caa5260d517f5e20dacf30b1e8235e503aa799b29906f73761e6",
+          "refunded_minor": 3000,
+          "original_sha256": "1f7a71429974a79e25c08db9fcc61355e60a1efaf4a6e040e71705266cacaab9",
+          "requested_checks": 2,
+          "telegram_user_id": 889990,
+          "technical_failures": 1
+        },
+        "telegram_message_id": 6,
+        "telegram_file_unique_id": "AgADNiEAAtnWgFI"
+      }
+    ],
+    "order_id": "c1c2acdf-f2c4-47e2-8fcc-6e7860d17c37"
+  },
+  "states": {
+    "confirmed": 2
+  },
+  "wallet_unchanged_by_archive": true,
+  "automatic_deletion": false,
+  "retained_fixture": "E:\\Projects\\smart_zainchecker_gemini\\scratch\\commerce_archive_bb500a9a4e72",
+  "migrations": [
+    {
+      "version": "202610140001_commerce_foundation",
+      "sha256": "1c2357fcdc4179b2665c16292b7646af2152c34923278a85d7baa6e5be45381f"
+    },
+    {
+      "version": "202610140002_commerce_identity_events",
+      "sha256": "99b5ffc58f349f5db5aab42c3fbf9cc4b34d50ab6406abb976a26a94d44297d5"
+    },
+    {
+      "version": "202610140003_commerce_journal_integrity",
+      "sha256": "ee40c67a664854d8e05f4cb8063849ac141c91c8bdfaee94ba75593fb19225bb"
+    },
+    {
+      "version": "202610140004_commerce_agreed_policies",
+      "sha256": "5458867ca8df113362c343bcc13f85225022338af12359ea711bb259b3e1e156"
+    },
+    {
+      "version": "202610140005_commerce_referrals",
+      "sha256": "6ac60f928909e44e5faf41c89d98abb1688474f40ef554ce3fa0f0b5fdb3bcbe"
+    },
+    {
+      "version": "202610140006_commerce_partner_controls",
+      "sha256": "76a06d82dbc7e25eac01a5a667ca03819e64a2bc3940181985a9d0a2265a07bc"
+    },
+    {
+      "version": "202610140007_commerce_order_quotes",
+      "sha256": "dcb9fae437912642089b99f269d4b61a948aa2725f7ba1de23d33e2a865f6ec2"
+    },
+    {
+      "version": "202610140008_commerce_funding_reservations",
+      "sha256": "da15cd7dd3164ffd02b0233e21beefc1bb8ff709e24df8cffdf6943caf3f203d"
+    },
+    {
+      "version": "202610140009_commerce_terminal_settlement",
+      "sha256": "aa66fab840a6d8fa6e093c7c4692f6aeac068960b791f3373d45c88661560ee5"
+    },
+    {
+      "version": "202610140010_commerce_payment_requests",
+      "sha256": "30f967006329c82ee1147e11e62972d68fbeaf949b595924ab38a05b7b70b8e0"
+    },
+    {
+      "version": "202610140011_commerce_checkout",
+      "sha256": "e021ccd0c34a455047eeaa84fb06003ac6be1fee273be95f48f36d8da9d73285"
+    },
+    {
+      "version": "202610140012_commerce_payment_claims",
+      "sha256": "19996a070f9c7adbf9407982e23f3792dc93420b853ad9527a85b4ff058032a6"
+    },
+    {
+      "version": "202610140013_commerce_cash_topups",
+      "sha256": "0d04b27190dc634ca7337915abdc4abb2caa0d393597f975ef7773090b162062"
+    },
+    {
+      "version": "202610140014_commerce_commissions",
+      "sha256": "9fc25ee436c000d56a070bcf902f9afa4a97abf24ea68a208b527405eddd3444"
+    },
+    {
+      "version": "202610140015_commerce_platform_campaigns",
+      "sha256": "69ef112e690ee7aab050dd9bf48631674e7915adc3a7e657d3aed55fef8f33b3"
+    },
+    {
+      "version": "202610140016_commerce_cash_credit_codes",
+      "sha256": "a5df991a23480d9b4e92ceccdd207ac4f1aae58c9bfede2218788344b0db9ab4"
+    },
+    {
+      "version": "202610140017_commerce_archive",
+      "sha256": "e8001c096abfd5deec58b045cf376cb23c0eeeeeb795156fa55a1c551ec1d7e8"
+    }
+  ]
+}

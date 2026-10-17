@@ -7,6 +7,7 @@ const Dashboard = {
   focusBeforeModal: null,
 
   init() {
+    if (typeof Pricing !== 'undefined') Pricing.init();
     if (typeof SessionTiming !== 'undefined') SessionTiming.init();
     document.getElementById('todayDate').textContent = new Intl.DateTimeFormat('ar-EG', {
       weekday:'long', day:'numeric', month:'long', timeZone:'Asia/Baghdad'
@@ -18,6 +19,10 @@ const Dashboard = {
         if (overlay.id === 'confirmOverlay') this.resolveConfirm(false);
         else if (overlay.id === 'guideOverlay') this.closeGuide();
         else if (overlay.id === 'modalOverlay') ColumnMapper.closeModal();
+        else if (overlay.id === 'pricingOverlay') Pricing.close();
+        else if (overlay.id === 'resultDetailOverlay') ResultBrowser.closeDetail();
+        else if (overlay.id === 'workerDetailsOverlay') WorkerMonitor.close();
+        else if (overlay.id === 'telegramTools') this.closeTelegram();
         else RestartModal.close();
       }
       if (event.key === 'Tab') {
@@ -69,18 +74,22 @@ const Dashboard = {
     document.querySelectorAll('.header-link').forEach(el=>el.classList.toggle('active',el.dataset.view===view));
   },
   showOverview() {this.activateView('overview');LiveFeed.switchTab('all');document.getElementById('workspace').scrollIntoView({behavior:'smooth',block:'start'});},
+  showResults() {this.activateView('results');if(LiveFeed.activeTab==='queue')LiveFeed.switchTab('all');document.getElementById('resultSearch').focus({preventScroll:true});document.getElementById('resultsSection').scrollIntoView({behavior:'smooth',block:'start'});},
   showQueue() {this.activateView('queue');LiveFeed.switchTab('queue');document.getElementById('queueTableContainer').scrollIntoView({behavior:'smooth',block:'center'});},
-  showTelegram() {this.activateView('telegram');document.getElementById('telegramPanel').scrollIntoView({behavior:'smooth',block:'center'});document.getElementById('btnTelegramToggle').focus();},
+  showTelegram() {document.getElementById('telegramTools').style.display='flex';this.modalOpened('telegramTools');},
+  closeTelegram() {document.getElementById('telegramTools').style.display='none';this.focusBeforeModal?.focus({preventScroll:true});},
 
   update(data) {
     this.live=data;this.connected=true;
     if (typeof SessionTiming !== 'undefined') SessionTiming.update(data);
+    if (typeof Pricing !== 'undefined') Pricing.update(data);
     const status=document.getElementById('connectionStatus');
     status.className='connection-label';status.innerHTML='<i class="status-dot active"></i>متصل بالبرنامج';
     const k=data.kpis || {},total=Number(k.total)||0,done=Number(k.completed)||0;
     const percentage=total && !data._preview ? Math.min(100,Math.max(0,Math.round(done/total*100))) : 0;
     const running=data.running, paused=data.paused, pending=(data.verifications||[]).length;
-    const title=data._preview ? 'معاينة ملف محفوظ' : pending ? 'بانتظار تحقق زين' : running ? (paused ? 'متوقف مؤقتًا' : 'الفحص جارٍ') : (total ? 'انتهت المعالجة' : 'جاهز لفحصك');
+    const saveFailed=!running && total>0 && done>=total && data.result_ready===false;
+    const title=data._preview ? 'معاينة ملف محفوظ' : running ? (data.finalizing ? 'جارٍ حفظ النتائج' : paused ? 'متوقف مؤقتًا' : pending ? 'الفحص جارٍ · مسار ينتظر التحقق' : 'الفحص جارٍ') : saveFailed ? 'النتيجة تحتاج إعادة حفظ' : (total ? 'انتهت المعالجة' : 'جاهز لفحصك');
     const badge=document.getElementById('sessionState');badge.textContent=title;badge.classList.toggle('paused',paused);
     document.getElementById('sessionHeading').textContent=data.workbook || 'ابدأ من شيت العملاء';
     document.getElementById('sessionWorkbook').textContent=data._preview ? 'معاينة محتوى الملف المحدد' : data.workbook ? 'ملف الجلسة الحالية' : 'اختر ملفًا من القائمة لبدء التدقيق.';
@@ -88,10 +97,11 @@ const Dashboard = {
     document.getElementById('progressFill').style.width=percentage+'%';
     document.getElementById('progressCircle').style.strokeDashoffset=320.44*(1-percentage/100);
     document.getElementById('sessionProgress').setAttribute('aria-valuenow',percentage);
-    document.getElementById('sessionCountLabel').textContent=data._preview?'صفوف معروضة':'تمت معالجتها';
-    document.getElementById('sessionHint').textContent=data._preview ? 'معاينة محفوظة؛ لا توجد جلسة فحص جديدة قيد التشغيل.' : pending ? 'أكمل التحقق في Chrome أو في اللوحة؛ يستأنف الفحص بعد نجاحه.' : paused ? 'التقدم محفوظ. راجع سبب التوقف قبل الاستئناف.' : 'تقدم المعالجة منفصل عن عدد الأرصدة المؤكدة.';
+    document.getElementById('sessionCountLabel').textContent=data._preview?'صفوف معروضة':'صفوف مفحوصة';
+    document.getElementById('sessionHint').textContent=data._preview ? 'معاينة محفوظة؛ لا يوجد فحص جارٍ لهذا الملف.' : paused ? 'التقدم محفوظ. يمكنك استئناف الفحص عندما تكون جاهزًا.' : pending ? 'أكمل التحقق للمسار المتأثر؛ تستمر المسارات الأخرى المتاحة.' : !total ? 'اختر الملف، راجع الأعمدة، ثم ابدأ الجولة من قائمة الملفات.' : done>=total && !running ? 'اكتمل فحص الصفوف. يمكنك الآن تحميل النتائج.' : 'المفحوص يشمل جميع النتائج؛ الصفوف المؤجلة ما زالت تنتظر المحاولة.';
+    if(!data._preview && saveFailed)document.getElementById('sessionHint').textContent='نتائج الصفوف محفوظة. اختر «إعادة حفظ النتيجة» من متابعة الملفات.';
     const report=document.getElementById('btnDownloadResults');
-    const reportAvailable=!!data.workbook && (data._preview || (!running && !data.round_pending && total>0 && done>=total));
+    const reportAvailable=!!data.workbook && (data._preview || (done > 0 && !running) || (data.result_ready!==false && !running && !data.round_pending && total>0 && done>=total));
     report.setAttribute('aria-disabled',String(!reportAvailable));
     report.href=data._preview ? '/api/download-results?file='+encodeURIComponent(data.workbook) : '/api/download-results?current=1';
     report.innerHTML=this.icon('download')+(data._preview?' تحميل ملف المعاينة':' تحميل النتائج');
@@ -105,6 +115,7 @@ const Dashboard = {
   },
   offline() {
     this.connected=false;
+    WorkerMonitor.update(WorkerMonitor.workers);
     if (typeof SessionTiming !== 'undefined') SessionTiming.offline();
     const status=document.getElementById('connectionStatus');
     status.className='connection-label offline';status.innerHTML='<i class="status-dot"></i>انقطع الاتصال';
@@ -131,15 +142,22 @@ const Dashboard = {
   },
   renderTelegram() {
     const state=this.telegram || {},enabled=!!state.enabled;
+    const health=state.bot_health || {},delivery=state.delivery || {},receiveError=enabled && !!health.last_error;
     const badge=document.getElementById('tgStatusBadge');
-    badge.textContent=enabled ? (state.connected===true?'اتصال مؤكد':'مفعّل') : (state.connected===true?'متصل · متوقف':'غير مفعّل');
-    badge.className='badge'+(enabled?' badge-match':'');
+    badge.textContent=state.configured===false?'إعداد غير مكتمل':state.connected===false?'تعذر الاتصال':receiveError?'مشكلة في الاستقبال':enabled ? (state.polling===false?'الاستقبال متوقف':'البوت يعمل') : 'البوت متوقف';
+    badge.className='badge'+(state.connected===false || receiveError?' badge-error':enabled && state.polling!==false?' badge-match':'');
     document.getElementById('telegramDescription').textContent=enabled ? (state.username ? '@'+state.username+' · تنبيهات الجلسات مفعّلة' : 'التنبيهات مفعّلة. افحص الاتصال للتحقق من البوت.') : 'فعّل البوت لتلقي تنبيهات الجلسات وإرسال النتائج إلى حسابك.';
     const toggle=document.getElementById('btnTelegramToggle');
-    toggle.textContent=enabled?'إيقاف التلقرام':'تفعيل التلقرام';toggle.disabled=this.telegramBusy || !this.connected;
+    toggle.textContent=enabled?'إيقاف البوت':'تشغيل البوت';toggle.classList.toggle('is-enabled',enabled);toggle.disabled=this.telegramBusy || !this.connected || state.configured===false;
+    const paint=(id,text,tone='')=>{const el=document.getElementById(id);el.textContent=text;el.className=tone;};
+    paint('tgPollingState',!enabled?'متوقف':receiveError?'تعذر استقبال الأوامر':state.polling===true?'يستقبل الأوامر':state.polling===false?'يحتاج تشغيلًا':'بانتظار التحديث',receiveError?'bad':enabled?(state.polling===true?'good':'warn'):'');
+    paint('tgDeliveryState',delivery.sending?'جارٍ الإرسال':delivery.last_error?'يحتاج متابعة':delivery.last_delivery_at?'تم التسليم':enabled?'جاهز للإرسال':'متوقف',delivery.last_error?'bad':delivery.last_delivery_at?'good':'');
+    paint('tgPendingCount',String(delivery.pending || 0));
+    paint('tgLastDelivery',delivery.last_delivery_at?new Intl.DateTimeFormat('ar-EG',{hour:'2-digit',minute:'2-digit',second:'2-digit',timeZone:'Asia/Baghdad'}).format(new Date(delivery.last_delivery_at*1000)):'—');
+    const config=document.getElementById('tgConfigMessage');config.hidden=state.configured!==false;config.textContent='بيانات الاتصال غير مكتملة. راجع إعدادات التليجرام المحلية ثم أعد تشغيل البرنامج.';
     document.getElementById('btnTelegramCheck').disabled=this.telegramBusy || !this.connected;
     document.getElementById('btnTelegramPing').disabled=this.telegramBusy || !this.connected || !enabled;
-    document.getElementById('btnTelegramReport').disabled=this.telegramBusy || !this.connected || !enabled || !!this.live?._preview || !!this.live?.running || !!this.live?.round_pending || !(this.live?.kpis?.total>0 && this.live?.kpis?.completed>=this.live?.kpis?.total);
+    document.getElementById('btnTelegramReport').disabled=this.telegramBusy || !this.connected || !enabled || this.live?.result_ready===false || !!this.live?._preview || !!this.live?.running || !!this.live?.round_pending || !(this.live?.kpis?.total>0 && this.live?.kpis?.completed>=this.live?.kpis?.total);
   },
   async telegramAction(buttonId, action) {
     if (this.telegramBusy || !this.connected) return;

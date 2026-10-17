@@ -1,0 +1,26 @@
+{
+  "tests_run": 193,
+  "passed": true,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "fixture": "E:\\Projects\\smart_zainchecker_gemini\\outputs\\telegram_audit_20261007\\isolated_run_5kfymdqj",
+  "patterns": [
+    "test_telegram_transport_reliability.py",
+    "test_telegram_queue_durability.py",
+    "test_telegram_workflow_reliability.py",
+    "test_telegram_payment_reliability.py",
+    "test_telegram_notifier_reliability.py",
+    "test_telegram_ui.py",
+    "test_sheet_workflow.py",
+    "test_dashboard_controls.py",
+    "test_pricing.py"
+  ],
+  "real_network": "blocked",
+  "filesystem_deletion": "blocked; fixture XML retained",
+  "scope": "commission and withdrawals wiring regression",
+  "commerce_tests_run": 152,
+  "commerce_passed": true,
+  "partner_ui_tests": 14,
+  "production_messages_or_transfers": false
+}

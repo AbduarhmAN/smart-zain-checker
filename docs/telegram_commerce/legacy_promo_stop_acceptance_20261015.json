@@ -1,0 +1,30 @@
+{
+  "passed": true,
+  "production": false,
+  "cases": [
+    {
+      "case": "unstarted_free_sheet",
+      "committed_before_stop": 0,
+      "cancelled": 3,
+      "partial_result_exported": true,
+      "sheet_offer_stays_consumed": true,
+      "financial_files_unchanged": true,
+      "other_unpaid_job_not_started": true,
+      "browser_workers_launched_for_stop": 0,
+      "native_customer_confirmation": true
+    },
+    {
+      "case": "partial_free_sheet",
+      "committed_before_stop": 1,
+      "cancelled": 2,
+      "partial_result_exported": true,
+      "sheet_offer_stays_consumed": true,
+      "financial_files_unchanged": true,
+      "other_unpaid_job_not_started": true,
+      "browser_workers_launched_for_stop": 0,
+      "native_customer_confirmation": true
+    }
+  ],
+  "telegram_messages": "synthetic",
+  "external_checker_requests": false
+}

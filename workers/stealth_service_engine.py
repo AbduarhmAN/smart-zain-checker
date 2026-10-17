@@ -8,6 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 import hashlib
 import logging
+import os
 from pathlib import Path
 import queue
 import re
@@ -40,36 +41,154 @@ class BrowserJob:
     verification_pending: threading.Event = field(default_factory=threading.Event)
 
 
+_SOCKS5_BRIDGES: dict[str, int] = {}
+_SOCKS5_BRIDGE_LOCK = threading.Lock()
+_SOCKS5_LISTENERS: dict[str, object] = {}
+_SOCKS5_CONNECTIONS: set = set()
+
+
+def _get_or_create_socks5_bridge(proxy_url: str) -> Optional[str]:
+    """Chromium fundamentally rejects SOCKS5 proxies requiring authentication.
+    Spawns an internal 127.0.0.1 forwarder that speaks authenticated SOCKS5 upstream
+    and serves unauthenticated HTTP CONNECT locally to Chromium.
+    """
+    if not proxy_url:
+        return None
+    parsed = urlparse(proxy_url)
+    if parsed.scheme not in ("socks5", "socks5h") or not parsed.username:
+        return None
+    with _SOCKS5_BRIDGE_LOCK:
+        if proxy_url in _SOCKS5_BRIDGES:
+            return f"http://127.0.0.1:{_SOCKS5_BRIDGES[proxy_url]}"
+        import socket
+        import socks
+        srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        srv.bind(("127.0.0.1", 0))
+        srv.listen(50)
+        port = srv.getsockname()[1]
+        _SOCKS5_BRIDGES[proxy_url] = port
+        _SOCKS5_LISTENERS[proxy_url] = srv
+
+        def handle_client(c):
+            rem = None
+            handed_off = False
+            try:
+                c.settimeout(20)
+                buf = b""
+                while b"\r\n\r\n" not in buf:
+                    chunk = c.recv(4096)
+                    if not chunk:
+                        break
+                    buf += chunk
+                line = buf.split(b"\r\n")[0].decode("latin1", errors="ignore")
+                parts = line.split(" ")
+                if len(parts) >= 2 and parts[0].upper() == "CONNECT":
+                    target_host, target_port = parts[1].split(":")
+                    rem = socks.socksocket()
+                    with _SOCKS5_BRIDGE_LOCK:
+                        _SOCKS5_CONNECTIONS.add(rem)
+                    rem.set_proxy(
+                        socks.SOCKS5,
+                        parsed.hostname,
+                        parsed.port or 1080,
+                        username=parsed.username,
+                        password=parsed.password,
+                    )
+                    rem.settimeout(20)
+                    rem.connect((target_host, int(target_port)))
+                    c.sendall(b"HTTP/1.1 200 Connection Established\r\n\r\n")
+
+                    def pipe(src, dst):
+                        try:
+                            while True:
+                                d = src.recv(8192)
+                                if not d:
+                                    break
+                                dst.sendall(d)
+                        except Exception:
+                            pass
+                        finally:
+                            try:
+                                src.close()
+                            except Exception:
+                                pass
+                            try:
+                                dst.close()
+                            except Exception:
+                                pass
+                            with _SOCKS5_BRIDGE_LOCK:
+                                _SOCKS5_CONNECTIONS.discard(src)
+                                _SOCKS5_CONNECTIONS.discard(dst)
+
+                    threading.Thread(target=pipe, args=(c, rem), daemon=True).start()
+                    threading.Thread(target=pipe, args=(rem, c), daemon=True).start()
+                    handed_off = True
+                else:
+                    c.close()
+            except Exception:
+                try:
+                    c.close()
+                except Exception:
+                    pass
+                if rem:
+                    try:
+                        rem.close()
+                    except Exception:
+                        pass
+            finally:
+                if not handed_off:
+                    with _SOCKS5_BRIDGE_LOCK:
+                        _SOCKS5_CONNECTIONS.discard(c)
+                        _SOCKS5_CONNECTIONS.discard(rem)
+
+        def loop():
+            while True:
+                try:
+                    sock, _ = srv.accept()
+                    with _SOCKS5_BRIDGE_LOCK:
+                        _SOCKS5_CONNECTIONS.add(sock)
+                    threading.Thread(target=handle_client, args=(sock,), daemon=True).start()
+                except Exception:
+                    break
+
+        threading.Thread(target=loop, daemon=True, name=f"Socks5Bridge-{port}").start()
+        logger.info("Started internal SOCKS5 bridge on 127.0.0.1:%s for %s", port, parsed.hostname)
+        return f"http://127.0.0.1:{port}"
+
+
 class StealthServiceWorker(threading.Thread):
     def __init__(self, headless: bool = False, proxy_url: Optional[str] = None):
         super().__init__(daemon=True, name="ServiceBrowserThread")
         self.headless = headless
         self.proxy_url = proxy_url
-        self.work_queue: queue.Queue = queue.Queue()
+        self.work_queue: queue.Queue = queue.Queue(maxsize=16)
         self.is_ready_event = threading.Event()
         self.stop_event = threading.Event()
         self.startup_error = ""
         self.verification_lock = threading.Lock()
         self.verification = None
         self.service_page = None
+        self.active_job = None
+        self.reservations = 0
 
     @staticmethod
     def _ready_expression(include_challenges: bool = True) -> str:
         payment = """(expectedNumber) => {
-            if (location.hostname !== 'app.sa.zain.com' || document.readyState !== 'complete') return false;
+            if (location.hostname !== 'app.sa.zain.com') return false;
             if (location.pathname.replace(/\\/$/, '') === '/ar/home') return true;
             const amount = document.querySelector('#customAmount');
             const data = window.quickpayData;
             const valid = data && data.amount !== null && data.amount !== '' &&
                 typeof data.amount !== 'boolean' && Number.isFinite(Number(data.amount)) && Number(data.amount) >= 0;
-            if (location.pathname === '/ar/quickpay' && valid &&
+            if (location.pathname.replace(/\\/$/, '') === '/ar/quickpay' && valid &&
                 String(data.account) === expectedNumber) return true;
         """
         if include_challenges:
             payment += """
                 const text = document.body?.innerText || '';
                 if (document.querySelector('input#ans[name=answer]') ||
-                    /request rejected|the requested url was rejected/i.test(text)) return true;
+                    /request rejected|the requested url was rejected|لا يوجد مستحقات|لا توجد فواتير|الرقم غير صحيح|غير موجود|not found/i.test(text)) return true;
             """
         return payment + "return false; }"
 
@@ -77,7 +196,10 @@ class StealthServiceWorker(threading.Thread):
         remaining = job.deadline - time.monotonic()
         if job.cancelled.is_set() or remaining <= 0:
             raise TimeoutError("Service browser deadline expired")
-        page.wait_for_load_state("load", timeout=max(1, int(remaining * 1000)))
+        try:
+            page.wait_for_load_state("domcontentloaded", timeout=max(1, min(2000, int(remaining * 1000))))
+        except Exception:
+            pass
         remaining = job.deadline - time.monotonic()
         if job.cancelled.is_set() or remaining <= 0:
             raise TimeoutError("Service browser deadline expired")
@@ -97,6 +219,7 @@ class StealthServiceWorker(threading.Thread):
             "channel": "chrome",
             "headless": self.headless,
             "locale": "ar-SA",
+            "timeout": 20000,
             "args": [
                 "--disable-blink-features=AutomationControlled",
                 "--disable-infobars",
@@ -107,13 +230,17 @@ class StealthServiceWorker(threading.Thread):
             "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
         }
         if self.proxy_url:
-            proxy = urlparse(self.proxy_url)
-            scheme = "socks5" if proxy.scheme in ("socks5", "socks5h") else ("socks4" if "4" in proxy.scheme else "http")
-            options["proxy"] = {"server": f"{scheme}://{proxy.hostname}:{proxy.port or (8080 if scheme == 'http' else 1080)}"}
-            if proxy.username:
-                options["proxy"]["username"] = proxy.username
-            if proxy.password:
-                options["proxy"]["password"] = proxy.password
+            bridge_server = _get_or_create_socks5_bridge(self.proxy_url)
+            if bridge_server:
+                options["proxy"] = {"server": bridge_server}
+            else:
+                proxy = urlparse(self.proxy_url)
+                scheme = "socks5" if proxy.scheme in ("socks5", "socks5h") else ("socks4" if "4" in proxy.scheme else "http")
+                options["proxy"] = {"server": f"{scheme}://{proxy.hostname}:{proxy.port or (8080 if scheme == 'http' else 1080)}"}
+                if proxy.username:
+                    options["proxy"]["username"] = proxy.username
+                if proxy.password:
+                    options["proxy"]["password"] = proxy.password
         ctx = pw.chromium.launch_persistent_context(str(profile), **options)
         if hasattr(ctx, "add_init_script"):
             ctx.add_init_script("""
@@ -122,12 +249,8 @@ class StealthServiceWorker(threading.Thread):
                 Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
                 window.chrome = { runtime: {} };
             """)
-        # Clean stale cookies from disk profile on initial launch
-        if hasattr(ctx, "clear_cookies") and not type(ctx.clear_cookies).__name__.startswith("Mock"):
-            try:
-                ctx.clear_cookies()
-            except Exception:
-                pass
+        # The dedicated route profile retains its own session across recovery.
+        # Cookies are cleared only after a classified session failure/rejection.
         return ctx
 
     def _payment_ready(self, page, job: BrowserJob) -> bool:
@@ -201,16 +324,7 @@ class StealthServiceWorker(threading.Thread):
             except Exception:
                 pass
         time.sleep(1.0)
-        route = connection_group(self.proxy_url)
-        profile_key = hashlib.sha256(route.encode("utf-8")).hexdigest()[:20]
-        profile = Path(__file__).resolve().parent.parent / ".zain-service-profiles" / profile_key
-        for lock_name in ("lockfile", "SingletonLock"):
-            lock_path = profile / lock_name
-            if lock_path.exists():
-                try:
-                    lock_path.unlink()
-                except Exception:
-                    pass
+        # Chrome manages its profile locks. Do not remove another live context's locks.
         return self._launch_context(pw)
 
     def run(self):
@@ -228,11 +342,45 @@ class StealthServiceWorker(threading.Thread):
                         try:
                             if job is None:
                                 break
+                            self.active_job = job
                             if not self._is_context_alive(context):
                                 logger.warning("Stealth browser context is closed or disconnected. Self-healing...")
                                 context = self._heal_context(pw, context)
                             if not job.cancelled.is_set():
-                                job.result = self._do_query(context, job)
+                                # Attempt 1: Re-use the existing instance and tab
+                                try:
+                                    res = self._do_query(context, job)
+                                except Exception as exc:
+                                    exc_name = type(exc).__name__
+                                    err_msg = str(exc)
+                                    is_target_closed = "TargetClosed" in exc_name or ("target" in err_msg.lower() and "closed" in err_msg.lower())
+                                    if job.verification_pending.is_set():
+                                        res = ("verification_required", None, "تعذر إكمال التحقق؛ أعد المحاولة عند جاهزية جلسة زين")
+                                    elif is_target_closed:
+                                        res = ("network_error", None, "أُغلقت جلسة المتصفح؛ يجري استعادتها (TargetClosedError)")
+                                    else:
+                                        res = ("network_error", None, f"تعذر استكمال المتصفح: {exc_name}")
+
+                                # Attempt 2 (Smart Instance Retry):
+                                # If attempt 1 did not produce a clean result (not "ok" and not "not_found"),
+                                # and not blocked (blocked needs router cooldown, not immediate retry on same route):
+                                status = res[0] if res else "error"
+                                if status not in ("ok", "not_found", "verification_required", "blocked") and not job.cancelled.is_set():
+                                    logger.warning(
+                                        "Service query for %s returned '%s' on existing instance. "
+                                        "Closing old instance and retrying with a fresh instance...",
+                                        job.number, status
+                                    )
+                                    try:
+                                        context = self._heal_context(pw, context)
+                                        if job.deadline - time.monotonic() < 20.0:
+                                            job.deadline = time.monotonic() + 25.0
+                                        if not job.cancelled.is_set():
+                                            res = self._do_query(context, job)
+                                    except Exception as retry_exc:
+                                        logger.warning("Retry on fresh instance failed: %s", retry_exc)
+
+                                job.result = res
                         except Exception as exc:
                             self.service_page = None
                             exc_name = type(exc).__name__
@@ -242,11 +390,13 @@ class StealthServiceWorker(threading.Thread):
                                 if job.verification_pending.is_set():
                                     job.result = ("verification_required", None, "تعذر إكمال التحقق؛ أعد المحاولة عند جاهزية جلسة زين")
                                 elif is_target_closed:
-                                    job.result = ("blocked", None, "حظر جدار الحماية أو انقطاع استجابة المتصفح (TargetClosedError)")
+                                    job.result = ("network_error", None, "أُغلقت جلسة المتصفح؛ يجري استعادتها (TargetClosedError)")
                                 else:
                                     job.result = ("network_error", None, f"تعذر استكمال المتصفح: {exc_name}")
                             # Immediately heal context if target or context was closed/disconnected
                             if is_target_closed or not self._is_context_alive(context):
+                                if job is not None:
+                                    job.done.set()
                                 logger.warning("TargetClosed or invalid browser context. Healing context...")
                                 try:
                                     context = self._heal_context(pw, context)
@@ -255,6 +405,7 @@ class StealthServiceWorker(threading.Thread):
                         finally:
                             if job is not None:
                                 job.done.set()
+                            self.active_job = None
                             self.work_queue.task_done()
                 finally:
                     self.service_page = None
@@ -291,15 +442,6 @@ class StealthServiceWorker(threading.Thread):
                     responses.append(resp)
             page.on("response", on_response)
             try:
-                # Clear session cookies when switching accounts to prevent cross-account F5/Laravel rejection
-                if getattr(self, "_last_account", None) and self._last_account != job.number:
-                    if hasattr(context, "clear_cookies") and not type(context.clear_cookies).__name__.startswith("Mock"):
-                        try:
-                            context.clear_cookies()
-                        except Exception:
-                            pass
-                self._last_account = job.number
-
                 # Chrome's persistent context owns cookies and local storage.
                 # Replacing them from an HTTP jar would discard browser state.
                 response = page.goto(url, wait_until="domcontentloaded", timeout=max(1, int(remaining * 1000)))
@@ -325,7 +467,7 @@ class StealthServiceWorker(threading.Thread):
                 if target.hostname == HOST and target.path.rstrip("/") == "/ar/home":
                     status = 302
                     header_message["Location"] = page.url
-                elif target.hostname != HOST or (target.path != "/ar/quickpay" and not target.path.startswith("/TSPD/")):
+                elif target.hostname != HOST or (target.path.rstrip("/") != "/ar/quickpay" and not target.path.startswith("/TSPD/")):
                     return "unknown_response", None, "انتقل المتصفح إلى صفحة غير متوقعة"
                 result = classify_web_response(status, header_message, body, url)
                 if result[0] == "verification_required" and self._manual_verification(page, job):
@@ -366,48 +508,100 @@ class StealthServiceWorker(threading.Thread):
                     self.service_page = None
 
 
-def get_stealth_service_worker(proxy_url: Optional[str] = None) -> StealthServiceWorker:
+def get_stealth_service_worker(proxy_url: Optional[str] = None, *, reserve=False) -> StealthServiceWorker:
     global _GLOBAL_STEALTH_WORKER
     with _WORKER_LOCK:
+        if os.getenv('ZAIN_SERVICE_MODE') == '1' and os.getenv('ZAIN_SERVICE_ROLE') != 'browser':
+            raise RuntimeError('Browser workers belong to the independent browser service')
+        if os.getenv('ZAIN_SERVICE_ROLE') == 'browser':
+            from services.ipc import RetryLater
+            from services.resources import admit
+            if not admit('browser'):
+                raise RetryLater(delay=3.0)
+            limit = max(1, min(32, int(os.getenv('ZAIN_BROWSER_ROUTE_LIMIT', '4'))))
+            alive = sum(w.is_alive() for w in _existing_browser_workers_unlocked())
+            existing = _PROXY_BROWSER_WORKERS.get(connection_group(proxy_url)) if proxy_url else _GLOBAL_STEALTH_WORKER
+            if alive >= limit and (existing is None or not existing.is_alive()):
+                # Retire an idle owned route before admitting a different one;
+                # never close another task's active page or manual challenge.
+                idle = next((w for w in _existing_browser_workers_unlocked()
+                             if w.is_alive() and getattr(w, 'active_job', None) is None
+                             and getattr(w, 'reservations', 0) == 0
+                             and getattr(w, 'work_queue', None) is not None and w.work_queue.empty()), None)
+                if idle is None:
+                    raise RetryLater(delay=3.0)
+                idle.stop_event.set()
+                idle.work_queue.put_nowait(None)
+                idle.join(timeout=5.0)
+                if idle.is_alive():
+                    raise RetryLater(delay=3.0)
+                if _GLOBAL_STEALTH_WORKER is idle:
+                    _GLOBAL_STEALTH_WORKER = None
+                for key, route_worker in list(_PROXY_BROWSER_WORKERS.items()):
+                    if route_worker is idle:
+                        del _PROXY_BROWSER_WORKERS[key]
+        headless = os.getenv('ZAIN_BROWSER_HEADLESS', '1' if os.name != 'nt' else '0') == '1' if os.getenv('ZAIN_SERVICE_ROLE') == 'browser' else False
         if proxy_url:
             key = connection_group(proxy_url)
             worker = _PROXY_BROWSER_WORKERS.get(key)
             if worker is None or not worker.is_alive():
-                worker = StealthServiceWorker(proxy_url=proxy_url)
+                options = {'headless': headless} if os.getenv('ZAIN_SERVICE_ROLE') == 'browser' else {}
+                worker = StealthServiceWorker(proxy_url=proxy_url, **options)
                 _PROXY_BROWSER_WORKERS[key] = worker
                 worker.start()
-                worker.is_ready_event.wait(timeout=15.0)
-            return worker
-        if _GLOBAL_STEALTH_WORKER is None or not _GLOBAL_STEALTH_WORKER.is_alive():
-            _GLOBAL_STEALTH_WORKER = StealthServiceWorker()
-            _GLOBAL_STEALTH_WORKER.start()
-            _GLOBAL_STEALTH_WORKER.is_ready_event.wait(timeout=15.0)
-        return _GLOBAL_STEALTH_WORKER
+        else:
+            if _GLOBAL_STEALTH_WORKER is None or not _GLOBAL_STEALTH_WORKER.is_alive():
+                options = {'headless': headless} if os.getenv('ZAIN_SERVICE_ROLE') == 'browser' else {}
+                _GLOBAL_STEALTH_WORKER = StealthServiceWorker(**options)
+                _GLOBAL_STEALTH_WORKER.start()
+            worker = _GLOBAL_STEALTH_WORKER
+        if reserve:
+            worker.reservations = getattr(worker, 'reservations', 0) + 1
+    worker.is_ready_event.wait(timeout=15.0)
+    return worker
 
 
 def query_service_stealth(service_num: str, timeout_seconds: float = 45.0,
                           proxy_url: Optional[str] = None,
-                          on_verification: Optional[Callable[[str], None]] = None) -> Tuple[str, Optional[float], str]:
+                          on_verification: Optional[Callable[[str], None]] = None,
+                          *, cancel_event=None) -> Tuple[str, Optional[float], str]:
+    from services.browser_client import remote_browser_enabled
+    if remote_browser_enabled():
+        from services.browser_client import query
+        return query(service_num, timeout_seconds, proxy_url, on_verification)
     number = normalize_number(service_num)
     if not re.fullmatch(r"2[0-9]*", number):
         return "error", None, "هذا المسار مخصص لأرقام الخدمة التي تبدأ بـ2"
-    worker = get_stealth_service_worker(proxy_url) if proxy_url else get_stealth_service_worker()
-    if not worker.is_ready_event.is_set() or worker.startup_error or not worker.is_alive():
-        return "network_error", None, "محرك المتصفح غير متاح"
-    job = BrowserJob(number, timeout_seconds, time.monotonic() + timeout_seconds + 5.0)
-    job.on_verification = on_verification
-    worker.work_queue.put(job)
-    while not job.done.wait(timeout=0.2):
-        if time.monotonic() >= job.deadline:
-            job.cancelled.set()
-            # The browser continues to own the lock until the page is closed.
-            return "network_error", None, "انتهت مهلة استعلام المتصفح"
-    return job.result
+    worker = get_stealth_service_worker(proxy_url, reserve=True) if proxy_url else get_stealth_service_worker(reserve=True)
+    try:
+        if not worker.is_ready_event.is_set() or worker.startup_error or not worker.is_alive():
+            return "network_error", None, "محرك المتصفح غير متاح"
+        job = BrowserJob(number, timeout_seconds, time.monotonic() + timeout_seconds + 5.0)
+        if cancel_event is not None:
+            job.cancelled = cancel_event
+        job.on_verification = on_verification
+        try:
+            worker.work_queue.put_nowait(job)
+        except queue.Full:
+            return 'network_error', None, 'طابور محرك المتصفح ممتلئ'
+        while not job.done.wait(timeout=0.2):
+            if job.cancelled.is_set() or time.monotonic() >= job.deadline:
+                job.cancelled.set()
+                # The browser continues to own the lock until the page is closed.
+                return "network_error", None, "انتهت مهلة استعلام المتصفح"
+        return job.result
+    finally:
+        with _WORKER_LOCK:
+            worker.reservations = max(0, getattr(worker, 'reservations', 0) - 1)
+
+
+def _existing_browser_workers_unlocked():
+    return ([_GLOBAL_STEALTH_WORKER] if _GLOBAL_STEALTH_WORKER else []) + list(_PROXY_BROWSER_WORKERS.values())
 
 
 def _existing_browser_workers():
     with _WORKER_LOCK:
-        return ([_GLOBAL_STEALTH_WORKER] if _GLOBAL_STEALTH_WORKER else []) + list(_PROXY_BROWSER_WORKERS.values())
+        return _existing_browser_workers_unlocked()
 
 
 def _verification_active(pending) -> bool:
@@ -416,6 +610,10 @@ def _verification_active(pending) -> bool:
 
 
 def pending_verifications() -> list[dict]:
+    from services.browser_client import remote_browser_enabled
+    if remote_browser_enabled():
+        from services.browser_client import pending_verifications as remote
+        return remote()
     result = []
     for worker in _existing_browser_workers():
         with worker.verification_lock:
@@ -428,6 +626,10 @@ def pending_verifications() -> list[dict]:
 
 
 def cancel_pending_verifications() -> None:
+    from services.browser_client import remote_browser_enabled
+    if remote_browser_enabled():
+        from services.browser_client import cancel_pending_verifications as remote
+        return remote()
     for worker in _existing_browser_workers():
         with worker.verification_lock:
             if worker.verification:
@@ -436,18 +638,47 @@ def cancel_pending_verifications() -> None:
 
 def stop_service_browsers() -> None:
     """Close owned Chrome contexts normally so persistent state is flushed."""
+    from services.browser_client import remote_browser_enabled
+    if remote_browser_enabled():
+        # Engine shutdown does not stop an independently managed browser service.
+        return
     workers = _existing_browser_workers()
     cancel_pending_verifications()
     for worker in workers:
+        if worker.active_job is not None:
+            worker.active_job.cancelled.set()
         worker.stop_event.set()
-        worker.work_queue.put(None)
+        while True:
+            try:
+                queued = worker.work_queue.get_nowait()
+            except queue.Empty:
+                break
+            if queued is not None:
+                queued.cancelled.set()
+                queued.done.set()
+            worker.work_queue.task_done()
+        worker.work_queue.put_nowait(None)
     deadline = time.monotonic() + 20.0
     for worker in workers:
         if worker.is_alive() and worker is not threading.current_thread():
             worker.join(timeout=max(0.0, deadline - time.monotonic()))
+    with _SOCKS5_BRIDGE_LOCK:
+        sockets = list(_SOCKS5_LISTENERS.values()) + list(_SOCKS5_CONNECTIONS)
+        _SOCKS5_LISTENERS.clear()
+        _SOCKS5_CONNECTIONS.clear()
+        _SOCKS5_BRIDGES.clear()
+    for sock in sockets:
+        try:
+            sock.close()
+        except Exception:
+            pass
 
 
 def verification_image(challenge_id: str) -> Optional[bytes]:
+    from services.browser_client import remote_browser_enabled
+    if remote_browser_enabled():
+        from services.browser_client import verification_image as remote
+        return remote(challenge_id)
     for worker in _existing_browser_workers():
         with worker.verification_lock:
             pending = worker.verification
@@ -457,6 +688,10 @@ def verification_image(challenge_id: str) -> Optional[bytes]:
 
 
 def submit_verification(challenge_id: str, answer: str) -> bool:
+    from services.browser_client import remote_browser_enabled
+    if remote_browser_enabled():
+        from services.browser_client import submit_verification as remote
+        return remote(challenge_id, answer)
     if not isinstance(answer, str) or not answer.strip() or len(answer) > 64:
         return False
     for worker in _existing_browser_workers():

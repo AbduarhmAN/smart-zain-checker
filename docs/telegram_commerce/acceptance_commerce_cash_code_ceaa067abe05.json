@@ -1,0 +1,17 @@
+{
+  "run_at": "2026-10-14T09:49:57.083810+00:00",
+  "database": "commerce_cash_code_ceaa067abe05",
+  "production": false,
+  "checks": [
+    "Telegram wizard review before approval",
+    "lost issuance and redemption acknowledgements replayed once",
+    "ordinary customer balance; no promotional classification or commission",
+    "16 competing receipt allocations preserve one funded path",
+    "16 competing redemptions preserve funded limit of two",
+    "all journals balanced"
+  ],
+  "per_customer_minor": 3001,
+  "cash_receipt_winning_path": "direct_topup",
+  "shared_receipt_total_minor": 3000,
+  "concurrent_redemptions": 2
+}

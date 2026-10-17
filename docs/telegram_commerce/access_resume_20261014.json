@@ -1,0 +1,43 @@
+{
+  "at": "2026-10-14T12:18:50.010708+00:00",
+  "source_thread_id": "01a0d2d3-1ecb-7b72-ab5e-0fd9d2bb85b2",
+  "chat_tool": "unavailable durable host; local recorded conversation recovered",
+  "last_recorded_step": "2026-10-14T11:32:40.772Z security corrections awaiting tests",
+  "resumed_step": "administrative HTTP, Telegram revocation and managed extension authority verification",
+  "python_boundary_tests": 19,
+  "javascript_request_checks": 6,
+  "telegram_tests": {
+    "tests_run": 212,
+    "passed": true,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "fixture": "E:\\Projects\\smart_zainchecker_gemini\\outputs\\telegram_audit_20261007\\isolated_run_7kf_th3k",
+    "patterns": [
+      "test_access_boundaries.py",
+      "test_telegram_transport_reliability.py",
+      "test_telegram_queue_durability.py",
+      "test_telegram_workflow_reliability.py",
+      "test_telegram_payment_reliability.py",
+      "test_telegram_notifier_reliability.py",
+      "test_telegram_ui.py",
+      "test_sheet_workflow.py",
+      "test_dashboard_controls.py",
+      "test_pricing.py"
+    ],
+    "real_network": "external I/O blocked; isolated loopback HTTP fixtures allowed",
+    "filesystem_deletion": "blocked; fixture XML retained"
+  },
+  "commerce_tests": 223,
+  "schema_version": 19,
+  "commerce_tables": 30,
+  "backend_rpcs": 61,
+  "anonymous_or_authenticated_rpc_access": false,
+  "runtime_evidence": "runtime_verification_20261014T120218Z.json",
+  "external_browser_or_checker_runs": false,
+  "production_bot_restarted": false,
+  "production_financial_mutations": false,
+  "public_checkout_enabled": false,
+  "remaining": "partner-funded offers, approved stacking, anti-abuse, legacy reconciliation, full financial access audit and validated rollout",
+  "full_git_diff_review": "unavailable due to a pre-existing unreadable Git object; Git storage not changed"
+}

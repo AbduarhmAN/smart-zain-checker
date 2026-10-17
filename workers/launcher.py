@@ -8,10 +8,14 @@ import shutil
 import subprocess
 import sys
 import time
+import signal
+import threading
 from pathlib import Path
 from typing import Optional
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+_OWNED_PROCESSES = {}
+_PROCESS_LOCK = threading.Lock()
 
 # Standard Chrome executable locations on Windows
 CHROME_CANDIDATE_PATHS = [
@@ -61,7 +65,10 @@ def launch_worker_chrome(
         raise RuntimeError("Google Chrome executable not found on this system.")
 
     profile_dir.mkdir(parents=True, exist_ok=True)
-    clean_worker_extension_storage(profile_dir)
+    # Preserve browser/extension state; provision authority in a retained private
+    # copy rather than publishing credentials in the repository extension.
+    from server.bridge_authority import provision_extension
+    extension_dir=provision_extension(PROJECT_ROOT,extension_dir,worker_id=worker_id)
 
     args = [
         str(chrome_exe),
@@ -95,9 +102,12 @@ def launch_worker_chrome(
         stderr=subprocess.DEVNULL,
         stdin=subprocess.DEVNULL,
         creationflags=creationflags,
+        start_new_session=sys.platform != 'win32',
     )
 
     pid = proc.pid
+    with _PROCESS_LOCK:
+        _OWNED_PROCESSES[pid] = proc
     pid_file = profile_dir / ".pid"
     try:
         pid_file.write_text(str(pid), encoding="utf-8")
@@ -123,7 +133,17 @@ def terminate_worker_process(pid: Optional[int], profile_dir: Optional[Path] = N
     if not target_pid:
         return False
 
+    with _PROCESS_LOCK:
+        proc = _OWNED_PROCESSES.get(target_pid)
+    # A stale .pid file is not proof of ownership: the OS may have reused it.
+    # Untracked leftovers are cleaned by the browser unit's cgroup on shutdown.
+    if proc is None:
+        return False
     try:
+        if proc.poll() is not None:
+            with _PROCESS_LOCK:
+                _OWNED_PROCESSES.pop(target_pid, None)
+            return True
         if sys.platform == "win32":
             subprocess.run(
                 ["taskkill", "/F", "/T", "/PID", str(target_pid)],
@@ -132,8 +152,18 @@ def terminate_worker_process(pid: Optional[int], profile_dir: Optional[Path] = N
                 check=False,
             )
         else:
-            os.kill(target_pid, 9)
-        time.sleep(0.3)
+            if os.getpgid(target_pid) != target_pid:
+                return False
+            # start_new_session creates a dedicated group without escaping the
+            # systemd cgroup. Signal only this tracked, still-live group.
+            os.killpg(target_pid, signal.SIGTERM)
+            try:
+                proc.wait(timeout=3.0)
+            except subprocess.TimeoutExpired:
+                os.killpg(target_pid, signal.SIGKILL)
+                proc.wait(timeout=2.0)
+        with _PROCESS_LOCK:
+            _OWNED_PROCESSES.pop(target_pid, None)
         return True
     except Exception:
         return False

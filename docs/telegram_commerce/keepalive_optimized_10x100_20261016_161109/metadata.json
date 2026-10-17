@@ -1,0 +1,14 @@
+{
+  "started_at": "2026-10-16T13:11:09.444383+00:00",
+  "threads": 10,
+  "queries_per_thread": 100,
+  "pause_seconds": 0.5,
+  "timeout_seconds": 30,
+  "sample_accounts": 7,
+  "same_first_10_configured_routes_as_baseline": true,
+  "production_api_used": true,
+  "body_compression": "gzip accepted",
+  "automatic_retry": "at most one idempotent GET retry only after a reused connection reset/EOF, same proxy",
+  "measurement": "Opaque TCP payload in both directions, including SOCKS/TLS; excludes TCP/IP headers, DNS and TCP retransmissions.",
+  "privacy": "No lookup numbers, balances, response bodies, proxy endpoints or credentials stored."
+}

@@ -17,11 +17,14 @@ const QueueUI = {
 
   renderQueueTable(jobs) {
     this.lastJobs = jobs || [];
+    if(typeof Pricing !== 'undefined') Pricing.onJobs(this.lastJobs);
+    this.renderRecovery(jobs || []);
     const tbody = document.getElementById('queueTableBody');
     if (!tbody) return;
 
     if (!jobs || jobs.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--ink-faint); padding: 30px;">الطابور فارغ حالياً. افتح نافذة "فحص وتعيين الأعمدة" لإضافة أوراق العمل هنا.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state"><strong>أضف أول ملف للجولة</strong><p>اختر الملف من الجانب، ثم راجع الأعمدة واضغط «أضف إلى الجولة».</p></div></td></tr>';
+      this.updateTabBadge([]);this.updateQueueControls([]);
       return;
     }
 
@@ -29,8 +32,10 @@ const QueueUI = {
     jobs.forEach((job, idx) => {
       const tr = document.createElement('tr');
       let statusBadge = '';
-      if (job.status === 'active') statusBadge = '<span class="badge badge-match">جارٍ الفحص الآن ⚡</span>';
+      if (job.status === 'active') statusBadge = '<span class="badge badge-match">جارٍ الفحص</span>';
       else if (job.status === 'completed') statusBadge = '<span class="badge badge-match">انتهت المعالجة</span>';
+      else if (job.status === 'failed') statusBadge = '<span class="badge badge-error">يحتاج متابعة</span>';
+      else if (job.status === 'archived') statusBadge = '<span class="badge">جولة سابقة محفوظة</span>';
       else statusBadge = '<span class="badge">قيد الانتظار</span>';
 
       tr.innerHTML = `
@@ -38,14 +43,17 @@ const QueueUI = {
         <td><strong>${Dashboard.escape(job.filename)}</strong></td>
         <td>${Dashboard.escape(job.sheet_name)}</td>
         <td><span class="mono">${(job.total_records || 0).toLocaleString()}</span> سجل</td>
+        <td><span class="queue-price" data-billing-job="${Dashboard.escape(job.id)}">مخفي</span>${job.status==='pending' && !job.completed ? `<button class="queue-price-edit" aria-label="تعديل سعر ${Dashboard.escape(job.filename)}" onclick="Pricing.open('${job.id}')">تعديل السعر</button>`:''}</td>
         <td>${statusBadge}</td>
         <td>
           <span class="mono" style="color:var(--status-match);">${job.matches || 0}</span> مطابقة | 
           <span class="mono" style="color:var(--status-mismatch);">${job.mismatches || 0}</span> فرق
         </td>
         <td style="white-space: nowrap;">
-          ${job.status === 'completed' && jobs.every(j=>j.status==='completed') ? `<a href="/api/download-results?job_id=${job.id}" class="btn btn-primary" style="padding: 4px 8px; font-size: 11px; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; background: #059669; margin-left: 4px;" download>⬇️ تحميل النتائج</a>` : ''}
-          <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="QueueUI.removeJob('${job.id}')">إزالة من الطابور</button>
+          ${['completed','archived'].includes(job.status) && job.completed>=job.total_records && jobs.filter(j=>j.status!=='archived').every(j=>j.status==='completed') ? `<a href="/api/download-results?job_id=${job.id}" class="btn btn-secondary queue-download" download>${Dashboard.icon('download')} تحميل النتائج</a>` : ''}
+          ${['pending','failed'].includes(job.status) && job.completed>0 ? `<button class="btn btn-primary queue-resume" onclick="QueueUI.startQueue('${Dashboard.escape(job.id)}')">${job.completed>=job.total_records?'إعادة حفظ النتيجة':'متابعة المتبقي · '+(job.total_records-job.completed).toLocaleString('ar-EG')}</button>`:''}
+          ${job.status!=='active' && job.status!=='archived' ? `<button class="btn btn-secondary" onclick="QueueUI.promptRestartJob('${Dashboard.escape(job.id)}')">فحص جديد</button>`:''}
+          <button class="btn btn-secondary queue-remove" ${job.status==='active'?'disabled':''} onclick="QueueUI.removeJob('${job.id}')">إزالة من القائمة</button>
         </td>
       `;
       tbody.appendChild(tr);
@@ -53,6 +61,7 @@ const QueueUI = {
 
     this.updateTabBadge(jobs);
     this.updateQueueControls(jobs);
+    if(typeof Pricing !== 'undefined') Pricing.render();
   },
 
   updateTabBadge(jobs) {
@@ -74,12 +83,23 @@ const QueueUI = {
     }
   },
 
+  renderRecovery(jobs) {
+    const panel=document.getElementById('recoveryPanel');
+    if(!panel)return;
+    const resumable=jobs.filter(j=>['pending','failed'].includes(j.status) && j.completed>0);
+    panel.hidden=!!App.isRunning || !resumable.length;
+    const list=document.getElementById('recoveryList');
+    if(!list || panel.hidden)return;
+    list.innerHTML=resumable.map(job=>'<div class="recovery-row"><div><strong>'+Dashboard.escape(job.filename)+' · '+Dashboard.escape(job.sheet_name)+'</strong><p>تم فحص '+job.completed.toLocaleString('ar-EG')+' من '+job.total_records.toLocaleString('ar-EG')+' صف. النتائج السابقة محفوظة.</p></div><div class="recovery-actions"><button class="btn btn-primary" onclick="QueueUI.startQueue(\''+Dashboard.escape(job.id)+'\')">'+(job.completed>=job.total_records?'إعادة حفظ النتيجة':'متابعة المتبقي')+'</button><button class="btn btn-secondary" onclick="QueueUI.promptRestartJob(\''+Dashboard.escape(job.id)+'\')">فحص جديد</button></div></div>').join('');
+  },
+
   updateQueueControls(jobs) {
     const btn = document.getElementById('btnStartQueue');
     if (!btn) return;
     const hasActive = jobs.some(j => j.status === 'active');
     const hasPending = jobs.some(j => j.status === 'pending');
-    const allCompleted = jobs.length > 0 && jobs.every(j => j.status === 'completed');
+    const current=jobs.filter(j=>j.status!=='archived');
+    const allCompleted = current.length > 0 && current.every(j => j.status === 'completed');
 
     if (hasActive) {
       btn.textContent = 'الطابور يعمل الآن';
@@ -105,7 +125,7 @@ const QueueUI = {
     RestartModal.show({
       filename: 'كافة أوراق العمل في الطابور',
       sheetName: `${(this.lastJobs || []).length} شيتات`,
-      statsText: `الحالة: جميع الشيتات مكتملة الفحص ✔ | سيتم تصفير التقدم ونقاط الاستعادة والبدء من أول شيت ومن أول سجل.`,
+      statsText: `ستبدأ جولة جديدة لكل شيت. تبقى النتائج والتقدم السابق محفوظين.`,
       onConfirm: async () => {
         try {
           const res = await API.restartAllQueueJobs(true);
@@ -130,7 +150,7 @@ const QueueUI = {
     RestartModal.show({
       filename: job.filename,
       sheetName: job.sheet_name,
-      statsText: `الحالة: مكتملة بالكامل ✔ | تم فحص ${(job.completed || job.total_records).toLocaleString()} سجل (${job.matches || 0} مطابقة | ${job.mismatches || 0} فرق)`,
+      statsText: `تم فحص ${(job.completed || 0).toLocaleString('ar-EG')} من ${job.total_records.toLocaleString('ar-EG')} صف. سننشئ جولة جديدة ونحتفظ بنتائج الجولة السابقة.`,
       onConfirm: async () => {
         try {
           const res = await API.restartQueueJob({ job_id: jobId, auto_start: true });
@@ -158,7 +178,7 @@ const QueueUI = {
     }
   },
 
-  async startQueue() {
+  async startQueue(jobId=null) {
     if (this.starting || App.isRunning) return;
     this.starting = true;
     App.updateControlButtons();
@@ -166,7 +186,7 @@ const QueueUI = {
     const origText = btn ? btn.innerHTML : 'بدء معالجة الطابور';
     if (btn) btn.innerHTML = '⏳ جاري البدء...';
     try {
-      const res = await API.startQueue();
+      const res = await API.startQueue(jobId);
       if (res.status === 'ok') {
         this.refresh();
         App.poll();

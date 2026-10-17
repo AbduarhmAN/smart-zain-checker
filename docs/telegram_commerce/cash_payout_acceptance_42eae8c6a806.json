@@ -1,0 +1,13 @@
+{
+  "at": "2026-10-16T16:12:05.497706+00:00",
+  "database": "commerce_cash_payout_42eae8c6a806",
+  "production": false,
+  "cash_without_external_receipt": true,
+  "no_write_before_final_confirmation": true,
+  "lost_ack_replay_single_paid_withdrawal": true,
+  "exact_egp_amount": "0.00001",
+  "unrelated_reserved_funds_preserved": true,
+  "one_receipt_two_durable_notices": true,
+  "journals_balanced": true,
+  "real_telegram_messages_sent": false
+}

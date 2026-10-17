@@ -1,0 +1,16 @@
+{
+  "started_at": "2026-10-16T12:21:35.223034+00:00",
+  "started_at_baghdad": "2026-10-16T15:21:35.223060+03:00",
+  "query_threads": 10,
+  "queries_per_thread": 100,
+  "pause_after_each_response_seconds": 0.5,
+  "unique_existing_account_samples": 7,
+  "proxy_routes": "first 10 distinct eligible configured worker routes",
+  "transport": "Native SocksiPyConnectionS/stdlib TLS with production headers and Connection keep-alive",
+  "automatic_retries": false,
+  "tcp_tls_connection_reuse": true,
+  "measurement": "Encrypted external TCP payload, both directions; includes SOCKS negotiation and TLS handshakes.",
+  "excluded": "DNS, TCP/IP/link headers and TCP retransmissions; other apps, health checks and browser traffic.",
+  "application_state": "No production code, queues, payments, wallets or customer jobs changed.",
+  "privacy": "No account identifiers, amounts, bodies, proxy addresses or credentials in reports."
+}

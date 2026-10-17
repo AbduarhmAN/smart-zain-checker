@@ -30,7 +30,7 @@ const SessionTiming = {
         offset: Number.isFinite(serverNow) ? now - serverNow : 0,
         baseline: Number(timing.initial_completed) || 0,
         done, lastSeen: now, running: !!data.running, finished: false,
-        points: [], sampleFloor: 0, signature: null, smoothedRate: null, rateVersion: null
+        points: [], smoothedRate: null, rates: {}, prediction: null
       };
     }
     if (!Number.isFinite(state.startedAt) || !Number.isFinite(state.baseline)) {
@@ -45,19 +45,21 @@ const SessionTiming = {
     const remaining = Math.max(0,total-done);
     const phase = remaining && Number(data.kpis.deferred) >= remaining ? 'retry' : 'regular';
     const workers = data.workers || [];
-    const available = workers.filter(w=>!w.in_cooldown && ['ready','processing'].includes(w.status));
-    const capacity = workers.length ? available.map(w=>w.worker_id || w.id).sort().join(',') : 'unknown';
-    const signature = [timing.window_id || '',type,phase,capacity,!!data.paused,!!data.verifications?.length].join('|');
-    if (state.signature !== null && state.signature !== signature) {
-      state.sampleFloor = serverNow; state.points=[];state.smoothedRate=null;state.rateVersion=null;
-    }
-    state.signature=signature;
+    // Worker recovery never erases history, including seven-minute cooldown gaps.
+    // Separate kinds prevent fast contracts from setting the speed of services.
     // New runtimes provide precise completion events; older runtimes use bounded
     // progress observations from the existing poll, without another request.
     if (Array.isArray(timing.recent_completions)) {
-      const events=timing.recent_completions.slice(-11);
+      let events=timing.recent_completions;
+      if(type!=='mixed' && timing.recent_by_type?.[type]) events=timing.recent_by_type[type];
+      else if(type!=='mixed' && type!=='general') events=events.filter(e=>e.kind===type);
+      if(phase==='retry' && timing.recent_by_phase?.retry?.length>=3){
+        const retries=timing.recent_by_phase.retry.filter(e=>type==='mixed' || type==='general' || e.kind===type);
+        if(retries.length>=3)events=retries;
+      }
+      events=events.slice(-11);
       state.points=events.map((event,i)=>({at:serverNow-Math.max(0,Number(event.age_seconds))*1000,
-        done:done-events.length+i+1})).filter(point=>Number.isFinite(point.at) && point.at>=state.sampleFloor);
+        done:done-events.length+i+1})).filter(point=>Number.isFinite(point.at));
     } else if (!state.points.length || state.points[state.points.length-1].done !== done) {
       state.points.push({at:serverNow,done});state.points=state.points.slice(-11);
     }
@@ -70,13 +72,27 @@ const SessionTiming = {
         const fraction=(cutoff-first.done)/(next.done-first.done);
         points[0]={done:cutoff,at:first.at+(next.at-first.at)*fraction};
       }
-      const first=points[0],sample=latest.done-first.done,span=(latest.at-first.at)/1000;
-      const version=latest.done+'|'+first.done;
-      if(sample>=2 && span>=1 && version!==state.rateVersion){
-        const observed=sample/span;
-        state.smoothedRate=state.smoothedRate==null?observed:0.7*observed+0.3*state.smoothedRate;
-        state.rateVersion=version;
+      const first=points[0],sample=latest.done-first.done;
+      const span=(latest.at-first.at)/1000, sinceLast=Math.max(0,(serverNow-latest.at)/1000);
+      const bucket=(timing.window_id || '')+'|'+type+'|'+phase;
+      let model=state.rates[bucket];
+      let refreshed=false;
+      // Fixed, bounded samples; update the estimate every 15 seconds, not every tick.
+      if(sample>=2 && span>=1 && (!model || serverNow-model.at>=15000)){
+        const period=span/sample;
+        // Count an unfinished, unusually long interval instead of assuming progress
+        // continues at the old speed while the browser is recovering.
+        const observed=sinceLast>period ? (span+sinceLast)/(sample+1) : period;
+        const secondsPerRow=model ? (observed>model.period?observed:0.25*observed+0.75*model.period) : observed;
+        model={at:serverNow,period:secondsPerRow,sample};state.rates[bucket]=model;
+        refreshed=true;
       }
+      state.smoothedRate=model?1/model.period:null;
+      if(model && !data.paused && remaining && (refreshed || !state.prediction || state.prediction.bucket!==bucket || state.done!==done)){
+        state.prediction={endsAt:now+remaining*model.period*1000,seconds:remaining*model.period,at:now,bucket};
+      }
+    } else {
+      state.smoothedRate=null;
     }
     state.sampleType=type;state.phase=phase;
     state.done = done;
@@ -100,14 +116,14 @@ const SessionTiming = {
     const base = {elapsed, measured, remaining, startedAt:s.startedAt, exact:s.exact};
     if (!this.connected || now - s.lastSeen > 10000) return {...base,status:'offline'};
     if (!d.running) return {...base,status:s.finished ? 'finished' : 'stopped'};
-    if (d.paused || (d.verifications || []).length) return {...base,status:'paused'};
+    if (d.paused) return {...base,status:'paused'};
     if (!remaining) return {...base,status:'saving'};
     const workers=d.workers || [];
-    const available=workers.filter(w=>!w.in_cooldown && ['ready','processing'].includes(w.status));
+    const available=workers.filter(w=>!w.in_cooldown && !w.service_verification_required && ['ready','processing'].includes(w.status));
     const noWork=!(Number(d.kpis.active_leases)>0) && !workers.some(w=>w.status==='processing' && !w.in_cooldown);
     const retryDelay=Math.max(0,Number(d.kpis.next_retry_seconds)||0);
     if(noWork && (retryDelay>0 || workers.length && !available.length && workers.some(w=>w.in_cooldown))){
-      const delays=workers.filter(w=>w.in_cooldown).map(w=>Number(w.cooldown_remaining_seconds)).filter(v=>v>0);
+      const delays=workers.map(w=>Math.max(Number(w.cooldown_remaining_seconds)||0,Number(w.service_retry_seconds)||0)).filter(v=>v>0);
       const wait=retryDelay || (delays.length?Math.min(...delays):0);
       return {...base,status:'cooldown',wait};
     }
@@ -115,11 +131,12 @@ const SessionTiming = {
     const sample=last && first?last.done-first.done:0;
     const rate=s.smoothedRate;
     const sinceLast=last?Math.max(0,(now-s.offset-last.at)/1000):0;
-    if(sinceLast>Math.max(45,rate?3/rate:45))return {...base,status:'waiting'};
+    if(noWork && workers.length && workers.every(w=>w.service_verification_required))return {...base,status:'verification'};
     if(!rate || sample<2)return {...base,status:'sampling'};
-    const seconds = remaining / rate;
+    const seconds = s.prediction?Math.max(0,(s.prediction.endsAt-now)/1000):remaining/rate;
+    if(sinceLast>Math.max(45,3/rate))return {...base,status:'waiting',rate,seconds,sample,endsAt:s.prediction?.endsAt};
     return {...base,status:'estimated',rate,seconds,sample,sampleType:s.sampleType,phase:s.phase,
-      endsAt:now + seconds * 1000};
+      endsAt:s.prediction?.endsAt || now + seconds * 1000};
   },
   duration(seconds) {
     const n = Math.max(0, Math.ceil(seconds));
@@ -137,6 +154,10 @@ const SessionTiming = {
       {hour:'2-digit',minute:'2-digit',...(seconds?{second:'2-digit'}:{}),timeZone:'Asia/Baghdad'}));
     return this.formatters[includeSeconds?1:0].format(new Date(timestamp));
   },
+  shortDuration(seconds) {
+    const n=Math.max(0,Math.ceil(seconds));
+    return [Math.floor(n/3600),Math.floor(n%3600/60),n%60].map(value=>String(value).padStart(2,'0')).join(':');
+  },
   render(now = Date.now()) {
     const set = (id, text) => {
       const el = document.getElementById(id);
@@ -145,15 +166,18 @@ const SessionTiming = {
     const e = this.estimate(now);
     set('timingStartLabel', 'وقت بدء فحص الملف');
     set('timingStart', e.startedAt ? this.clock(e.startedAt) : '—');
-    set('timingElapsed', e.elapsed != null ? this.duration(e.elapsed) : '—');
-    set('timingRemaining', e.status === 'estimated' ? 'نحو ' + this.duration(e.seconds) :
+    set('timingElapsed', e.elapsed != null ? this.shortDuration(e.elapsed) : '—');
+    set('timingRemaining', e.status === 'estimated' ? 'نحو ' + this.shortDuration(e.seconds) :
       e.status === 'finished' ? 'اكتمل' : e.status === 'cooldown' ? 'بانتظار التبريد' : e.status === 'waiting' ? 'بانتظار نتيجة' : '—');
-    set('timingFinish', e.status === 'estimated' ? this.clock(e.endsAt, false) : '—');
+    const lastPrediction=this.state?.prediction;
+    const showLast=lastPrediction && ['cooldown','waiting','paused','offline','verification','stopped','sampling'].includes(e.status);
+    set('timingFinish', e.status === 'estimated' ? this.clock(e.endsAt, false) : showLast ? this.clock(lastPrediction.endsAt,false)+' (آخر تقدير)' : '—');
     const labels = {
       idle:'يظهر التقدير عند بدء الفحص.',
       unknown_start:'وقت بدء هذه الجلسة غير متاح من النسخة الجارية؛ تسجيله متاح بعد تشغيل النسخة المحدّثة.',
       sampling:'نجمع عينة حديثة لحساب الوقت المتبقي…',
       waiting:'لم تكتمل فحوصات جديدة مؤخرًا؛ يتحدث التقدير عند وصول نتيجة.',
+      verification:'مسارات الخدمة المتاحة تنتظر التحقق. وقت البدء والتقدم محفوظان.',
       cooldown:e.wait?'استئناف متوقع بعد '+this.duration(e.wait)+'؛ يُحسب موعد الانتهاء بعد عودة الفحص.':'بانتظار عودة أحد مسارات الفحص من التبريد.',
       paused:'الفحص متوقف مؤقتًا؛ يتحدث موعد الانتهاء بعد الاستئناف.',
       offline:'بانتظار تحديث الاتصال؛ موعد الانتهاء غير متاح الآن.',
@@ -163,7 +187,7 @@ const SessionTiming = {
     };
     const rate = e.rate ? (e.rate * 60).toLocaleString('ar-EG', {maximumFractionDigits:1}) : '';
     set('timingNote', e.status === 'estimated'
-      ? 'حوالي ' + rate + ' عميلًا/دقيقة · آخر '+e.sample.toLocaleString('ar-EG')+' فحوصات'+
+      ? 'تقدير يشمل الانتظار · حوالي ' + rate + ' عميلًا/دقيقة · آخر '+e.sample.toLocaleString('ar-EG')+' فواصل إنجاز'+
         (e.phase==='retry'?' مؤجلة':e.sampleType==='service'?' خدمة':e.sampleType==='account'?' حساب / عقد':'')+' · توقيت بغداد'
       : labels[e.status]);
   }

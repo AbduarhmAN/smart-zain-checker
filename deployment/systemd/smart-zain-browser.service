@@ -1,0 +1,35 @@
+[Unit]
+Description=Smart Zain Chromium execution application
+Wants=network-online.target
+After=network-online.target
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=smart-zain
+Group=smart-zain
+WorkingDirectory=/srv/smart-zain
+EnvironmentFile=/etc/smart-zain/services.env
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/srv/smart-zain/.venv/bin/python -B -m services browser --root /srv/smart-zain
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+# No detached launcher, external scope or service delegation: Chromium children
+# inherit this cgroup and are terminated with it even after a Python crash.
+KillMode=control-group
+SendSIGKILL=yes
+OOMPolicy=kill
+CPUAccounting=yes
+MemoryAccounting=yes
+IOAccounting=yes
+CPUWeight=50
+IOWeight=50
+UMask=0077
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=smart-zain-browser
+
+[Install]
+WantedBy=multi-user.target

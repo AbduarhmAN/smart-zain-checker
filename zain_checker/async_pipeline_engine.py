@@ -39,7 +39,6 @@ if hasattr(sys.stderr, "reconfigure"):
         pass
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from workers.zain_api import query_contract_due_amount
 
 logger = logging.getLogger("AsyncPipelineEngine")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -115,6 +114,7 @@ class AsyncExcelWriterThread(threading.Thread):
         wal_path: Path,
         batch_size: int = 50,
         flush_interval_seconds: float = 2.0,
+        wal_already_persisted: bool = False,
     ):
         super().__init__(name="Dedicated-Excel-Writer", daemon=True)
         self.result_queue = result_queue
@@ -122,6 +122,7 @@ class AsyncExcelWriterThread(threading.Thread):
         self.wal_path = wal_path
         self.batch_size = batch_size
         self.flush_interval_seconds = flush_interval_seconds
+        self.wal_already_persisted = wal_already_persisted
 
         self.wb: Optional[Workbook] = None
         self.ws: Optional[Any] = None
@@ -149,7 +150,8 @@ class AsyncExcelWriterThread(threading.Thread):
             self._create_header()
 
         # Open append-only WAL stream
-        self.wal_file = open(self.wal_path, "a", encoding="utf-8")
+        if not self.wal_already_persisted:
+            self.wal_file = open(self.wal_path, "a", encoding="utf-8")
 
     def _create_header(self):
         self.ws.title = "الفروقات الصافية للمحصلين"
@@ -163,13 +165,17 @@ class AsyncExcelWriterThread(threading.Thread):
             cell.border = THIN_BORDER
 
     def run(self):
+        from services.file_client import remote_files_enabled, RemoteStreamWriter
+        if remote_files_enabled():
+            RemoteStreamWriter.run(self)
+            return
         self._init_workbook_and_wal()
         logger.info(f"Writer Thread started. Batch size: {self.batch_size}, Flush interval: {self.flush_interval_seconds}s")
 
         while True:
             try:
-                # Wait for next item with short timeout so we can trigger time-based flushes
-                item = self.result_queue.get(timeout=0.3)
+                # Wait for next item with short timeout
+                item = self.result_queue.get(timeout=0.2)
             except queue.Empty:
                 item = None
 
@@ -182,27 +188,59 @@ class AsyncExcelWriterThread(threading.Thread):
                     self.is_stopping = True
                     break
 
-                self._process_single_record(item)
+                if isinstance(item, list):
+                    for rec in item:
+                        self._process_single_record(rec)
+                else:
+                    self._process_single_record(item)
 
-            # Check Flush Triggers (Batch Size or Time Interval)
+                # Rapidly burst-drain pending items into RAM in chunks of up to 500
+                while not self.result_queue.empty() and self.unflushed_count < 1000:
+                    try:
+                        queued_item = self.result_queue.get_nowait()
+                        if queued_item == "STOP_SENTINEL":
+                            self.is_stopping = True
+                            break
+                        elif isinstance(queued_item, list):
+                            for rec in queued_item:
+                                self._process_single_record(rec)
+                        elif queued_item is not None:
+                            self._process_single_record(queued_item)
+                    except queue.Empty:
+                        break
+
+            if self.is_stopping:
+                break
+
+            # Check Flush Triggers:
+            # ONLY save to disk if:
+            # 1. We accumulated a large batch (>= 1000 rows), OR
+            # 2. Queue is completely empty AND at least 30 seconds have elapsed since last save
             now = time.time()
             time_since_flush = now - self.last_flush_time
-            if self.unflushed_count >= self.batch_size or (self.unflushed_count > 0 and time_since_flush >= self.flush_interval_seconds):
+            q_empty = self.result_queue.empty()
+
+            if self.unflushed_count >= 1000 or (q_empty and self.unflushed_count >= 100 and time_since_flush >= 30.0):
                 self._flush_to_disk()
 
-        # Drain any remaining items before clean exit
+        # Drain any remaining items in RAM first (takes milliseconds)
         self._drain_remaining()
+        # Single final flush to disk
         self._flush_to_disk()
         if self.wal_file:
-            self.wal_file.close()
+            try:
+                self.wal_file.close()
+            except Exception:
+                pass
         logger.info(f"Writer Thread finished. Total rows saved: {self.total_saved}")
 
     def _process_single_record(self, row_data: Dict[str, Any]):
         """Writes record to WAL and appends to in-memory Excel sheet."""
         # 1. Instant WAL disk log (Atomic & crash-proof)
         try:
-            self.wal_file.write(json.dumps(row_data, ensure_ascii=False) + "\n")
-            self.wal_file.flush()
+            if not self.wal_already_persisted:
+                self.wal_file.write(json.dumps(row_data, ensure_ascii=False) + "\n")
+                self.wal_file.flush()
         except Exception as exc:
             logger.error(f"WAL write error: {exc}")
 
@@ -261,7 +299,8 @@ class AsyncExcelWriterThread(threading.Thread):
         t0 = time.time()
         flushed_num = self.unflushed_count
         try:
-            self.wb.save(self.result_path)
+            from services.file_client import atomic_workbook_save
+            atomic_workbook_save(self.wb, self.result_path)
             duration = round(time.time() - t0, 3)
             q_depth = self.result_queue.qsize()
             print(f"[💾 عامل الحفظ] تم حفظ دفعة من {flushed_num} سطر ({duration}s) | المتبقي بالطابور: {q_depth} | الإجمالي المحفوظ: {self.total_saved}")
@@ -277,7 +316,11 @@ class AsyncExcelWriterThread(threading.Thread):
             try:
                 item = self.result_queue.get_nowait()
                 if item and item != "STOP_SENTINEL":
-                    self._process_single_record(item)
+                    if isinstance(item, list):
+                        for rec in item:
+                            self._process_single_record(rec)
+                    else:
+                        self._process_single_record(item)
             except queue.Empty:
                 break
 
@@ -336,7 +379,8 @@ class AsyncPipelineEngine:
         with self.print_lock:
             print(f"📖 جاري قراءة وتقسيم الملف: {self.excel_path.name}...")
 
-        wb = openpyxl.load_workbook(self.excel_path, read_only=True, data_only=True)
+        from domain.workbook import load_fast_workbook
+        wb = load_fast_workbook(self.excel_path)
         sheet = wb.active
         rows = list(sheet.iter_rows(values_only=True))
         wb.close()
@@ -459,6 +503,7 @@ class AsyncPipelineEngine:
             cached = self.contract_cache.get(contract_key)
 
         if not cached:
+            from workers.zain_api import query_contract_due_amount
             st, live_amt, msg = query_contract_due_amount(contract_key)
             with self.lock:
                 self.contract_cache[contract_key] = (st, live_amt, msg)

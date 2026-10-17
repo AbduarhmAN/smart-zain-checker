@@ -1,6 +1,6 @@
-const BRIDGE_URL = "http://127.0.0.1:8766";
-const BRIDGE_TOKEN =
-  "614e3c6720854e8cb09fa5bc41c609a184cc75123924446aa306f08f0efa085b";
+importScripts("bridge-config.js");
+const BRIDGE_URL = globalThis.ZAIN_BRIDGE_URL;
+const BRIDGE_TOKEN = globalThis.ZAIN_BRIDGE_TOKEN;
 const ZAIN_PAYMENT_URL = "https://business.zain.sa/dashboard/quick-pay";
 const ZAIN_QUICKPAY_URL = "https://app.sa.zain.com/ar/quickpay";
 let incognitoHandoffPromise = null;
@@ -371,16 +371,28 @@ async function handleMessage(message, sender) {
 
 async function fetchJson(url, options = {}) {
   const storedWorker = await safeStorageGet("zainWorkerId");
-  const workerId = options.worker_id || storedWorker.zainWorkerId || "Worker 1 (Router)";
-  const headers = {
-    "X-Zain-Bridge-Token": BRIDGE_TOKEN,
-    "X-Worker-Id": workerId,
-    ...(options.headers || {}),
-  };
-  const response = await fetch(url, {
+  const workerId = globalThis.ZAIN_BRIDGE_WORKER_ID || options.worker_id || storedWorker.zainWorkerId || "Worker 1 (Router)";
+  const target = new URL(url);
+  if (target.origin !== new URL(BRIDGE_URL).origin || target.username || target.password) {
+    throw new Error("Bridge request must use the configured local endpoint.");
+  }
+  target.searchParams.set("worker", workerId);
+  const headers = new Headers(options.headers || {});
+  headers.set("X-Zain-Bridge-Token", BRIDGE_TOKEN);
+  headers.set("X-Worker-Id", workerId);
+  let body = options.body;
+  if (body !== undefined) {
+    const record = JSON.parse(body);
+    if (!record || typeof record !== "object" || Array.isArray(record)) {
+      throw new Error("Bridge request requires an object.");
+    }
+    body = JSON.stringify({ ...record, worker_id: workerId });
+  }
+  const response = await fetch(target.href, {
     cache: "no-store",
     ...options,
     headers,
+    ...(body !== undefined ? { body } : {}),
   });
   const payload = await response.json();
   if (!response.ok) {

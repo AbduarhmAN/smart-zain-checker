@@ -11,8 +11,6 @@ import logging
 import math
 import re
 from typing import Any, Optional, Tuple
-import urllib.error
-import urllib.request
 
 logger = logging.getLogger("ZainAPI")
 
@@ -44,49 +42,52 @@ def query_app_zain_web_engine(
 
 def query_direct_business_api(
     num_clean: str,
-    timeout: float = 15.0,
+    timeout: float = 30.0,
+    proxy_url: Optional[str] = None,
+    *,connection_key=None,
 ) -> Tuple[str, Optional[float], str]:
-    """Direct connection via manage.business.zain.sa REST API."""
+    """Direct connection via manage.business.zain.sa REST API with optional proxy support."""
     num_clean = normalize_number(num_clean)
     if not re.fullmatch(r"[0-9]+", num_clean):
         return "error", None, "Invalid lookup number"
     if num_clean.startswith("2"):
-        return query_contract_due_amount(num_clean, timeout=int(timeout))
+        return query_contract_due_amount(num_clean, proxy_url=proxy_url, timeout=int(timeout))
     url = f"{API_BASE_URL}/{num_clean}"
-    req = urllib.request.Request(url, headers=DEFAULT_HEADERS)
-
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
-            if data.get("is_successful"):
-                bill_data = data.get("data", {})
-                due = bill_data.get("due_amount")
-                try:
-                    due_float = float(due)
-                except (ValueError, TypeError):
-                    return "unknown_response", None, "Missing or invalid due amount"
-                if not math.isfinite(due_float) or due_float < 0:
-                    return "unknown_response", None, "Invalid due amount"
-                return "ok", due_float, data.get("message", {}).get("message", "Success")
-            else:
-                msg = data.get("message", {}).get("message", "Zain API returned failure")
-                return "error", None, msg
-
-    except urllib.error.HTTPError as http_err:
+        from .account_transport import request_account
+        reply=request_account(url,DEFAULT_HEADERS,proxy=proxy_url,connection_key=connection_key,timeout=timeout)
+        if reply.status in (429,500,502,503,504):
+            return 'network_error',None,'Account API temporarily unavailable; retry after route cooldown'
         try:
-            err_data = json.loads(http_err.read().decode("utf-8"))
-            msg = err_data.get("message", {}).get("message") or err_data.get("message", {}).get("title") or str(http_err)
-        except Exception:
-            msg = f"HTTP {http_err.code}"
-        return "error", None, msg
-
+            data=json.loads(reply.body)
+        except (ValueError,UnicodeError):
+            return 'unknown_response',None,'Account API returned a non-JSON response'
+        if not isinstance(data,dict):return 'unknown_response',None,'Invalid account API response'
+        if reply.status in (400,404) and data.get('is_successful') is False and data.get('response_code')=='EZB5029':
+            return 'not_found',None,'رقم العقد لا يطابق أي سجل (EZB5029)'
+        if reply.status!=200 or data.get('is_successful') is not True:
+            return 'error',None,'Account API rejected the request (HTTP '+str(reply.status)+')'
+        bill_data=data.get('data')
+        due=bill_data.get('due_amount') if isinstance(bill_data,dict) else None
+        try:
+            if isinstance(due,bool):raise ValueError()
+            due_float=float(due)
+        except (ValueError,TypeError):return 'unknown_response',None,'Missing or invalid due amount'
+        if not math.isfinite(due_float) or due_float<0:return 'unknown_response',None,'Invalid due amount'
+        return 'ok',due_float,'Success'
+    except ValueError:
+        return 'error',None,'Invalid account connection configuration'
     except Exception as exc:
-        return "network_error", None, str(exc)
+        reason=getattr(exc,'reason',None)
+        if reason=='proxy_authentication_failed':return 'error',None,'Proxy authentication failed'
+        if reason=='route_cooling_down':return 'account_backoff',None,'Account route is waiting for server Retry-After'
+        return 'network_error',None,'Account connection unavailable ('+(reason or type(exc).__name__)+')'
 
 
 def query_contract_due_amount(
     lookup_number: str, proxy_url: Optional[str] = None, timeout: Optional[int] = None,
     on_verification=None,
+    *,connection_key=None,
 ) -> Tuple[str, Optional[float], str]:
     """Use a normal JS browser for services, with one context per route.
 
@@ -98,11 +99,11 @@ def query_contract_due_amount(
         return "error", None, "Invalid lookup number"
     if num_clean.startswith("2"):
         from .stealth_service_engine import query_service_stealth
-        kwargs = {"timeout_seconds": float(timeout if timeout is not None else 45), "proxy_url": proxy_url}
+        kwargs = {"timeout_seconds": float(timeout if timeout is not None else 12), "proxy_url": proxy_url}
         if on_verification is not None:
             kwargs["on_verification"] = on_verification
         return query_service_stealth(num_clean, **kwargs)
-    if proxy_url and str(proxy_url).strip():
-        return query_app_zain_web_engine(num_clean, proxy_url=str(proxy_url).strip(), timeout=float(timeout if timeout is not None else 15))
-    return query_direct_business_api(num_clean, timeout=timeout if timeout is not None else 15)
+    kwargs={'timeout':timeout if timeout is not None else 30,'proxy_url':proxy_url}
+    if connection_key is not None:kwargs['connection_key']=connection_key
+    return query_direct_business_api(num_clean,**kwargs)
 

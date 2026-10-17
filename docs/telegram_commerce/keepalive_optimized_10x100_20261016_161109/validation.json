@@ -1,0 +1,26 @@
+{
+  "query_threads": 10,
+  "queries_per_thread": [
+    100,
+    100,
+    100,
+    100,
+    100,
+    100,
+    100,
+    100,
+    100,
+    100
+  ],
+  "completed_results": 1000,
+  "all_results_are_fresh_wire_requests": true,
+  "all_request_indices_complete": true,
+  "every_gap_at_least_half_a_second": true,
+  "peak_simultaneous_queries": 10,
+  "one_tcp_connection_per_thread": true,
+  "no_automatic_retries_used": true,
+  "all_connections_still_open_at_test_end": true,
+  "all_payload_bytes_reconcile": true,
+  "provider_explicitly_closed_http_connections": 0,
+  "no_403_or_429": true
+}

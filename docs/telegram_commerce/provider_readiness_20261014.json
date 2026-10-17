@@ -1,0 +1,10 @@
+{
+  "client_date": "2026-10-14",
+  "production_app_verified": true,
+  "rate_observation_valid": true,
+  "asset": "USDT",
+  "egp_per_asset": "52.61913197052165",
+  "invoices_created": false,
+  "probe": "getMe plus current asset/USD and USD/EGP observations; read-only",
+  "evidence_source": "successful tool command in this goal continuation"
+}

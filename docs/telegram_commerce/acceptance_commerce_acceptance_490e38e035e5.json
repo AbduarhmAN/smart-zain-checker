@@ -1,0 +1,51 @@
+{
+  "run_at": "2026-10-13T21:47:57.622246+00:00",
+  "database": "commerce_acceptance_490e38e035e5",
+  "instance_directory": "E:\\Projects\\smart_zainchecker_gemini\\scratch\\commerce_pg_20261014\\data",
+  "production": false,
+  "checks": [
+    {
+      "test": "commerce_foundation.sql",
+      "passed": true,
+      "stdout": "BEGIN\nDO\nCOMMIT",
+      "stderr": "psql:E:/Projects/smart_zainchecker_gemini/supabase/tests/commerce_foundation.sql:73: NOTICE:  PASS: identity, wallet separation, event replay/conflict, job ownership, settlement gate, single refund destination, cash proof, RLS and grants"
+    },
+    {
+      "test": "commerce_journal_integrity.sql",
+      "passed": true,
+      "stdout": "BEGIN\nDO\nCOMMIT",
+      "stderr": "psql:E:/Projects/smart_zainchecker_gemini/supabase/tests/commerce_journal_integrity.sql:32: NOTICE:  PASS: balanced journal, unique operation, immutable entry, rejected imbalance and atomic failure"
+    },
+    {
+      "test": "16 concurrent registrations and 16 concurrent event replays",
+      "passed": true,
+      "users": 1,
+      "wallets": 2,
+      "events": 1
+    },
+    {
+      "test": "actual client role denial and service role RPC",
+      "passed": true
+    }
+  ],
+  "files": [
+    {
+      "path": "supabase\\migrations\\202610140001_commerce_foundation.sql",
+      "sha256": "1c2357fcdc4179b2665c16292b7646af2152c34923278a85d7baa6e5be45381f",
+      "stdout": "BEGIN\nCREATE SCHEMA\nCREATE SCHEMA\nREVOKE\nGRANT\nALTER DEFAULT PRIVILEGES\nALTER DEFAULT PRIVILEGES\nALTER DEFAULT PRIVILEGES\nCREATE TABLE\nCREATE TABLE\nCREATE TABLE\nCREATE TABLE\nCREATE TABLE\nCREATE TABLE\nCREATE TABLE\nCREATE TABLE\nCREATE TABLE\nCREATE TABLE\nCREATE TABLE\nCREATE TABLE\nCREATE TABLE\nCREATE TABLE\nCREATE TABLE\nCREATE TABLE\nCREATE TABLE\nCREATE TABLE\nCREATE TABLE\nCREATE TABLE\nCREATE INDEX\nCREATE INDEX\nCREATE INDEX\nCREATE INDEX\nDO\nCOMMIT",
+      "stderr": ""
+    },
+    {
+      "path": "supabase\\migrations\\202610140002_commerce_identity_events.sql",
+      "sha256": "9c198b44663bfb74201a52c3ec31d728f48038792d0beb6805167c54e6d5d5ac",
+      "stdout": "BEGIN\nCREATE FUNCTION\nCREATE FUNCTION\nREVOKE\nREVOKE\nGRANT\nGRANT\nCOMMIT",
+      "stderr": ""
+    },
+    {
+      "path": "supabase\\migrations\\202610140003_commerce_journal_integrity.sql",
+      "sha256": "ee40c67a664854d8e05f4cb8063849ac141c91c8bdfaee94ba75593fb19225bb",
+      "stdout": "BEGIN\nCREATE FUNCTION\nCREATE TRIGGER\nCREATE TRIGGER\nCREATE FUNCTION\nCREATE TRIGGER\nCREATE TRIGGER\nREVOKE\nCOMMIT",
+      "stderr": ""
+    }
+  ]
+}

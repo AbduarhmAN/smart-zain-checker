@@ -1,0 +1,21 @@
+{
+  "at": "2026-10-14T21:21:27.620006+00:00",
+  "production_schema_version": 28,
+  "observed_failure": {
+    "http": 403,
+    "database_code": "42501",
+    "operation": "issue_cash_credit_code"
+  },
+  "fix": "Deferred balanced-journal validation uses its owner with an empty search_path; runtime storage privileges remain denied.",
+  "production_cash_codes_at_verification": 0,
+  "production_cash_code_created_by_agent": false,
+  "customer_money_mutated_by_agent": false,
+  "commerce_unit_tests": 260,
+  "sql_acceptance": "acceptance_commerce_deferred_5597642f76cb.json",
+  "test_engine": 18,
+  "production_engine": "17.6",
+  "postgres_18_behavior_change_source": "https://www.postgresql.org/docs/18/release-18.html",
+  "postgres_18_test_did_not_reproduce_original_pg17_failure": true,
+  "production_verification": "runtime_verification_20261014T212044Z.json",
+  "retry": "Use the same original code and cash receipt; never collect funds again for a failed commit."
+}

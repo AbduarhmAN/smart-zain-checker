@@ -1,0 +1,13 @@
+{
+  "passed": true,
+  "production": false,
+  "database": "commerce_deferred_5597642f76cb",
+  "postgres_version_num": 180004,
+  "pre_fix_outcome": "passed_on_postgresql_18_event_role_context",
+  "production_version": "17.6",
+  "checks": [
+    "Post-fix commit and replay produce one cash code, one receipt and two ledger lines",
+    "Runtime role still denied direct financial storage",
+    "Deferred balance validation still rejects unbalanced journals"
+  ]
+}

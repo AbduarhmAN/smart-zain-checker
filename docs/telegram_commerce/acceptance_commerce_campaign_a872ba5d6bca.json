@@ -1,0 +1,20 @@
+{
+  "passed": true,
+  "at": "2026-10-14T02:02:32.561590+00:00",
+  "database": "commerce_campaign_a872ba5d6bca",
+  "production": false,
+  "external_messages_checker_invoices_and_transfers": "synthetic, no live operations",
+  "offer_created_via_admin_wizard": true,
+  "lost_activation_ack_recovered": true,
+  "grant_minor": 1000,
+  "discount_minor": 600,
+  "charged_minor": 2700,
+  "refunded_minor": 2700,
+  "collected_cash_minor": 1700,
+  "commission_minor": 510,
+  "ending_customer_minor": 7300,
+  "paid_checks": 1,
+  "free_checkout_no_invoice": true,
+  "free_checkout_revenue_minor": 0,
+  "referral_preserved": true
+}

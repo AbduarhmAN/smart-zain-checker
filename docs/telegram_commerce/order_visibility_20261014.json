@@ -1,0 +1,13 @@
+{
+  "current_operation": "261014-0004",
+  "visible_in_read_only_history": true,
+  "current_order_waiting": true,
+  "wallet_receipt_visible": true,
+  "duplicate_hash_asks_before_charge": true,
+  "financial_queue_and_config_files_unchanged": true,
+  "wallet_paid_operations": [
+    "261014-0004",
+    "261014-0003",
+    "261014-0002"
+  ]
+}
