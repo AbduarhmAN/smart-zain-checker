@@ -60,6 +60,11 @@ class WorkerActor:
     @property
     def ip_group(self) -> str:
         """Returns a string identifier for the worker's outbound IP network."""
+        from workers.low_bandwidth_transport import enabled
+        if self.can_check_services and enabled(self.proxy_url if self.use_proxy else None):
+            from engine_v3.proxy_scheduler import route_key
+            try:return route_key(self.proxy_url if self.use_proxy else None)
+            except ValueError:return f"invalid_proxy_{self.worker_id}"
         if self.use_proxy:
             from workers.service_transport import connection_group
             try:
@@ -183,6 +188,10 @@ class WorkerActor:
                 return "error", None, "Proxy worker requires a valid proxy URL"
         effective_proxy = self.proxy_url if self.use_proxy else None
         if is_service:
+            from workers.low_bandwidth_transport import enabled,query_service
+            if enabled(effective_proxy):
+                return query_service(contract_number,proxy_url=effective_proxy,
+                    on_verification=getattr(self,'on_verification',None))
             from services.browser_client import remote_browser_enabled
             if remote_browser_enabled():
                 from services.browser_client import query

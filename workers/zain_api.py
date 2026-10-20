@@ -98,6 +98,10 @@ def query_contract_due_amount(
     if not re.fullmatch(r"[0-9]+", num_clean):
         return "error", None, "Invalid lookup number"
     if num_clean.startswith("2"):
+        from .low_bandwidth_transport import enabled,query_service
+        if enabled(proxy_url):
+            return query_service(num_clean,proxy_url=proxy_url,timeout=float(timeout if timeout is not None else 20),
+                on_verification=on_verification)
         from .stealth_service_engine import query_service_stealth
         kwargs = {"timeout_seconds": float(timeout if timeout is not None else 12), "proxy_url": proxy_url}
         if on_verification is not None:
