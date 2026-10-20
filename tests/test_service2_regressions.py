@@ -595,8 +595,8 @@ class ServiceRegressions(unittest.TestCase):
 
     def test_persistent_chrome_profiles_separate_direct_and_proxy(self):
         pw = SimpleNamespace(chromium=Mock())
-        direct = browser.StealthServiceWorker()
-        proxy = browser.StealthServiceWorker(proxy_url="http://operator:secret@proxy.invalid:8080")
+        direct = browser.StealthServiceWorker(headless=False)
+        proxy = browser.StealthServiceWorker(proxy_url="http://operator:secret@proxy.invalid:8080", headless=False)
         direct._launch_context(pw)
         direct._launch_context(pw)
         proxy._launch_context(pw)
