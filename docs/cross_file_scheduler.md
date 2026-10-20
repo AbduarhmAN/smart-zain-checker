@@ -17,3 +17,5 @@ Five pre-existing failures in `test_telegram_workflow_reliability.py` reproduce 
 ## Release scope
 
 This branch starts from the sanitized VPS source baseline and includes local regression coverage and the existing local extension/management source overlay. The server deployment scope is restricted to the scheduler, its entrypoints, bridge task metadata and Telegram scheduling/status controls. Runtime credentials, worker/proxy configuration, financial state, customer workbooks and queue/checkpoint data must not be replaced. Source updates require a fresh idle check, retained backups, digest verification and readiness checks. No new customer file is submitted merely to test the release.
+
+The published source also passed all 225 focused regressions in an isolated directory on the VPS using Python 3.12.3. The deployment preflight then observed a newly active file and deferred without stopping the application or changing production sources. A follow-up in the current conversation checks every five minutes and applies the reviewed update only when the queue is idle.

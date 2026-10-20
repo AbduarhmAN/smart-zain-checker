@@ -20,5 +20,11 @@
   "administrator_menu_management_regressions": 40,
   "javascript_bridge_assertions": 6,
   "known_baseline_workflow_failures": 5,
-  "vps_deployment": "pending idle recheck and isolated Python 3.12 verification"
+  "vps_deployment": "deferred: a new file became active; no production source changes or service stop",
+  "github_runtime_commit": "b25f0f2c028603e08af37e93bfeba160da355f5f",
+  "vps_isolated_python": "3.12.3",
+  "vps_isolated_tests": 225,
+  "vps_isolated_tests_passed": true,
+  "vps_idle_guard_enforced": true,
+  "followup": "current-thread heartbeat every five minutes, until idle deployment succeeds"
 }
