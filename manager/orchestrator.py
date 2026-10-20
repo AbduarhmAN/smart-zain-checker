@@ -796,6 +796,8 @@ class Orchestrator:
             if not block or block['pending']:
                 return False  # A live challenge must be answered by the operator.
             blocks.pop(actor.ip_group)
+            from workers.low_bandwidth_transport import enabled,SCHEDULER
+            if enabled(actor.proxy_url if actor.use_proxy else None):SCHEDULER.unblock(actor.ip_group)
             self._refresh_verification_notice_locked()
             return True
 

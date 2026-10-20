@@ -1,0 +1,2 @@
+# Optional isolated service HTTP runtime, matching the supplied benchmark version.
+curl_cffi==0.15.0
