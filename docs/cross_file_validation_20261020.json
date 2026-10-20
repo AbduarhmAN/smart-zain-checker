@@ -20,11 +20,17 @@
   "administrator_menu_management_regressions": 40,
   "javascript_bridge_assertions": 6,
   "known_baseline_workflow_failures": 5,
-  "vps_deployment": "deferred: a new file became active; no production source changes or service stop",
+  "vps_deployment": "deployed and verified; existing work drained, saved and resumed",
   "github_runtime_commit": "b25f0f2c028603e08af37e93bfeba160da355f5f",
   "vps_isolated_python": "3.12.3",
   "vps_isolated_tests": 225,
   "vps_isolated_tests_passed": true,
-  "vps_idle_guard_enforced": true,
-  "followup": "current-thread heartbeat every five minutes, until idle deployment succeeds"
+  "vps_idle_guard_enforced": "earlier automatic attempt deferred; immediate drained update explicitly requested by user",
+  "followup": "paused after verified deployment",
+  "vps_resumption_verified": true,
+  "vps_source_files_verified": 10,
+  "vps_scheduler_mode": "cross_file_by_type",
+  "vps_worker_configuration_unchanged": true,
+  "vps_fresh_telegram_poll_verified": true,
+  "vps_verified_at_baghdad": "2026-10-20T16:04:16.392071+03:00"
 }
