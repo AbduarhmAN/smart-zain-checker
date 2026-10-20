@@ -13,6 +13,7 @@ import re
 from datetime import datetime, timezone
 from decimal import Decimal
 from pathlib import Path
+import time
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -27,19 +28,25 @@ def query(statement: str, *, read_only: bool = True):
     request = Request(f'https://api.supabase.com/v1/projects/{PROJECT}/database/query',
         data=json.dumps({'query': statement, 'read_only': read_only}).encode('utf-8'),
         headers={'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'}, method='POST')
-    try:
-        with urlopen(request, timeout=60) as response:
-            return json.load(response)
-    except HTTPError as exc:
-        # SQL diagnostics contain no secrets but avoid printing unexpected bodies.
-        body = exc.read().decode('utf-8', errors='replace')
+    for attempt in range(6):
         try:
-            diagnostic = json.loads(body).get('message', 'No SQL diagnostic')
-        except (ValueError, AttributeError):
-            diagnostic = 'Response body withheld'
-        raise RuntimeError(f'Supabase SQL HTTP {exc.code}: {diagnostic}') from None
-    except URLError:
-        raise RuntimeError('Supabase management network failure; inspect state before retrying a write') from None
+            with urlopen(request, timeout=60) as response:
+                return json.load(response)
+        except HTTPError as exc:
+            if exc.code == 429 and attempt < 5:
+                time.sleep(2 * (attempt + 1))
+                continue
+            body = exc.read().decode('utf-8', errors='replace')
+            try:
+                diagnostic = json.loads(body).get('message', 'No SQL diagnostic')
+            except (ValueError, AttributeError):
+                diagnostic = 'Response body withheld'
+            raise RuntimeError(f'Supabase SQL HTTP {exc.code}: {diagnostic}') from None
+        except URLError:
+            if attempt < 5:
+                time.sleep(2 * (attempt + 1))
+                continue
+            raise RuntimeError('Supabase management network failure; inspect state before retrying a write') from None
 
 
 def preflight():

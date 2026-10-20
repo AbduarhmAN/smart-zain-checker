@@ -25,7 +25,7 @@ class EngineApplication:
     retry_safe=('queue.request_customer_stop','engine.apply_stop','event.ack','engine.wake','engine.completed_evidence','queue.review_start')
     def __init__(self,root):
         from manager.queue import QueueService
-        from manager.orchestrator import Orchestrator
+        from manager.scheduler import create_orchestrator as Orchestrator
         from workers.supervisor import WorkerSupervisor
         from manager.event_bus import EVENT_BUS
         self.root=Path(root).resolve(); self.stop_event=threading.Event(); self.bus=EVENT_BUS

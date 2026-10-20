@@ -213,7 +213,12 @@ class OrderHistoryMixin:
             if job.get('status')=='pending':
                 pending=[j for j in self.queue_service.get_jobs() if j.get('status') in {'pending','active'} and j.get('column_mapping',{}).get('payment_token')]
                 position=next((i for i,j in enumerate(pending) if j['id']==job['id']),None)
-                if position is not None:lines.append('ملفات أمامك في الطابور: '+str(position))
+                if position is not None:
+                    if getattr(self.orchestrator,'cross_file_enabled',False) is True:
+                        lines.append('ترتيب الإضافة: '+str(position+1))
+                        lines.append('قد يبدأ فحص الأرقام المتاحة قبل اكتمال الملفات السابقة.')
+                    else:
+                        lines.append('ملفات أمامك في الطابور: '+str(position))
         if job.get('status') not in {'completed','archived'}:lines.append('ستظهر النتيجة بعد اكتمال الفحص؛ لا توجد نتيجة مؤرشفة لهذا الطلب حتى الآن.')
         rows=[]
         if order:

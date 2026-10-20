@@ -578,6 +578,8 @@ def state_label(state):
     if state.get("verifications"):
         return "🟠 بانتظار تحقق زين"
     if state.get("running"):
+        if not state.get('paused') and (state.get('scheduling') or {}).get('paused_files'):
+            return '🟠 الفحص جارٍ؛ بعض الملفات متوقفة للمراجعة'
         return "⏸ متوقف مؤقتًا" if state.get("paused") else "🟢 الفحص جارٍ"
     if state.get("finalizing"):
         return "◷ جارٍ حفظ النتائج"
@@ -594,6 +596,8 @@ def controls(state):
     if state.get("running") and not state.get("verifications"):
         rows.append([button("▶ استئناف الفحص", "resume", "success") if state.get("paused")
                      else button("⏸ إيقاف مؤقت", "pause")])
+    if state.get('running') and not state.get('paused') and (state.get('scheduling') or {}).get('paused_files'):
+        rows.append([button('▶ استئناف الملفات المتوقفة', 'resume', 'success')])
     kpis = state.get("kpis", {})
     if (not state.get("running") and not state.get("round_pending") and not state.get("finalizing")
             and state.get("result_ready") is not False and number(kpis.get("total")) > 0
@@ -715,6 +719,10 @@ def status(state):
             f"مهلات وأخطاء: {count(k.get('errors'))}\n"
             f"مؤجلة: {count(k.get('deferred'))}\n\n"
             "<i>نسبة المعالجة مستقلة عن عدد الأرصدة المؤكدة.</i>")
+    scheduling = state.get('scheduling') or {}
+    if scheduling.get('mode') == 'cross_file_by_type':
+        text += ('\n\nملفات تعمل بالتوازي: <b>' + count(scheduling.get('active_files')) + '</b>'
+                 '\nالأرقام أعلاه تخص الملف المعروض. الإيقاف المؤقت يشمل الملفات الجارية كلها.')
     timing = state.get("session_timing") or {}
     started, server_time = number(timing.get("started_at")), number(timing.get("server_time"))
     if started > 0 and server_time >= started:

@@ -78,7 +78,7 @@ def main() -> None:
     logger.info(f"Queue Service loaded ({len(queue_service.get_jobs())} jobs on disk).")
 
     # 3. Initialize Orchestrator Module
-    from manager.orchestrator import Orchestrator
+    from manager.scheduler import create_orchestrator as Orchestrator
     orchestrator = Orchestrator(
         supervisor=supervisor,
         queue_service=queue_service,

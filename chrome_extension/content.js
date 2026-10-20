@@ -1,4 +1,4 @@
-const ZAIN_PAYMENT_URL = "https://app.sa.zain.com/ar/contract-payment";
+const ZAIN_PAYMENT_URL = "https://business.zain.sa/dashboard/quick-pay";
 const ZAIN_QUICKPAY_URL = "https://app.sa.zain.com/ar/quickpay";
 const RESULT_TIMEOUT_MS = 60_000;
 const RESULT_SETTLE_MS = 750;
@@ -88,15 +88,13 @@ async function initializeChecker() {
 
 async function autoStartIfRequested() {
   const pageUrl = new URL(window.location.href);
-  const recordType = pageUrl.pathname.endsWith("/contract-payment")
-    ? "account"
-    : pageUrl.pathname.endsWith("/quickpay")
-    ? "wallet"
-    : "";
+  let recordType = "";
+  if (pageUrl.searchParams.has("contract") || pageUrl.pathname.endsWith("/contract-payment") || pageUrl.pathname.includes("quick-pay")) {
+    recordType = "account";
+  } else if (pageUrl.searchParams.has("account") || pageUrl.pathname.endsWith("/quickpay")) {
+    recordType = "wallet";
+  }
   if (!recordType) return;
-
-  const searchNumber = readPageSearchNumber(pageUrl, recordType);
-  if (!/^\d+$/.test(searchNumber)) return;
 
   const detectedWorker = detectWorkerIdentity();
   const state = await safeStorageGet(["zainCheckerRunning", "zainWorkerId"]);
@@ -110,6 +108,18 @@ async function autoStartIfRequested() {
   }
 
   const effectiveWorker = workerId || "Worker 1 (Router)";
+  const searchNumber = readPageSearchNumber(pageUrl, recordType);
+
+  if (!/^\d+$/.test(searchNumber)) {
+    if (state.zainCheckerRunning || detectedWorker) {
+      console.log("[ZainChecker:Content] Base quick-pay URL opened while checker is running; adopting tab and starting loop.");
+      try {
+        await sendMessage({ type: "adopt_tab", worker_id: effectiveWorker });
+      } catch (e) {}
+      startLoop();
+    }
+    return;
+  }
 
   console.log("[ZainChecker:Content] autoStartIfRequested: zainCheckerRunning =", state.zainCheckerRunning, "recordType =", recordType, "searchNumber =", searchNumber, "worker =", effectiveWorker);
   if (state.zainCheckerRunning) {
@@ -170,14 +180,7 @@ async function startLoop() {
       if (task.status === "check") {
         const checkStartTime = Date.now();
         console.log(`[ZainChecker:Content][${workerId}] Received task to check: row`, task.row_number, "number", task.search_number);
-        const navigationStarted = await processTask(task);
-        console.log("[ZainChecker:Content] processTask returned navigationStarted =", navigationStarted);
-        if (navigationStarted) {
-          // Allow tab navigation/reload to initiate. If page reloads, this context terminates.
-          // If page stays active or in-page navigation occurs, keep the loop alive so it never hangs!
-          await delay(2_000);
-          continue;
-        }
+        await processTask(task);
 
         // Safe pacing sleep: ensure 3.9 seconds between checks per worker to prevent IP ban
         const elapsed = Date.now() - checkStartTime;
@@ -275,7 +278,14 @@ async function processTask(task) {
     if (!isRequestedPage) {
       console.log("[ZainChecker:Content] Reusing same tab and navigating to:", task.search_number);
       await navigateTask(task, activeTask.previous_website_amount, false);
-      return true;
+      const navWaitDeadline = Date.now() + 15_000;
+      while (Date.now() < navWaitDeadline) {
+        await delay(400);
+        if (isRequestedRecordPage(task.record_type, task.search_number)) {
+          console.log("[ZainChecker:Content] Tab reached requested record page:", task.search_number);
+          break;
+        }
+      }
     }
   }
 
@@ -313,6 +323,7 @@ async function submitResult(task, result) {
 
   if (
     ![
+      "ok",
       "waiting",
       "recheck_mismatch",
       "reload_mismatch",
@@ -322,9 +333,9 @@ async function submitResult(task, result) {
       "incognito_failed",
       "complete",
       "error",
-    ].includes(response.status)
+    ].includes(response?.status)
   ) {
-    throw new Error(response.message || "Python rejected the browser result.");
+    throw new Error(response?.message || "Python rejected the browser result.");
   }
 
   if (response.status === "reload_mismatch") {
@@ -405,9 +416,10 @@ async function waitForResult(recordType, searchNumber, previousWebsiteAmount) {
 
       if (!isRequestedRecordPage(recordType, searchNumber)) {
         const currentUrl = window.location.href.toLowerCase();
-        const isExplicitWrongPage = (
+        const isBusinessQuickPay = currentUrl.includes("business.zain.sa") && currentUrl.includes("quick-pay");
+        const isExplicitWrongPage = !isBusinessQuickPay && (
           currentUrl.includes("/home") ||
-          currentUrl.includes("/dashboard") ||
+          (currentUrl.includes("/dashboard") && !currentUrl.includes("quick-pay")) ||
           currentUrl.includes("/login") ||
           currentUrl === "https://app.sa.zain.com" ||
           currentUrl === "https://app.sa.zain.com/" ||
@@ -451,7 +463,7 @@ async function waitForResult(recordType, searchNumber, previousWebsiteAmount) {
         const isPreviousValue = Boolean(
           previousNormalized && currentNormalized === previousNormalized,
         );
-        const isProvisionalZero = isZeroAmount(currentNormalized);
+        const isProvisionalZero = isZeroAmount(currentNormalized) && !result.settled;
         const requiredWait = Math.max(
           AMOUNT_STABILITY_MS,
           isPreviousValue ? UNCHANGED_AMOUNT_GRACE_MS : RESULT_SETTLE_MS,
@@ -576,6 +588,10 @@ function isRequestedRecordPage(recordType, searchNumber) {
   if (readPageSearchNumber(pageUrl, recordType) === String(searchNumber)) {
     return true;
   }
+  const bodyText = normalizeDigits(String(document.body?.innerText || ""));
+  if (searchNumber && bodyText.includes(String(searchNumber))) {
+    return true;
+  }
   return (
     recordType === "wallet" &&
     isRequestedWalletContent(String(searchNumber))
@@ -600,12 +616,20 @@ function isRequestedWalletContent(searchNumber) {
 
 function readPageSearchNumber(pageUrl, recordType) {
   if (recordType === "account") {
-    if (!pageUrl.pathname.endsWith("/contract-payment")) return "";
-    return String(pageUrl.searchParams.get("contract") || "").trim();
+    if (pageUrl.searchParams.has("contract")) {
+      return String(pageUrl.searchParams.get("contract") || "").trim();
+    }
+    if (pageUrl.pathname.endsWith("/contract-payment") || pageUrl.pathname.includes("quick-pay")) {
+      return String(pageUrl.searchParams.get("contract") || "").trim();
+    }
   }
   if (recordType === "wallet") {
-    if (!pageUrl.pathname.endsWith("/quickpay")) return "";
-    return String(pageUrl.searchParams.get("account") || "").trim();
+    if (pageUrl.searchParams.has("account")) {
+      return String(pageUrl.searchParams.get("account") || "").trim();
+    }
+    if (pageUrl.pathname.endsWith("/quickpay")) {
+      return String(pageUrl.searchParams.get("account") || "").trim();
+    }
   }
   return "";
 }
@@ -615,7 +639,7 @@ function buildDirectUrl(recordType, searchNumber, workerTag = "") {
   const hashPart = workerTag ? `#worker=${workerTag}` : "";
   let base;
   if (recordType === "account") {
-    base = `${ZAIN_PAYMENT_URL}?contract=${encoded}${hashPart}`;
+    base = `${ZAIN_PAYMENT_URL}?contract=${encoded}&language=ar${hashPart}`;
   } else if (recordType === "wallet") {
     base = `${ZAIN_QUICKPAY_URL}?account=${encoded}${hashPart}`;
   } else {
@@ -632,6 +656,12 @@ function readCurrentResult(recordType, contract) {
   const rejection = readRejection();
   if (rejection) return rejection;
 
+  // If Business Flutter app is still loading splash screen, hold on
+  const loadingEl = document.getElementById("loading");
+  if (loadingEl && isVisible(loadingEl)) {
+    return null;
+  }
+
   if (!hasRequestedIdentity(recordType, contract)) return null;
 
   for (const selector of [
@@ -639,6 +669,8 @@ function readCurrentResult(recordType, contract) {
     'input[name="customAmount"]',
     '#formSaveContractPaymentConfig input[name="amount"]',
     'input[name="amount"]',
+    'input[name="paymentAmount"]',
+    'input#amount',
   ]) {
     for (const field of document.querySelectorAll(selector)) {
       let value = String(field.value || "").trim();
@@ -666,6 +698,9 @@ function readCurrentResult(recordType, contract) {
     ".quickpay__custom-balance-input span",
     "#payBillValue span",
     "#payBillValue",
+    ".due-amount",
+    ".total-amount",
+    "[data-amount]",
   ]) {
     for (const field of document.querySelectorAll(selector)) {
       const value = String(field.innerText || "").trim();
@@ -676,9 +711,21 @@ function readCurrentResult(recordType, contract) {
   }
 
   const rawBody = normalizeDigits(String(document.body?.innerText || ""));
-  const amountMatch = rawBody.match(/(?:إجمالي المبلغ المطلوب|المبلغ المطلوب|ادفع فاتورتك المتبقية)[\s:]*([0-9]+(?:\.[0-9]{1,2})?)/);
-  if (amountMatch && amountMatch[1] && !isNaN(Number(amountMatch[1]))) {
-    return { status: "ok", website_amount: amountMatch[1] };
+
+  // Check settled state (English & Arabic)
+  const isSettled = /already been settled|has already been settled|تسوية فاتورتك|تمت تسوية|تم سداد فاتورتك|تم سداد الفاتورة|لا توجد فواتير مستحقة|لا توجد مبالغ مستحقة/i.test(rawBody);
+
+  // Match Total Required / Total Due / Amount Due (with optional currency symbols & commas)
+  const amountMatch = rawBody.match(/(?:Total\s*Required|Total\s*(?:Due|Bill)|إجمالي\s*الاستحقاق|إجمالي\s*المبلغ\s*المطلوب|المبلغ\s*المطلوب|المبلغ\s*المستحق|ادفع\s*فاتورتك\s*المتبقية|إجمالي\s*المستحق)[^\d]{0,25}?([0-9]+(?:[,\u066c][0-9]{3})*(?:\.[0-9]{1,2})?)/i);
+  if (amountMatch && amountMatch[1]) {
+    const parsedAmount = amountMatch[1].replace(/[,\u066c\s]/g, "");
+    if (!isNaN(Number(parsedAmount))) {
+      return { status: "ok", website_amount: parsedAmount };
+    }
+  }
+
+  if (isSettled) {
+    return { status: "ok", website_amount: "0.00", settled: true };
   }
 
   // This Zain page explicitly asks for a payment amount but displays no
@@ -701,8 +748,14 @@ function readCurrentResult(recordType, contract) {
     }
   }
 
+  // Check for business portal error messages in bodyText
+  const errorMatch = rawBody.match(/(?:Invalid\s*contract|Contract\s*not\s*found|No\s*records?\s*found|رقم\s*العقد\s*غير\s*صحيح|لم\s*يتم\s*العثور\s*على\s*العقد)/i);
+  if (errorMatch) {
+    return { status: "error", message: `Zain error: ${errorMatch[0]}` };
+  }
+
   const alertBox = document.querySelector(".alert-danger");
-  if (isVisible(alertBox) && alertBox.innerText.includes("غير متوفرة")) {
+  if (alertBox && isVisible(alertBox) && alertBox.innerText.includes("غير متوفرة")) {
     return { status: "website_error", message: "Service unavailable." };
   }
 
@@ -728,14 +781,17 @@ function hasEmptyPaymentAmount(recordType) {
       bodyText.includes("أدخل المبلغ المطلوب") ||
       bodyText.includes("أدخل المبلغ") ||
       bodyText.includes("لا توجد مبالغ مستحقة") ||
-      bodyText.includes("المبلغ المراد دفعه")
+      bodyText.includes("لا توجد فواتير مستحقة") ||
+      bodyText.includes("المبلغ المراد دفعه") ||
+      /already been settled|has already been settled|تسوية فاتورتك|تمت تسوية|no\s+(?:due\s+amount|bills?\s+due|outstanding)/i.test(bodyText)
     );
   }
   return (
     (bodyText.includes("إجمالي المبلغ المطلوب") &&
       bodyText.includes("ادفع فاتورتك المتبقية")) ||
     bodyText.includes("لا توجد فواتير مستحقة") ||
-    bodyText.includes("لا توجد مبالغ مستحقة")
+    bodyText.includes("لا توجد مبالغ مستحقة") ||
+    /already been settled|has already been settled|تسوية فاتورتك|تمت تسوية|no\s+(?:due\s+amount|bills?\s+due|outstanding)/i.test(bodyText)
   );
 }
 
@@ -790,6 +846,16 @@ function readRejection() {
     document.querySelector('button#jar, input[type="submit"]')
   );
   const hasSupportId = /Your support ID is:\s*<?\s*([0-9]+)/i.test(bodyText);
+  const hasCloudflareChallenge =
+    (bodyText.includes("Just a moment...") || bodyText.includes("Verify you are human")) &&
+    bodyText.length < 500;
+
+  if (hasCloudflareChallenge) {
+    return {
+      status: "rejected",
+      support_id: "cloudflare_challenge",
+    };
+  }
 
   if (!hasF5Rejection && !hasBotChallenge && !hasCaptchaInputs && !(hasSupportId && bodyText.length < 500)) {
     return null;
@@ -841,15 +907,20 @@ function collectPageSnapshot(recordType = "", searchNumber = "") {
 }
 
 function isVisible(element) {
-  const style = window.getComputedStyle(element);
-  const rectangle = element.getBoundingClientRect();
-  return (
-    style.display !== "none" &&
-    style.visibility !== "hidden" &&
-    style.opacity !== "0" &&
-    rectangle.width > 0 &&
-    rectangle.height > 0
-  );
+  if (!element || !(element instanceof Element)) return false;
+  try {
+    const style = window.getComputedStyle(element);
+    const rectangle = element.getBoundingClientRect();
+    return (
+      style.display !== "none" &&
+      style.visibility !== "hidden" &&
+      style.opacity !== "0" &&
+      rectangle.width > 0 &&
+      rectangle.height > 0
+    );
+  } catch {
+    return false;
+  }
 }
 
 function sameTask(activeTask, task) {

@@ -14,6 +14,11 @@ class ContinuousQueueService:
         self.path=self.root/'.commerce/runtime-policy.json';self._stop=threading.Event();self._wake=threading.Event()
         self._thread=None;self.last_error=None;self.last_started=None;self._next_expiry=0;self._next_start=0
         policy=self.policy();self.enabled=policy.get('continuous_enabled',True) is True
+        if getattr(orchestrator,'cross_file_enabled',False) is True and getattr(orchestrator,'execution_authorizer',None) is None:
+            def authorize(job_id):
+                job=self.queue.get_job(job_id)
+                return job is not None and self.funded(job.to_dict())
+            orchestrator.execution_authorizer=authorize
 
     def policy(self):
         if not self.path.exists():return {}
@@ -57,16 +62,21 @@ class ContinuousQueueService:
             self._next_expiry=time.monotonic()+60
             try:self.client.rpc('expire_promotional_credit',{'p_limit':100})
             except Exception:self.last_error='promotional_expiry_unavailable'
-        with self.orchestrator.lock:
-            if self.orchestrator.is_running:
-                self.orchestrator._cancel_unleased_customer_rows_locked()
-                if (not self.orchestrator.is_finalizing and self.orchestrator.customers
-                    and len(self.orchestrator.completed_indices)==len(self.orchestrator.customers) and not self.orchestrator.active_leases):
-                    self.orchestrator.is_finalizing=True
-                    threading.Thread(target=self.orchestrator._finalize_job,name='ContinuousFinalize',daemon=True).start()
-                return False
-            if self.orchestrator.is_finalizing or self.orchestrator.is_paused or time.monotonic()<self._next_start:return False
-        self._next_start=time.monotonic()+3
+        cross_file=getattr(self.orchestrator,'cross_file_enabled',False) is True
+        if cross_file:
+            self.orchestrator.maintain_sessions()
+            if self.orchestrator.is_paused:return False
+        else:
+            with self.orchestrator.lock:
+                if self.orchestrator.is_running:
+                    self.orchestrator._cancel_unleased_customer_rows_locked()
+                    if (not self.orchestrator.is_finalizing and self.orchestrator.customers
+                        and len(self.orchestrator.completed_indices)==len(self.orchestrator.customers) and not self.orchestrator.active_leases):
+                        self.orchestrator.is_finalizing=True
+                        threading.Thread(target=self.orchestrator._finalize_job,name='ContinuousFinalize',daemon=True).start()
+                    return False
+                if self.orchestrator.is_finalizing or self.orchestrator.is_paused or time.monotonic()<self._next_start:return False
+            self._next_start=time.monotonic()+3
         for job in self.queue.get_jobs():
             if job.get('status')!='pending':continue
             try:
@@ -84,7 +94,8 @@ class ContinuousQueueService:
                 if not self.enabled and not job.get('_verified_customer_stop'):continue
                 started=self.orchestrator.start_queue(job_id=job['id'])
                 if started:self.last_started=job['id'];self.last_error=None
-                else:self.last_error='funded_job_start_failed'
+                else:self.last_error='capacity_or_file_initialization_wait' if cross_file else 'funded_job_start_failed'
+                if not started and cross_file:continue
                 return started
             except Exception as exc:
                 from services.ipc import ServiceUnavailable

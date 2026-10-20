@@ -297,7 +297,7 @@ class TelegramUiMixin(CustomerActivityMixin, OrderHistoryMixin):
             return "أكمل تحقق زين في المتصفح أو لوحة التحكم أولًا."
         if action == "pause" and state.get("paused"):
             return "الجلسة متوقفة مؤقتًا بالفعل."
-        if action == "resume" and not state.get("paused"):
+        if action == "resume" and not state.get("paused") and not (state.get('scheduling') or {}).get('paused_files'):
             return "الجلسة تعمل بالفعل."
         return ""
 

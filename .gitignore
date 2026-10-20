@@ -112,3 +112,11 @@ config_workers.json
 .code-updates/
 *.sqlite*
 .env*
+
+# Retained verification fixtures; never publish synthetic workbooks or runtime state
+retained-test-runs/
+retained-test-evidence/
+retained-cross-file-fixtures/
+tests/test_scratch_queue/
+
+tests/retained-*

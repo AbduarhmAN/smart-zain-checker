@@ -1,7 +1,7 @@
-const BRIDGE_URL = "http://127.0.0.1:8766";
-const BRIDGE_TOKEN =
-  "614e3c6720854e8cb09fa5bc41c609a184cc75123924446aa306f08f0efa085b";
-const ZAIN_PAYMENT_URL = "https://app.sa.zain.com/ar/contract-payment";
+importScripts("bridge-config.js");
+const BRIDGE_URL = globalThis.ZAIN_BRIDGE_URL;
+const BRIDGE_TOKEN = globalThis.ZAIN_BRIDGE_TOKEN;
+const ZAIN_PAYMENT_URL = "https://business.zain.sa/dashboard/quick-pay";
 const ZAIN_QUICKPAY_URL = "https://app.sa.zain.com/ar/quickpay";
 let incognitoHandoffPromise = null;
 const SESSION_KEEPER_KEY = "zainCheckerSessionKeeperWindowId";
@@ -23,10 +23,16 @@ async function handleNavigationEvent(details) {
 }
 
 chrome.webNavigation.onCompleted.addListener(handleNavigationEvent, {
-  url: [{ hostEquals: "app.sa.zain.com", schemes: ["https"] }],
+  url: [
+    { hostEquals: "business.zain.sa", schemes: ["https"] },
+    { hostEquals: "app.sa.zain.com", schemes: ["https"] },
+  ],
 });
 chrome.webNavigation.onHistoryStateUpdated.addListener(handleNavigationEvent, {
-  url: [{ hostEquals: "app.sa.zain.com", schemes: ["https"] }],
+  url: [
+    { hostEquals: "business.zain.sa", schemes: ["https"] },
+    { hostEquals: "app.sa.zain.com", schemes: ["https"] },
+  ],
 });
 
 const memoryStorage = {};
@@ -91,7 +97,7 @@ function isAllowedCheckerTab(sender) {
     return false;
   }
   const url = String(sender.tab.url || sender.url || "");
-  return url.startsWith("https://app.sa.zain.com/");
+  return url.startsWith("https://business.zain.sa/") || url.startsWith("https://app.sa.zain.com/") || url.startsWith("https://sa.zain.com/");
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -222,7 +228,7 @@ async function handleMessage(message, sender) {
       zainCheckerActiveTask: null,
     });
 
-    if (!String(tab.url || "").startsWith("https://app.sa.zain.com/")) {
+    if (!String(tab.url || "").startsWith("https://app.sa.zain.com/") && !String(tab.url || "").startsWith("https://business.zain.sa/")) {
       const task = await fetchJson(`${BRIDGE_URL}/task`);
       if (task.status !== "check") {
         throw new Error(task.message || "Python did not provide a record to check.");
@@ -365,16 +371,28 @@ async function handleMessage(message, sender) {
 
 async function fetchJson(url, options = {}) {
   const storedWorker = await safeStorageGet("zainWorkerId");
-  const workerId = options.worker_id || storedWorker.zainWorkerId || "Worker 1 (Router)";
-  const headers = {
-    "X-Zain-Bridge-Token": BRIDGE_TOKEN,
-    "X-Worker-Id": workerId,
-    ...(options.headers || {}),
-  };
-  const response = await fetch(url, {
+  const workerId = globalThis.ZAIN_BRIDGE_WORKER_ID || options.worker_id || storedWorker.zainWorkerId || "Worker 1 (Router)";
+  const target = new URL(url);
+  if (target.origin !== new URL(BRIDGE_URL).origin || target.username || target.password) {
+    throw new Error("Bridge request must use the configured local endpoint.");
+  }
+  target.searchParams.set("worker", workerId);
+  const headers = new Headers(options.headers || {});
+  headers.set("X-Zain-Bridge-Token", BRIDGE_TOKEN);
+  headers.set("X-Worker-Id", workerId);
+  let body = options.body;
+  if (body !== undefined) {
+    const record = JSON.parse(body);
+    if (!record || typeof record !== "object" || Array.isArray(record)) {
+      throw new Error("Bridge request requires an object.");
+    }
+    body = JSON.stringify({ ...record, worker_id: workerId });
+  }
+  const response = await fetch(target.href, {
     cache: "no-store",
     ...options,
     headers,
+    ...(body !== undefined ? { body } : {}),
   });
   const payload = await response.json();
   if (!response.ok) {
@@ -422,6 +440,9 @@ async function updateStatusFromBridge(response) {
       `Waiting ${response.retry_after_seconds} second(s). ` +
         `Checked ${response.checked ?? 0} of ${response.total ?? "?"}.`,
     );
+    return;
+  }
+  if (response.status === "ok") {
     return;
   }
   if (response.status === "recheck_mismatch") {
@@ -524,6 +545,7 @@ async function clearZainSessionData() {
       await chrome.browsingData.remove(
         {
           origins: [
+            "https://business.zain.sa",
             "https://app.sa.zain.com",
             "https://sa.zain.com",
           ],
@@ -543,7 +565,7 @@ async function clearZainSessionData() {
       for (const store of stores) {
         const storeCookies = await chrome.cookies.getAll({ storeId: store.id }).catch(() => []);
         for (const cookie of storeCookies) {
-          if (cookie.domain && cookie.domain.includes("zain.com")) {
+          if (cookie.domain && (cookie.domain.includes("zain.com") || cookie.domain.includes("zain.sa"))) {
             const domain = cookie.domain.startsWith(".") ? cookie.domain.substring(1) : cookie.domain;
             const cookieUrl = `${cookie.secure ? "https://" : "http://"}${domain}${cookie.path || "/"}`;
             await chrome.cookies.remove({
@@ -798,7 +820,7 @@ function buildDirectUrl(recordType, searchNumber, workerTag = "") {
   const hashPart = workerTag ? `#worker=${workerTag}` : "";
   let base;
   if (recordType === "account") {
-    base = `${ZAIN_PAYMENT_URL}?contract=${encoded}${hashPart}`;
+    base = `${ZAIN_PAYMENT_URL}?contract=${encoded}&language=ar${hashPart}`;
   } else if (recordType === "wallet") {
     base = `${ZAIN_QUICKPAY_URL}?account=${encoded}${hashPart}`;
   } else {

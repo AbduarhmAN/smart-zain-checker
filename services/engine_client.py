@@ -135,6 +135,10 @@ class RemoteEngine:
     def get_live_status(self):return dict(self.refresh()['state'])
 
     @property
+    def cross_file_enabled(self):
+        return self.refresh().get('state',{}).get('scheduling',{}).get('mode')=='cross_file_by_type'
+
+    @property
     def session_token(self):return self.refresh().get('session_token')
     @property
     def is_running(self):return self.refresh().get('is_running', False)
