@@ -796,7 +796,7 @@ class ServiceRegressions(unittest.TestCase):
         page.bring_to_front = Mock()
         page.evaluate = lambda expression, number: phase["verified"]
         page.locator = Mock(side_effect=AssertionError("No automated CAPTCHA interaction expected"))
-        worker = browser.StealthServiceWorker()
+        worker = browser.StealthServiceWorker(headless=False)
         job = browser.BrowserJob("20001", 15, time.monotonic() + 20)
         def human_action(message):
             self.assertTrue(transport.get_ip_service_lock("local_direct").locked())
