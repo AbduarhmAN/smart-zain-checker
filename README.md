@@ -4,4 +4,4 @@ This branch records the application source captured from the running VPS on 2026
 
 The legacy Telegram controller reads its token from `ZAIN_TELEGRAM_BOT_TOKEN` or `TELEGRAM_BOT_TOKEN`. No project build or compilation was run to create this snapshot.
 
-Cross-file account/service scheduling is implemented and verified on a separate branch based on this baseline.
+Cross-file account/service scheduling will be implemented and verified on a separate branch based on this baseline.
