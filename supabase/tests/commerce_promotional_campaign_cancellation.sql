@@ -1,0 +1,92 @@
+-- Rollback-only promotional reclamation; no cash refunds or paid-wallet deductions.
+begin;
+do $$
+declare a uuid;b uuid;unused uuid;ord uuid;policy bigint;rules jsonb;answer jsonb;balance jsonb;
+    before_journals bigint;original jsonb;lot_id uuid;
+begin
+    perform commerce_rpc.configure_support_actors('[9,21]'::jsonb,'promotion-cancel-admins');
+    perform commerce_rpc.configure_campaign_policy(9,'{"max_percent_basis_points":10000,"max_checks_per_user":4000,"max_discount_minor_per_user":100000,"max_total_discount_minor":1000000,"max_duration_seconds":86400,"max_wallet_credit_minor":100000,"max_redemptions":10}','promotion-cancel-policy');
+    rules:='{"benefit_kind":"wallet_credit","benefit_value":100,"eligibility":"any","check_types":["account","service"],"max_checks":1,"max_discount_minor":100,"max_total_discount_minor":1000,"duration_seconds":3600,"max_redemptions":10}';
+    a:=(commerce_rpc.create_platform_campaign(9,'reclaim-a','RECLAIM_A',rules,'create')->>'campaign_id')::uuid;
+    b:=(commerce_rpc.create_platform_campaign(9,'reclaim-b','RECLAIM_B',rules||'{"benefit_value":200,"max_discount_minor":200}','create')->>'campaign_id')::uuid;
+    perform commerce_rpc.activate_campaign(899301,'RECLAIM_A','activate-a');
+    perform commerce_rpc.activate_campaign(899301,'RECLAIM_B','activate-b');
+    perform commerce_rpc.confirm_receipt(899301,'reclaim-paid-funding','fixture','reclaim-paid-funding',1000,'fixture-proof');
+    original:=commerce_rpc.promotion_cancellation_record(9,a);
+    assert not (original->>'cancelled')::boolean and (original->>'available_minor')::numeric=100;
+    begin perform commerce_rpc.cancel_promotional_campaign(31,a,'unauthorized');
+        raise exception 'Customer cancelled a promotion';exception when insufficient_privilege then null;end;
+    begin perform commerce_rpc.reclaim_cancelled_promotion(31,a);
+        raise exception 'Customer reclaimed a promotion';exception when insufficient_privilege then null;end;
+    begin perform commerce_rpc.reclaim_cancelled_promotion(9,a);
+        raise exception 'Active promotion was reclaimed';exception when invalid_parameter_value then null;end;
+    begin perform commerce_rpc.cancel_promotional_campaign(9,a,' ');
+        raise exception 'Unauthenticated cancellation accepted';exception when invalid_parameter_value then null;end;
+    perform commerce_rpc.cancel_promotional_campaign(9,a,'cancel-a');
+    select to_jsonb(x) into original from commerce.promotional_campaign_cancellations x where campaign_id=a;
+    assert commerce_rpc.cancel_promotional_campaign(21,a,'another-reference')->>'replayed'='true';
+    assert (select to_jsonb(x)=original from commerce.promotional_campaign_cancellations x where campaign_id=a);
+    assert commerce_rpc.activate_campaign(899302,'RECLAIM_A','after-cancel')->>'state'='inactive_offer';
+    -- Even if the Telegram cleanup response is lost, wallet reads enforce reclamation.
+    balance:=commerce_rpc.wallet_state(899301);
+    assert (balance->'customer'->>'available_minor')::numeric=1200;
+    assert (balance->'customer'->>'cash_available_minor')::numeric=1000;
+    assert (balance->'customer'->>'promotional_available_minor')::numeric=200;
+    assert (balance->'customer'->>'reclaimed_promotional_minor')::numeric=100;
+    assert (balance->'customer'->>'expired_promotional_minor')::numeric=0;
+    before_journals:=(select count(*) from commerce.journals);
+    perform commerce_rpc.reclaim_cancelled_promotion(9,a);
+    perform commerce_rpc.expire_promotional_credit();
+    assert (select count(*) from commerce.journals)=before_journals,'Repeated reclaim duplicated a journal';
+    -- A pre-existing reservation remains funded; only its later unused refund is reclaimed.
+    ord:=(commerce_rpc.create_order(899301,'reclaim-held-order','[{"row_number":2,"check_type":"account"},{"row_number":3,"check_type":"account"}]',
+        jsonb_build_object('file_sha256',repeat('d',64)))->>'order_id')::uuid;
+    select (pricing_snapshot->>'policy_version')::bigint into policy from commerce.orders where id=ord;
+    perform commerce_rpc.checkout_consent(ord,899301,policy,'reclaim-consent');
+    perform commerce_rpc.reserve_order(ord,899301,'reclaim-consent');
+    perform commerce_rpc.cancel_promotional_campaign(9,b,'cancel-held');
+    answer:=commerce_rpc.reclaim_cancelled_promotion(9,b);
+    assert (answer->>'reclaimed_minor')::numeric=198 and (answer->>'reserved_minor')::numeric=2;
+    balance:=commerce_rpc.wallet_state(899301);
+    assert (balance->'customer'->>'available_minor')::numeric=1000;
+    assert (balance->'customer'->>'promotional_reserved_minor')::numeric=2;
+    perform commerce_rpc.bind_checker_job(ord,'reclaim-job');
+    perform commerce_rpc.record_terminal_results(ord,'reclaim-job','[{"row_number":2,"state":"succeeded","verified_result":true},{"row_number":3,"state":"failed","verified_result":false}]',repeat('d',64));
+    perform commerce_rpc.confirm_result_delivery(ord,899301,123,'reclaim-result-file',repeat('d',64));
+    answer:=commerce_rpc.settle_order(ord);
+    assert (answer->>'charged_minor')::numeric=1 and (answer->>'refunded_minor')::numeric=1;
+    assert (select consumed_minor=1 and reclaimed_minor=199 and reserved_minor=0 from commerce.promotional_credit_lots where campaign_id=b);
+    balance:=commerce_rpc.wallet_state(899301);
+    assert (balance->'customer'->>'cash_available_minor')::numeric=1000 and (balance->'customer'->>'promotional_available_minor')::numeric=0;
+    before_journals:=(select count(*) from commerce.journals);
+    perform commerce_rpc.settle_order(ord);perform commerce_rpc.reclaim_cancelled_promotion(9,b);
+    assert (select count(*) from commerce.journals)=before_journals;
+    -- Cancel a paused, entirely unused, fractional grant; sweeper must recover it without a user visit.
+    unused:=(commerce_rpc.create_platform_campaign(9,'reclaim-tiny','RECLAIM_TINY',rules,'create')->>'campaign_id')::uuid;
+    update commerce.campaigns set benefit_value=0.001 where id=unused;
+    perform commerce_rpc.activate_campaign(899303,'RECLAIM_TINY','tiny-activation');
+    perform commerce_rpc.pause_campaign(unused,9,'pause-tiny');
+    perform commerce_rpc.cancel_promotional_campaign(9,unused,'cancel-tiny');
+    perform commerce_rpc.expire_promotional_credit();
+    assert (select reclaimed_minor=0.001 and available_minor=0 from commerce.promotional_credit_lots where campaign_id=unused);
+    assert commerce_rpc.activate_campaign(899303,'RECLAIM_TINY','repeat')->>'state'='already_activated';
+    assert (select reclaimed_minor=0.001 and available_minor=0 from commerce.promotional_credit_lots where campaign_id=unused);
+    assert (select not active from commerce.codes where campaign_id=unused);
+    unused:=(commerce_rpc.create_platform_campaign(9,'reclaim-reserve','RECLAIM_RESERVE',rules,'create')->>'campaign_id')::uuid;
+    perform commerce_rpc.activate_campaign(899304,'RECLAIM_RESERVE','activate-before-cancel');
+    ord:=(commerce_rpc.create_order(899304,'reserve-after-cancel','[{"row_number":2,"check_type":"account"}]',
+        jsonb_build_object('file_sha256',repeat('e',64)))->>'order_id')::uuid;
+    select (pricing_snapshot->>'policy_version')::bigint into policy from commerce.orders where id=ord;
+    perform commerce_rpc.checkout_consent(ord,899304,policy,'reserve-after-cancel-consent');
+    perform commerce_rpc.cancel_promotional_campaign(9,unused,'cancel-before-reserve');
+    answer:=commerce_rpc.reserve_order(ord,899304,'reserve-after-cancel-consent');
+    assert answer->>'state'='insufficient_balance','Cancelled credit funded a later reservation';
+    assert (select available_minor=0 and reclaimed_minor=100 from commerce.promotional_credit_lots where campaign_id=unused);
+    assert not exists(select 1 from commerce.promotional_credit_lots where available_minor+reserved_minor+consumed_minor+expired_minor+reclaimed_minor<>granted_minor);
+    assert not exists(select 1 from commerce.journals j where (select sum(delta_minor) from commerce.ledger_entries where journal_id=j.id)<>0);
+    assert not has_function_privilege('anon','commerce_rpc.cancel_promotional_campaign(bigint,uuid,text)','EXECUTE');
+    assert not has_function_privilege('authenticated','commerce_rpc.reclaim_cancelled_promotion(bigint,uuid,integer)','EXECUTE');
+    assert has_function_privilege('service_role','commerce_rpc.cancel_promotional_campaign(bigint,uuid,text)','EXECUTE');
+    raise notice 'PASS: promotional cancellation, exact reclaim, cash isolation, protected reservations, later refunds and replay';
+end $$;
+rollback;

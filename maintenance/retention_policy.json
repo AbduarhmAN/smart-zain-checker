@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "mode": "review_only",
+  "payment_metadata_hours": 20,
+  "completed_file_hours": 24,
+  "preserve_financial_records": true,
+  "protect_unfinished_orders": true,
+  "require_confirmed_archive": true,
+  "automatic_deletion": false
+}

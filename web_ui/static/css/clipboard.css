@@ -1,0 +1,11 @@
+/* Copy directly from the colored text, with no extra copy button. */
+.copy-value {
+  color:oklch(0.38 0.09 155);
+  text-decoration:underline dotted;
+  text-underline-offset:4px;
+  cursor:copy;
+  overflow-wrap:anywhere;
+}
+.copy-value:hover {color:oklch(0.48 0.12 155);text-decoration-style:solid}
+.copy-value:focus-visible {outline:2px solid oklch(0.48 0.12 155);outline-offset:3px}
+.copy-value[data-copy-unavailable="true"] {color:var(--ink-muted);text-decoration:none;cursor:default}

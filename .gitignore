@@ -1,0 +1,114 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+.pytest_cache/
+
+# Virtual Environments
+.venv/
+venv/
+ENV/
+env/
+
+# Excel files (Customer PII and confidential audit workbooks)
+*.xlsx
+*.xls
+*.csv
+audit_outputs/
+real_audit_outputs/
+simulation_outputs/
+
+# Session, WAL, Queue and Checkpoint state
+.checkpoint_*
+.wal_*
+.stream_*
+.zain-checkpoint*
+.zain-queue.json
+.queue-backups/
+
+# Chrome Profiles & Automation runtime
+.zain-service-profiles/
+.zain-browser-profile/
+.zain-checker-profile/
+.zain-checker-profile-*/
+.zain-profile-*/
+.test_real_chrome_proxy/
+.zain-test-proxy-profile/
+playwright-report/
+test-results/
+
+# Node / JS
+node_modules/
+
+# Logs & Scratch
+*.log
+scratch/
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Binaries & Large executables
+*.exe
+
+# Debug & Temporary JSONL/TXT logs
+*.jsonl
+debug_timeout.txt
+.active_task.json
+.sheet_queue.json
+.zain-pricing.json
+
+.zain-telegram-local.json
+crypto_pay_local.json
+outputs/telegram_audit_20261007/backups/
+
+.zain-telegram-drafts.json
+.zain-telegram-cursor.json
+
+.zain-telegram-drafts.json*
+.telegram-update-offset.json*
+.commerce/
+.bridge-runtime/
+.services/
+.browser_profiles/
+
+# Payment credentials, user wallets and local transaction logs
+payment_config.json
+pending_payments.json
+seen_transactions.json
+user_wallets.json
+user_modes.json
+operations_log.json
+operation_counters.json
+
+# Text dumps and outputs
+outputs/
+application_source_combined.txt
+modern_runtime_source.txt
+
+# Deployment-specific credentials and controls
+config_workers.json
+.maintenance/
+.code-backups/
+.code-updates/
+*.sqlite*
+.env*

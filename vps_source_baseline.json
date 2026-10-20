@@ -1,0 +1,1201 @@
+{
+  "captured_at": "2026-10-20T12:04:43.876635+00:00",
+  "source_files": [
+    {
+      "path": "app.py",
+      "sha256": "a6f1439f73d5cb750727432b96e2a51d8d24c63802a6818f5a140da65201bbd5"
+    },
+    {
+      "path": "chrome_extension/content.js",
+      "sha256": "2d26de80c57c9f8d0c8d3710e6168a71e274cae671253e39b1814e012da36bfc"
+    },
+    {
+      "path": "chrome_extension/manifest.json",
+      "sha256": "fdf50924ca2fb9f6045cc29c5bc20197ce059ee26b0e72569f1d141109ab948c"
+    },
+    {
+      "path": "chrome_extension/popup.css",
+      "sha256": "0eadeb66edf211b0bdbc52b82e2b1cd0ac5f041359c9f665011a0bfad7950869"
+    },
+    {
+      "path": "chrome_extension/popup.html",
+      "sha256": "9c6f74efe4d3bae02105b861bc42d771f6fa5c6f20bece48c134bab247eca6b2"
+    },
+    {
+      "path": "chrome_extension/popup.js",
+      "sha256": "b26a3080d9ad859aa30350e0fce5e62fdabfdb38fef41d9d11a8ffc2cc0b60f4"
+    },
+    {
+      "path": "chrome_extension/service-worker.js",
+      "sha256": "39343b3eb5f826b21a7a72faa73ae85c03c6a1d69268406856ba8ec70f57c443"
+    },
+    {
+      "path": "domain/__init__.py",
+      "sha256": "386314a8b13c31f04e7645b770a38af018fe773f5d21bfe12d126b494ef12caf"
+    },
+    {
+      "path": "domain/check_messages.py",
+      "sha256": "eaa41ab932e1ccce00e395a446e43ae8d75b312a817ffebfb3ce251090406d6b"
+    },
+    {
+      "path": "domain/decimal_json.py",
+      "sha256": "047e9bed81a09461624ad49e060706259d08b52c024a423d878b2fee5aa842c5"
+    },
+    {
+      "path": "domain/decimal_money.py",
+      "sha256": "1f700177666d8525fb9b73cc81dc26a25e0d4bee5127a1a379a2338073881728"
+    },
+    {
+      "path": "domain/models.py",
+      "sha256": "7c20ec173cb635ffcbc8a43746743f8bc20bc2409dd65b99a9e94c5132f69d45"
+    },
+    {
+      "path": "domain/money.py",
+      "sha256": "4e929625d620d9eb570a849cba32415a1dde1fb8f63bd12aa56cda10cfb0fa1e"
+    },
+    {
+      "path": "domain/results_exporter.py",
+      "sha256": "38a64d99c9c1dcd6d48637c592222d622028f1907a6e3087074dec487cc1e189"
+    },
+    {
+      "path": "domain/sheet_cache.py",
+      "sha256": "77a4099ba640f3bb8b276f8cf236b2ec7f9d06b61dfe196f0a9e97beb43b5863"
+    },
+    {
+      "path": "domain/workbook.py",
+      "sha256": "57f9d83669b996a79fc4eb698f13b6775d32649249850c3598583fd9083f9743"
+    },
+    {
+      "path": "domain/workbook_validation.py",
+      "sha256": "ce139080dbbfd0d43eb7459db145e054f008a7376e475d030c48b323dc0375a0"
+    },
+    {
+      "path": "main.py",
+      "sha256": "db47f64237b67ba7cab965847a694225aeca7adee564e2f11968fd24fb363116"
+    },
+    {
+      "path": "maintenance/collect_retention_inventory.py",
+      "sha256": "c2b50dd4b78ace6c091bee96b56b5890b340966e0573c93b88a4ea867dd40241"
+    },
+    {
+      "path": "maintenance/retention_policy.json",
+      "sha256": "720450665cfe83831ac3b90153a5c37266d8b519eccc959d5006ee305371960c"
+    },
+    {
+      "path": "maintenance/retention_review.py",
+      "sha256": "98df120bed08bc906f9a586125715b14209831af9629faaca2b037fd14617dc6"
+    },
+    {
+      "path": "maintenance/retention_snapshot.sql",
+      "sha256": "e9516876573b2563d490102c8ed5cc41baf7cdcf53b6b50578729fb927304fc6"
+    },
+    {
+      "path": "manager/__init__.py",
+      "sha256": "e0e3e4cb8b7f8275e12d0c7de64d83fb6efd524f0d109f0925ca56611761dc7c"
+    },
+    {
+      "path": "manager/checkpoint.py",
+      "sha256": "2109da41ffbce4200031be1873c6a6842c8d07f521d201184512f2aad19c4c57"
+    },
+    {
+      "path": "manager/continuous_service.py",
+      "sha256": "112c5ac0c5d5b03bb7e5cbcec0ffe49c6e80447c436b40bf425a334ca919e59a"
+    },
+    {
+      "path": "manager/event_bus.py",
+      "sha256": "6dc5c3680e187a19c8853fd7c5b788477a31cbf1d961024e5c7e2d69d9c33a7e"
+    },
+    {
+      "path": "manager/legacy_customer_stop.py",
+      "sha256": "594d2418ecdf53dac5e807aa246679229662647123cf8be8ff8ec00a413f1272"
+    },
+    {
+      "path": "manager/orchestrator.py",
+      "sha256": "f6d8eacae5dc5a85fac68504fd52d1ed85f4867329f4950e3b9dd3020a140f10"
+    },
+    {
+      "path": "manager/pricing.py",
+      "sha256": "ebb5656c0e1e90032183a1fb7019ca75eb6087a4968cb3d6ddefe2fe27549c8f"
+    },
+    {
+      "path": "manager/progress_timing.py",
+      "sha256": "aaeddcf6a709552280d49b3455eebc76fca9b817f9b0156693f8a099f4b998be"
+    },
+    {
+      "path": "manager/queue.py",
+      "sha256": "4d0730eae895529a2b31690b6145ad982102c92dc245885320248ce6787cf87f"
+    },
+    {
+      "path": "manager/recovery.py",
+      "sha256": "66dc980e0edb7b9e80737b2054715735980b0f4c9e94ca3eaa97752dab2b20ee"
+    },
+    {
+      "path": "requirements.txt",
+      "sha256": "8d7c1d926b0981883ed1e7906efffface682f606083594098abce456b9f6961d"
+    },
+    {
+      "path": "server/__init__.py",
+      "sha256": "f963e5c1bc71509061fe7c63a95a3810055e0c5cc24add6c9db039427792d15d"
+    },
+    {
+      "path": "server/access.py",
+      "sha256": "4199ae665f331234295c7380ffdd5b7ef56104c8ae191319d0938a40480f63ea"
+    },
+    {
+      "path": "server/bridge_authority.py",
+      "sha256": "21760a6ad653e27e187d4048a4c30df53b97feb8a5b35c402f3e3ca92517358f"
+    },
+    {
+      "path": "server/extension_bridge.py",
+      "sha256": "6bfc175e939712b3102009ef90b37f5147ca79da86b853ffa66a4223ab4a24fb"
+    },
+    {
+      "path": "server/gateway.py",
+      "sha256": "5d006e58d3845ecad7132b9946afba5adafb6c86ee4ba54cf230eaadf7c00940"
+    },
+    {
+      "path": "server/runtime_guard.py",
+      "sha256": "06e342c7d5de3d4febd31dcb33a8236818bf699cacec4ad92eba57c5e0f41af9"
+    },
+    {
+      "path": "server/web_api.py",
+      "sha256": "16ae4b99d5a5d8c8cbb55f2e857cc65f504ee190aa5b5e5d5204940c00e5776d"
+    },
+    {
+      "path": "services/__init__.py",
+      "sha256": "e4538a597e1174c65a0b86381e8e9d302c38086718cbea5f3c558dacc0f26f79"
+    },
+    {
+      "path": "services/__main__.py",
+      "sha256": "60f545227ae6bb316665f347c7edbc2add86abb15807935a16866a2ed1fce90a"
+    },
+    {
+      "path": "services/browser.py",
+      "sha256": "147a1a1fae588308f5e1e392cdf50e85bf1aa386c64f8b891155c61b7aa23419"
+    },
+    {
+      "path": "services/browser_client.py",
+      "sha256": "099366aa8bb4cb43db49a0f22ff2d6065359a92f6b294c29ba6b49371b70c204"
+    },
+    {
+      "path": "services/browser_store.py",
+      "sha256": "66d35b27adef409d5455bc1179094eafcc436e0474d735a41c347d5e1645f53e"
+    },
+    {
+      "path": "services/circuit.py",
+      "sha256": "f6391cc6b8567f9871abf1fae0020e79b4a789056537fc5e1f666b0649caae87"
+    },
+    {
+      "path": "services/codec.py",
+      "sha256": "cce94d047b53c0597902176dd8fc45bec3b2a463c7e4a2efbbc01e71819d919f"
+    },
+    {
+      "path": "services/engine.py",
+      "sha256": "8dd48b46b64dfb12f075256bbea6de15cbc6ddc3b3bba712584025744dede454"
+    },
+    {
+      "path": "services/engine_client.py",
+      "sha256": "f4980a907243516a412882f1898bbf8fa24158a32f54ae955c1e6254e9117c0f"
+    },
+    {
+      "path": "services/events.py",
+      "sha256": "86b35431565f307ae63e58d5aa93e58e150abb059eac232aa3e490506b244764"
+    },
+    {
+      "path": "services/file_client.py",
+      "sha256": "d949474bd275aee497e50240538cb9a73ede46528e56ffe17383e7a6b57e4ba8"
+    },
+    {
+      "path": "services/files.py",
+      "sha256": "137de7ca52194532c31cc69dcd3ced1ffe89c29d8b3e4d6cf1dfcae2d5944e6d"
+    },
+    {
+      "path": "services/ipc.py",
+      "sha256": "082d6edb85983585f6f7b343b3c42937630efab6277ca67107bbdec72cfbd105"
+    },
+    {
+      "path": "services/locking.py",
+      "sha256": "fa5d08d551d4f8e167d361a90c066f845d2d8e031c3c8b76c537042b556fcb1b"
+    },
+    {
+      "path": "services/logging.py",
+      "sha256": "5511b87b9ccf6ec7a22fa2b3c6adf858817bda3362fda3aa0fd43980d2a5da84"
+    },
+    {
+      "path": "services/persistence.py",
+      "sha256": "8f32cf0027c0480a95fc1c0e10825a190bd137da202c6c50fb4543b88b4db0e0"
+    },
+    {
+      "path": "services/resources.py",
+      "sha256": "6f36428a2766574f14fcfdbd9df0e98a167fda5ea08dd4f7bb0e6397f57a7b3e"
+    },
+    {
+      "path": "services/telegram.py",
+      "sha256": "b7f1958dc86e14e1a66717ad00ad36f086c063b82a0c2cd1e16cc51243a8d670"
+    },
+    {
+      "path": "services/testing_browser.py",
+      "sha256": "f0e040de6c32b1f70e9f7600537240552570894c528e473754125097998d8df3"
+    },
+    {
+      "path": "services/testing_files.py",
+      "sha256": "d16c3bf32d5f88596b719b3c794121acb71f182d6c086d6ec0b03e852b1dd6b9"
+    },
+    {
+      "path": "services/testing_telegram.py",
+      "sha256": "a5ae9365a22b757aebb8729ef2735c1ef89dfdd7e95d890589596f09dda1da47"
+    },
+    {
+      "path": "supabase/migrations/202610140001_commerce_foundation.sql",
+      "sha256": "1c2357fcdc4179b2665c16292b7646af2152c34923278a85d7baa6e5be45381f"
+    },
+    {
+      "path": "supabase/migrations/202610140002_commerce_identity_events.sql",
+      "sha256": "99b5ffc58f349f5db5aab42c3fbf9cc4b34d50ab6406abb976a26a94d44297d5"
+    },
+    {
+      "path": "supabase/migrations/202610140003_commerce_journal_integrity.sql",
+      "sha256": "ee40c67a664854d8e05f4cb8063849ac141c91c8bdfaee94ba75593fb19225bb"
+    },
+    {
+      "path": "supabase/migrations/202610140004_commerce_agreed_policies.sql",
+      "sha256": "5458867ca8df113362c343bcc13f85225022338af12359ea711bb259b3e1e156"
+    },
+    {
+      "path": "supabase/migrations/202610140005_commerce_referrals.sql",
+      "sha256": "6ac60f928909e44e5faf41c89d98abb1688474f40ef554ce3fa0f0b5fdb3bcbe"
+    },
+    {
+      "path": "supabase/migrations/202610140006_commerce_partner_controls.sql",
+      "sha256": "76a06d82dbc7e25eac01a5a667ca03819e64a2bc3940181985a9d0a2265a07bc"
+    },
+    {
+      "path": "supabase/migrations/202610140007_commerce_order_quotes.sql",
+      "sha256": "dcb9fae437912642089b99f269d4b61a948aa2725f7ba1de23d33e2a865f6ec2"
+    },
+    {
+      "path": "supabase/migrations/202610140008_commerce_funding_reservations.sql",
+      "sha256": "da15cd7dd3164ffd02b0233e21beefc1bb8ff709e24df8cffdf6943caf3f203d"
+    },
+    {
+      "path": "supabase/migrations/202610140009_commerce_terminal_settlement.sql",
+      "sha256": "aa66fab840a6d8fa6e093c7c4692f6aeac068960b791f3373d45c88661560ee5"
+    },
+    {
+      "path": "supabase/migrations/202610140010_commerce_payment_requests.sql",
+      "sha256": "30f967006329c82ee1147e11e62972d68fbeaf949b595924ab38a05b7b70b8e0"
+    },
+    {
+      "path": "supabase/migrations/202610140011_commerce_checkout.sql",
+      "sha256": "e021ccd0c34a455047eeaa84fb06003ac6be1fee273be95f48f36d8da9d73285"
+    },
+    {
+      "path": "supabase/migrations/202610140012_commerce_payment_claims.sql",
+      "sha256": "19996a070f9c7adbf9407982e23f3792dc93420b853ad9527a85b4ff058032a6"
+    },
+    {
+      "path": "supabase/migrations/202610140013_commerce_cash_topups.sql",
+      "sha256": "0d04b27190dc634ca7337915abdc4abb2caa0d393597f975ef7773090b162062"
+    },
+    {
+      "path": "supabase/migrations/202610140014_commerce_commissions.sql",
+      "sha256": "9fc25ee436c000d56a070bcf902f9afa4a97abf24ea68a208b527405eddd3444"
+    },
+    {
+      "path": "supabase/migrations/202610140015_commerce_platform_campaigns.sql",
+      "sha256": "69ef112e690ee7aab050dd9bf48631674e7915adc3a7e657d3aed55fef8f33b3"
+    },
+    {
+      "path": "supabase/migrations/202610140016_commerce_cash_credit_codes.sql",
+      "sha256": "a5df991a23480d9b4e92ceccdd207ac4f1aae58c9bfede2218788344b0db9ab4"
+    },
+    {
+      "path": "supabase/migrations/202610140017_commerce_archive.sql",
+      "sha256": "e8001c096abfd5deec58b045cf376cb23c0eeeeeb795156fa55a1c551ec1d7e8"
+    },
+    {
+      "path": "supabase/migrations/202610140018_commerce_support.sql",
+      "sha256": "431035bf471d843c76c6e0c86e6517009be573572dc64f790164a2bd510483b2"
+    },
+    {
+      "path": "supabase/migrations/202610140019_commerce_support_authority.sql",
+      "sha256": "4523dd9d43fd5e019abdd6fa15d2d63470ffe98aa8e7d3f09aede8b56189a695"
+    },
+    {
+      "path": "supabase/migrations/202610140020_commerce_customer_pricing.sql",
+      "sha256": "bbc3c2fad5a498694e3617c9211d181320d1fa689df46d44cb8d2f93fff39f5f"
+    },
+    {
+      "path": "supabase/migrations/202610140021_commerce_promotional_expiry.sql",
+      "sha256": "a0d8cd709ffa5ca08d8051f7a9786db4501b38c522fd52893858a46b75bad164"
+    },
+    {
+      "path": "supabase/migrations/202610140022_commerce_customer_stop.sql",
+      "sha256": "11bd9165d57ddfeffb4bd3b1906356dbaf046b045a6f9399bb527d23fb034e5a"
+    },
+    {
+      "path": "supabase/migrations/202610140023_commerce_discount_rounding.sql",
+      "sha256": "0f271d4fa50ebac378134c41cb81626bdde55646f305b8711c3c7231d0223108"
+    },
+    {
+      "path": "supabase/migrations/202610140024_commerce_legacy_transition.sql",
+      "sha256": "4801855839b2da275fc2c894363795334d7ffa66daec3b4b4f95876b413db3c7"
+    },
+    {
+      "path": "supabase/migrations/202610140025_commerce_customer_history.sql",
+      "sha256": "2b55de4f51b2cb9be4083307184dc61005b6edad4df0d8d972d63cacc09d0b77"
+    },
+    {
+      "path": "supabase/migrations/202610140026_commerce_bound_invoice_monitor.sql",
+      "sha256": "26845acf7fdc0d278db02d5cea47982d8c0614494bb53dccda5286735c13d88d"
+    },
+    {
+      "path": "supabase/migrations/202610140027_commerce_binance_note_binding.sql",
+      "sha256": "c9194650460a82884c769aeb9b93a8116add55e50f51883e5e45e28f7edb5c39"
+    },
+    {
+      "path": "supabase/migrations/202610150028_commerce_deferred_journal_authority.sql",
+      "sha256": "465a7c2211b27b7d22e2be62b3a6612e2a0e0080cb3221a11d3185240e45c7a9"
+    },
+    {
+      "path": "supabase/migrations/202610150029_commerce_partner_campaigns.sql",
+      "sha256": "124104b3f26bb871a8e16d2b68cdabee7442bc288d75f9664925a2887328e840"
+    },
+    {
+      "path": "supabase/migrations/202610150030_commerce_exact_decimal_money.sql",
+      "sha256": "a009b7767538a13617845555b7e677eaf32fea401977510de1bcf9e9442e49ea"
+    },
+    {
+      "path": "supabase/migrations/202610150031_commerce_unsettled_commission_precision.sql",
+      "sha256": "4b985ce107b4886716701b752e189f1bc7d3b7ac2edefe1afad5356f816be4d1"
+    },
+    {
+      "path": "supabase/migrations/202610150032_commerce_wallet_activity.sql",
+      "sha256": "460d7a30be1410be18ee22a55c6889ab634268a01d50cce239ea88be672531ad"
+    },
+    {
+      "path": "supabase/migrations/202610150033_commerce_admin_earnings.sql",
+      "sha256": "017cb19f722df7557b0ec104dd2e80b97af220050d2a98d2526a0317dea4094d"
+    },
+    {
+      "path": "supabase/migrations/202610150034_commerce_withdrawal_receipts.sql",
+      "sha256": "41a6499c9786314bc28aaa179d477189faa3c51a84d877a4281468eb047d7a14"
+    },
+    {
+      "path": "supabase/migrations/202610150035_commerce_partner_cost_sheets.sql",
+      "sha256": "cd8f742afa558d098b5fc45f340647db79f10ca36ff292b81c04bfc51c83404b"
+    },
+    {
+      "path": "supabase/migrations/202610160036_commerce_admin_partner_payouts.sql",
+      "sha256": "3596f6e64be7515faee1f899405f51bf1c846a2ca5013645629a949597a13872"
+    },
+    {
+      "path": "supabase/migrations/202610160037_commerce_payout_notifications.sql",
+      "sha256": "767c12100143d7eea50c8a5aeaa701533e7161ac8b35f30ec929b18f2e77217b"
+    },
+    {
+      "path": "supabase/migrations/202610160038_commerce_partner_advances.sql",
+      "sha256": "4b80e5f8243273097525d448bf6a9562c3b48e29e647bbef06d293bb2c7280db"
+    },
+    {
+      "path": "supabase/migrations/202610160039_commerce_partner_lifecycle.sql",
+      "sha256": "bc65a25ffd5b013df1785e446852514ce2b096beba6993d463678e3f1517bcd1"
+    },
+    {
+      "path": "supabase/migrations/202610170040_commerce_partner_campaign_approvals.sql",
+      "sha256": "5155fb9008d75e07fc8c9d8df1233d8bd737bbcf6f35c12eaadbf27b052c02a2"
+    },
+    {
+      "path": "supabase/migrations/202610170041_commerce_partner_reactivation.sql",
+      "sha256": "ce57bc7bf4083fb4639b21441d8ac0a89183b2356688c3884ed2f13538acbdf3"
+    },
+    {
+      "path": "supabase/migrations/202610170042_commerce_robust_partner_admin.sql",
+      "sha256": "74c058cbdc94896a10715e0dead8a0c5797587faa50ae0ec43d6dc13a0c53f75"
+    },
+    {
+      "path": "supabase/migrations/202610170043_commerce_cash_code_cancellation.sql",
+      "sha256": "db11b0508d2ed434e2566962430d21f6d627379bc88fe61f3a872bca4facbab6"
+    },
+    {
+      "path": "supabase/migrations/202610170044_commerce_promotional_campaign_cancellation.sql",
+      "sha256": "7a481fa7a366598bf40133f557b03ba538e38ecf29b3b37e76a12c8388d79aef"
+    },
+    {
+      "path": "supabase/migrations/202610170045_commerce_partner_sheet_access.sql",
+      "sha256": "8e6aa93b34f1c53444c4eda86c097890e4fc736e3f7e4e36ca6b935abaddba98"
+    },
+    {
+      "path": "supabase/migrations/202610180046_commerce_free_checks_tiered_policy.sql",
+      "sha256": "3402e8f7b81533a842e7e79d43e8bb410c10e6b745e1b5c2002133a3d151c564"
+    },
+    {
+      "path": "supabase/migrations/202610190047_commerce_compact_checkout.sql",
+      "sha256": "37d3514a41280570bf4ffae436f57e3537e5452216c5da9b4a27a37149844055"
+    },
+    {
+      "path": "supabase/migrations/202610190048_commerce_customer_activity.sql",
+      "sha256": "f0c36870b5f6ec1c9bb5ac826d572eac85502eca08323005c1ddf6062e557d24"
+    },
+    {
+      "path": "supabase/migrations/202610190049_commerce_referral_aliases.sql",
+      "sha256": "c729e89f17c6dd4295d2e2b00f0456b2c5d13f3e75d5065590a8c9b3306ae0f1"
+    },
+    {
+      "path": "supabase/tests/commerce_admin_earnings.sql",
+      "sha256": "54088eff78ab10662e82014fe41da510604d268bb913c7770b5717adb8f3b3e8"
+    },
+    {
+      "path": "supabase/tests/commerce_admin_partner_payouts.sql",
+      "sha256": "044fc572333258ec0552eb715fcb3b0f9d280f3942ba9e2b409065baaaf94dd9"
+    },
+    {
+      "path": "supabase/tests/commerce_agreed_policies.sql",
+      "sha256": "74b820a3dea31bb360319cf1edc3f42890de6120f4d3a1117652ec8a61638434"
+    },
+    {
+      "path": "supabase/tests/commerce_archive.sql",
+      "sha256": "72f51050bfb99de6ef59f5e72ad4984f128b4ab171fc7a189d3166dbf2c1efb3"
+    },
+    {
+      "path": "supabase/tests/commerce_binance_note_binding.sql",
+      "sha256": "a439ea4e913d3c6075e1495a63eb85e5c9d8068d4afb0094aa44f140d33fe99c"
+    },
+    {
+      "path": "supabase/tests/commerce_bound_invoice_monitor.sql",
+      "sha256": "2f8413df99d23a18ab5b946226ce1b494d9066be4c1c538f18d9d6107d7f1a30"
+    },
+    {
+      "path": "supabase/tests/commerce_campaigns.sql",
+      "sha256": "1a9c233152681f9c918411c1f901cfb9abe87527d6337e32324feb919ea994fe"
+    },
+    {
+      "path": "supabase/tests/commerce_cash_code_cancellation.sql",
+      "sha256": "3e5d3ddd5e287a839557ca3774860f94f1c807831df4a59dc833cb4caaab2722"
+    },
+    {
+      "path": "supabase/tests/commerce_cash_credit_codes.sql",
+      "sha256": "0b36464e8afa93c61cdf818068c3b008bb2f856351ed18144c150da716da87f8"
+    },
+    {
+      "path": "supabase/tests/commerce_cash_topups.sql",
+      "sha256": "df59607873fe3e4193a0d75b3ddd96220da0dd1b56442b7abaed2136e75c5dab"
+    },
+    {
+      "path": "supabase/tests/commerce_cent_discount.sql",
+      "sha256": "27d35e79adf4a76b2a86b2e9a61bd9298dca897c3b3347e26a67a4adda0b41ae"
+    },
+    {
+      "path": "supabase/tests/commerce_checkout.sql",
+      "sha256": "d1b50da2bd60014ea52c8e73cc65eae93fe78baaa3aea127c4df5750e9a27053"
+    },
+    {
+      "path": "supabase/tests/commerce_commissions.sql",
+      "sha256": "d583cf6a0cd5fdbcd10c7347e4406d459242212d855c64925e9f0ee0c57f63cc"
+    },
+    {
+      "path": "supabase/tests/commerce_customer_history.sql",
+      "sha256": "9b11f0ec6bcc3852f56a7bf9c777c51c422412a2d32cc86ccba47393faa11f0a"
+    },
+    {
+      "path": "supabase/tests/commerce_customer_pricing.sql",
+      "sha256": "25b1bdde2bfb78e095557a22c17352cade4fbd92516fd0ce0fc52e6f7de3b500"
+    },
+    {
+      "path": "supabase/tests/commerce_customer_stop.sql",
+      "sha256": "72270a24675f4d1c676a752d62b003600b6ec5430d7fbd0716d88b55139afca7"
+    },
+    {
+      "path": "supabase/tests/commerce_foundation.sql",
+      "sha256": "4d932b5d4dc1f7171a1bfb8dbbcce06813301be146c5fa955ac4821ab06dcfd9"
+    },
+    {
+      "path": "supabase/tests/commerce_journal_integrity.sql",
+      "sha256": "f1e140aea29bfe0c2bda02668c9efcb7668dac22f9db9422cf64b523bdd41e8e"
+    },
+    {
+      "path": "supabase/tests/commerce_legacy_transition.sql",
+      "sha256": "765bfbe17602e29a5b487b9162607b1f8f55f40a6826e3c60bddf8d06d788ea8"
+    },
+    {
+      "path": "supabase/tests/commerce_order_quotes.sql",
+      "sha256": "90cab836d3f679e5fac97c894c6d1f3859e7bbc90b9a1e6dc159562a0885c4b1"
+    },
+    {
+      "path": "supabase/tests/commerce_partner_advances.sql",
+      "sha256": "5463c515ed148a178a1bbd81fd493d1c07d10ac016c07c42b09819f249edf3b5"
+    },
+    {
+      "path": "supabase/tests/commerce_partner_campaign_approvals.sql",
+      "sha256": "7a86311ceac57ca4ca95bda39cbd019bbba495c4c7e240432512ce9339015815"
+    },
+    {
+      "path": "supabase/tests/commerce_partner_controls.sql",
+      "sha256": "346875aeb19bc25339cd199075327e82786e8f96a77ace61a7b620ff432bc425"
+    },
+    {
+      "path": "supabase/tests/commerce_partner_cost_sheets.sql",
+      "sha256": "742c875d157bb644e8400e53036dc352fda669883b0fad00cebd0076bacc88d8"
+    },
+    {
+      "path": "supabase/tests/commerce_partner_lifecycle.sql",
+      "sha256": "20ff9966be106d570a076b41bf638dc2adcddc65404db9e76419d7803f8ae88a"
+    },
+    {
+      "path": "supabase/tests/commerce_partner_sheet_access.sql",
+      "sha256": "ae64b17ef227221d3845bf830f576258bffa4a93eea0e9d110ffefad0c5b04d4"
+    },
+    {
+      "path": "supabase/tests/commerce_payment_claims.sql",
+      "sha256": "0ed069341c2bc943d265ca936973d88d9a7cbab0aef548707110683d5a9f29fd"
+    },
+    {
+      "path": "supabase/tests/commerce_payment_requests.sql",
+      "sha256": "6ffc64da337269192c431c1fcb8f1865fe75c0ad6d4fe6c8258342a7d1be5d80"
+    },
+    {
+      "path": "supabase/tests/commerce_payout_notifications.sql",
+      "sha256": "6be8db41521f98350034526106c2b3d8f16053efbce04b561de0a161425bc12c"
+    },
+    {
+      "path": "supabase/tests/commerce_promotional_campaign_cancellation.sql",
+      "sha256": "bef23b454e88d99ce398769c738d5e1950b693fee27cc926ef36eb289feb418d"
+    },
+    {
+      "path": "supabase/tests/commerce_promotional_expiry.sql",
+      "sha256": "7eaa13b0319a2067e91708cc8f560d3705e7b6200a6abfafcb10d0f03d7e1e0b"
+    },
+    {
+      "path": "supabase/tests/commerce_referrals.sql",
+      "sha256": "b3e7e5a44647904fc6b3e5e7b338bcdee778b102e4d672e3133b9a6124235ec8"
+    },
+    {
+      "path": "supabase/tests/commerce_support.sql",
+      "sha256": "ee29b76ae7c7c89b9d541b2b23b81bb1233c68a602c7ef1ae7070e1e008abaac"
+    },
+    {
+      "path": "supabase/tests/commerce_wallet_activity.sql",
+      "sha256": "62d19a7cc16c5787772e37d3e84cc65b9f4d1757b3150727c0d6f44b5d126d40"
+    },
+    {
+      "path": "supabase/tests/commerce_wallet_settlement.sql",
+      "sha256": "7c5bb3b26d23c6970fe6b286a0ba0c3062ed61510de680e8f7cf81717575e98f"
+    },
+    {
+      "path": "supabase/tests/commerce_withdrawal_receipts.sql",
+      "sha256": "3c3057b180e29139adf23f1cfadef9f05cefd34943f0d68c1adb69c78a04f67f"
+    },
+    {
+      "path": "telegram_bot/__init__.py",
+      "sha256": "da67145a39010382dbc2ae1f53cfae3f41e054982ea22be59c85ec35d2183ae6"
+    },
+    {
+      "path": "telegram_bot/assets/binance_pay_qr.jpg",
+      "sha256": "2c86b06e3f79056a0bb4eeadbb1bb2a3c41ef694f57633b0b34b67f58f5eaa85"
+    },
+    {
+      "path": "telegram_bot/assets/vodafone_cash_logo.jpg",
+      "sha256": "2225901f8a8a27a1e18bd80e4702970d60badb4ef4523ae4f67dce9543d9449f"
+    },
+    {
+      "path": "telegram_bot/assets/vodafone_cash_logo.source.json",
+      "sha256": "4dafbe748dacb953be971d5be9948b3cee3c58b1f2500081d17152a48e076ee4"
+    },
+    {
+      "path": "telegram_bot/authorization.py",
+      "sha256": "d843ca98560dc2c3b64450cec1be805db39e532849d5f4ed7687c6ae10c8295f"
+    },
+    {
+      "path": "telegram_bot/bot.py",
+      "sha256": "53650857e809c2a9f1eb55d412e45cfe23534a0fdb38982d959413c2d9b54ad0"
+    },
+    {
+      "path": "telegram_bot/commerce/__init__.py",
+      "sha256": "bb08aa49c0a37c02b2d25098013ce8759150e6fa286298b645483d0f73bd038e"
+    },
+    {
+      "path": "telegram_bot/commerce/admin_payouts.py",
+      "sha256": "5481be6459a37cbbd2dca1527a232940ce517ebf9e9ca7053c0908cb2d3d56c2"
+    },
+    {
+      "path": "telegram_bot/commerce/admin_roles.py",
+      "sha256": "ee412a9a9f2af23da9d7c9a8b6775d350cf04808c43b526ba270c23e71dc7286"
+    },
+    {
+      "path": "telegram_bot/commerce/archive.py",
+      "sha256": "c60600a269a313c87c7ed7c254dd8536cff6def5f5862920f8d85fd9b2f1a9eb"
+    },
+    {
+      "path": "telegram_bot/commerce/archive_config.py",
+      "sha256": "015ae225c761e5094dd7ed6b7267a7720cec6606c67e46113ede52e871342ed5"
+    },
+    {
+      "path": "telegram_bot/commerce/archive_store.py",
+      "sha256": "7b283548abb6dde96fc9db64223d731532c02126487d5ac7f838d6653b2b33f2"
+    },
+    {
+      "path": "telegram_bot/commerce/archive_transport.py",
+      "sha256": "f045a7abe72dc3aa4b3bc8dcea50c0e5cadcc543ffb48fe200c1cef9cd1b9d40"
+    },
+    {
+      "path": "telegram_bot/commerce/archive_ui.py",
+      "sha256": "169073be14bf48a4a9112f32ae44f20aa0db3333e7951aa196aad4f447ebf56b"
+    },
+    {
+      "path": "telegram_bot/commerce/binance_note_probe.py",
+      "sha256": "865b392d31e8e66a7667161e291ac65a19b071eb88301df1ec53b07be7b27e6d"
+    },
+    {
+      "path": "telegram_bot/commerce/binance_note_ui.py",
+      "sha256": "bf486136aadf4e16ec48f2deaea4cd9e1b2594328434c00a1f392a5cafee247e"
+    },
+    {
+      "path": "telegram_bot/commerce/binance_notes.py",
+      "sha256": "f0fd855ca50119ebb3308d108d7e626832739bfa7cc567e72f1be6f955dc72c4"
+    },
+    {
+      "path": "telegram_bot/commerce/bot_workflow.py",
+      "sha256": "07d43ac70ecc78e31ea85b426921a531308cc484728ed65f58f09527af1e8686"
+    },
+    {
+      "path": "telegram_bot/commerce/bridge.py",
+      "sha256": "e8a8e5676fb91076469db3b7dac9a0251362f9dffcb62f2841a60404f7a51327"
+    },
+    {
+      "path": "telegram_bot/commerce/campaigns.py",
+      "sha256": "d0627e6442297debe655a583c0240d25115ce77833c77d919f7c3f1d8c9b2964"
+    },
+    {
+      "path": "telegram_bot/commerce/cash_codes.py",
+      "sha256": "d44c6e8a9ceea491a4edb1c9fc35de4d4a271bc2fda46084bec602f312cc8454"
+    },
+    {
+      "path": "telegram_bot/commerce/checkout.py",
+      "sha256": "212aa33dbf1e404ef28e8d109ca2e425023190bef0319cc6e6539c189b38713d"
+    },
+    {
+      "path": "telegram_bot/commerce/client.py",
+      "sha256": "32f15d9cc4c0bf5cf0989ef5b00f78e3d2c0e1d8ac7c4b4a18463e57dc4b92f7"
+    },
+    {
+      "path": "telegram_bot/commerce/contracts.py",
+      "sha256": "1bda256647baecdfa5fa9852854a41e3942a92b6a90104f8aa9e0f50edc315c4"
+    },
+    {
+      "path": "telegram_bot/commerce/customer_activity.py",
+      "sha256": "9a87b695e5ef3982fb110076da5591f560bd0cc1fd21df13c99aaf231cc8de6b"
+    },
+    {
+      "path": "telegram_bot/commerce/deposit_review.py",
+      "sha256": "1662f6dda720087e175854c6351589bdf1d8f63c57d0a18f24240fe8042473f2"
+    },
+    {
+      "path": "telegram_bot/commerce/finance.py",
+      "sha256": "c093d09d8b4cbb7ff5e449cb88963b87517fb877aaf41fb3d225d901a89a5428"
+    },
+    {
+      "path": "telegram_bot/commerce/invoice_monitor.py",
+      "sha256": "af84572b504b68706c6859e702ec413d8f4885039edecbda63878f630d08394b"
+    },
+    {
+      "path": "telegram_bot/commerce/legacy_verification.py",
+      "sha256": "f8294c112eace6274f87aac2a3b0d74eafdaf203746b63a4925810326600ff24"
+    },
+    {
+      "path": "telegram_bot/commerce/legacy_wallets.py",
+      "sha256": "fdd3609337c2c7041f784f54ebbff2d9e94b4738da5081f503c9b28edf59d56a"
+    },
+    {
+      "path": "telegram_bot/commerce/management.py",
+      "sha256": "86c3a0eab021aa96bea080dadd77958e3148de989931a285337754f0de9c8d04"
+    },
+    {
+      "path": "telegram_bot/commerce/manual_payments.py",
+      "sha256": "59a1dc2721e77c4667369960908b9b869ca45debaff702e962ceb9ab7893281c"
+    },
+    {
+      "path": "telegram_bot/commerce/order_input.py",
+      "sha256": "1e51b9b74c374c8027fa2cbf0f474cab09489214e5bef92619f679f9be91a0bd"
+    },
+    {
+      "path": "telegram_bot/commerce/outbox.py",
+      "sha256": "87512ab8b15e152737c062bf84d4e73d1e5a1bdf15f1e492c3a934f657e30f58"
+    },
+    {
+      "path": "telegram_bot/commerce/partner_balances.py",
+      "sha256": "222bcdbb3f79e71f8278ade63834928784c2e0ab7af4fec47cad8d25b0967900"
+    },
+    {
+      "path": "telegram_bot/commerce/partner_campaign_approvals.py",
+      "sha256": "b8724ba81c70c9470ce2408751f5d692e65c48e1a550a95876a46579b645e097"
+    },
+    {
+      "path": "telegram_bot/commerce/partner_finance.py",
+      "sha256": "46e7f49a391f491abb22fec3404602be46664c595d6bff0b6ec332bc41da642e"
+    },
+    {
+      "path": "telegram_bot/commerce/partner_lifecycle.py",
+      "sha256": "eb58ec5375d92df8136d4c90c25c889e5725085cd095d570c69a3b0c099c65b5"
+    },
+    {
+      "path": "telegram_bot/commerce/partner_roles.py",
+      "sha256": "a85d0f944f54ce916a30a0ea9aefcf5b51a0dc0be5fa674eba1e7b0272c2e5f8"
+    },
+    {
+      "path": "telegram_bot/commerce/partner_sheets.py",
+      "sha256": "9f3f1844ba3f78cc2f0b3e7a152e1edf763ec9c2f108b2a351a3d73301a9b7d4"
+    },
+    {
+      "path": "telegram_bot/commerce/payment_media.py",
+      "sha256": "bbd8748caf33a6e2b2c672e033bd945bc48d29854e4c9f600af398964931c89c"
+    },
+    {
+      "path": "telegram_bot/commerce/payment_providers.py",
+      "sha256": "34791364511e693b9a7f7a4d13ef85440f24e64739b511dcd651dd7b1fe954a8"
+    },
+    {
+      "path": "telegram_bot/commerce/payment_quotes.py",
+      "sha256": "45f4a1c3f8b2509137a2253a8049fda674b2e53fc89f01ebd38e1df886a189d5"
+    },
+    {
+      "path": "telegram_bot/commerce/payments.py",
+      "sha256": "e9b12c496fd8beeac046eeabd775330ee2d32ceb0ab4bfb655af30c66e95a7cc"
+    },
+    {
+      "path": "telegram_bot/commerce/payout_notifications.py",
+      "sha256": "df508b2704755304f3628995364b161fac8532d50376dfbaab2ee7cb1bafa5f1"
+    },
+    {
+      "path": "telegram_bot/commerce/pricing_ui.py",
+      "sha256": "d9cf0f23dfeb297ee3e87dcaf30f4c64a0f02c0406b5ed29dbb111f5b756eef9"
+    },
+    {
+      "path": "telegram_bot/commerce/provider_routes.py",
+      "sha256": "9b4041dec14d0267bf0cc22fd95931bf2559148c6b7f2846ed5d6cda8dcfcce9"
+    },
+    {
+      "path": "telegram_bot/commerce/rates.py",
+      "sha256": "d24f783f2bad58176db1437a3fe64ed81d4300d8d7d01563cb7aba0488d4ecb5"
+    },
+    {
+      "path": "telegram_bot/commerce/referrals.py",
+      "sha256": "5b300b4c75b79d45eaa319646caa9bec49796ad0b901bb10a75bd100da15c9e2"
+    },
+    {
+      "path": "telegram_bot/commerce/secret_store.py",
+      "sha256": "d5cdae7d7325a5a5c7c20bd6fa6bbced249f5732fcfbf9787c641b9bc6d8984e"
+    },
+    {
+      "path": "telegram_bot/commerce/setup_runtime.py",
+      "sha256": "711276b72e593bc654848dc8709b1eeb457687c9353f4d28abd449ac7e5baedf"
+    },
+    {
+      "path": "telegram_bot/commerce/setup_support.py",
+      "sha256": "4a026616026a2d80cd4bdf5903a197e2a143d644627ca3b120349e42a2ea41c4"
+    },
+    {
+      "path": "telegram_bot/commerce/support.py",
+      "sha256": "501fba9496604090f48710a89389321338577eb22395ff55e6a78396f5aafd9b"
+    },
+    {
+      "path": "telegram_bot/commerce/support_ui.py",
+      "sha256": "dcbff6dad90631a54e982ea0545a53be1bca7e11bc89c52af1420ce2528a22a8"
+    },
+    {
+      "path": "telegram_bot/commerce/topup_store.py",
+      "sha256": "b113687c6eafb214922341a57afeb0c40750fefa4acf8d21a87ccca074816143"
+    },
+    {
+      "path": "telegram_bot/commerce/transition.py",
+      "sha256": "21a6b9baceefe6b4dff356427bedba994f4850ee7ebf33824a376dfd230cfc31"
+    },
+    {
+      "path": "telegram_bot/commerce/verify_runtime.py",
+      "sha256": "3249c200485642c2fb241d7a50bd04067a240069528c595d93ae5799566ffa13"
+    },
+    {
+      "path": "telegram_bot/commerce/vodafone_cash.py",
+      "sha256": "da8ad9c6012c27c46a63b915f1c49804bbbcb409cc87f2e8560e94439d3349f9"
+    },
+    {
+      "path": "telegram_bot/commerce/wallets.py",
+      "sha256": "25ab4d187aabc669615650ff7ac81b1d18bc9f65e7959e83d2619846aefe03e1"
+    },
+    {
+      "path": "telegram_bot/commerce/withdrawal_receipts.py",
+      "sha256": "373f390a41532941595682ea9d409e02f951ad64d500b501d7917777040effbc"
+    },
+    {
+      "path": "telegram_bot/config.py",
+      "sha256": "d190e8f3fba80d72f0da15c7cd3703b880a5e8f76d40137b4bff563f71b58a0b"
+    },
+    {
+      "path": "telegram_bot/crypto_pay.py",
+      "sha256": "bd5c0e14f3b5f136ec8a763cf15cb0e614ff0f29bde8b330057bbd64b8da80d1"
+    },
+    {
+      "path": "telegram_bot/integration.py",
+      "sha256": "0cd5ba03609a0fbad4766717979528b523060aa84a75c6faab14e0404c34ca31"
+    },
+    {
+      "path": "telegram_bot/logging_safety.py",
+      "sha256": "3a2510c096da583ba71ad562aa874c032d28da03bb4fb1df0c913ddfa0b972c0"
+    },
+    {
+      "path": "telegram_bot/maintenance_access.py",
+      "sha256": "da1434d242061406b1306524866e200c49fe58c997dfc04e58f1cd8b05db25e9"
+    },
+    {
+      "path": "telegram_bot/notification_delivery.py",
+      "sha256": "cbb9552e3612c61052cbe2f4c1133ddf57cda6e6e374d1ab945929dde35ab899"
+    },
+    {
+      "path": "telegram_bot/notifier.py",
+      "sha256": "cc8ed35684c6c63af11218cb8d420dcfd4e1a194535b269d447b7cbfc1f3f1ff"
+    },
+    {
+      "path": "telegram_bot/official_support.py",
+      "sha256": "c1b203ba10f36c998d8ee9df11774f11bde27d4e67d454c013a9873ce7c19fd5"
+    },
+    {
+      "path": "telegram_bot/order_history.py",
+      "sha256": "2da79c38dc8c8ea2f5c252f988e61aa7cf713c29a3c047e40fb42719d39be5a9"
+    },
+    {
+      "path": "telegram_bot/payment_manager.py",
+      "sha256": "00008fe8b1b46661a452ad0bc053c327976a0dc17910c35be69c4576a0b8fe2e"
+    },
+    {
+      "path": "telegram_bot/payment_watcher.py",
+      "sha256": "959d4578d3207292a9c8ba80cae5ba947dbf7ae3c95f0df032d6bdf8c8c93c56"
+    },
+    {
+      "path": "telegram_bot/photo_panels.py",
+      "sha256": "5d5329e7e4aec70c4f131f475abc628ff8741f02b5e7709227ab380b9656927f"
+    },
+    {
+      "path": "telegram_bot/sheet_workflow.py",
+      "sha256": "c34f970e805c382721994b04bfc7b61fe3d2a471e4492cb8a4525af6824a9f56"
+    },
+    {
+      "path": "telegram_bot/subscription.py",
+      "sha256": "29ce68e07cf03552831ff67b4c2d763f227d01471b61973189c1e09fec237a6b"
+    },
+    {
+      "path": "telegram_bot/subscription_policy.py",
+      "sha256": "980e99064c030390bf3873a60bfbd60b5a6ef05d1fbb5ae67a77868d1003e2cf"
+    },
+    {
+      "path": "telegram_bot/ui.py",
+      "sha256": "523e5f96ccd437baaa4e8acf592ccd69af51c79b6a09ce89c9a7f06b8974adb1"
+    },
+    {
+      "path": "telegram_bot/update_inbox.py",
+      "sha256": "897708e813abd1b94eeb3981835438492e582c56770513f4d819647e840cfe4d"
+    },
+    {
+      "path": "telegram_bot/views.py",
+      "sha256": "b161df59c55ccd0bd5e8cd0fe1006a603f808d59dff66e1c3874a8de6cd3b1ef"
+    },
+    {
+      "path": "web_ui/index.html",
+      "sha256": "2692c081612ff8e3d9b8f488089da6a4b9b9db2b07f3bae3b54330e96e5e1671"
+    },
+    {
+      "path": "web_ui/static/css/clipboard.css",
+      "sha256": "d5c6f90a72853802592a138cc105a8b789806ddaf2b727a605cf4ed16651aa2f"
+    },
+    {
+      "path": "web_ui/static/css/components.css",
+      "sha256": "774616cd11c5a5d7f29d24f0f33f339ddb9f68a1d33bd7c414086085d6c6bfc3"
+    },
+    {
+      "path": "web_ui/static/css/dashboard.css",
+      "sha256": "b391f65a919453724ac3149d485c412c15d0742b7d969d03042c16649d457a83"
+    },
+    {
+      "path": "web_ui/static/css/layout.css",
+      "sha256": "a0916db6e7c8303eac102c7fb80d52685477ba89f9cf94b95fdd77e1393dfaf4"
+    },
+    {
+      "path": "web_ui/static/css/telegram-motion.css",
+      "sha256": "9d51ae3e91245a7e623effcbe1a878f87192c410c990c1ec1a9e282a31d6330d"
+    },
+    {
+      "path": "web_ui/static/css/telegram-panel.css",
+      "sha256": "da033189bca05941122e5584353b90c5a4cc2afbc32e8a3f66450b2458b96692"
+    },
+    {
+      "path": "web_ui/static/css/theme.css",
+      "sha256": "ef5b8f554f94415974013a58af1345b437a47e96c9c4557d47e936978d747dc0"
+    },
+    {
+      "path": "web_ui/static/css/workspace.css",
+      "sha256": "09985eed37dc10b07ac0a4fdb1858aaf129d61700533d32cbcafe5e8fa3d4436"
+    },
+    {
+      "path": "web_ui/static/fonts/Tajawal-Bold.ttf",
+      "sha256": "0342ab6b74b6bd1b4b5bf7beda45a9734a2b3147a31e8a3a45b6a3417a52d9d7"
+    },
+    {
+      "path": "web_ui/static/fonts/Tajawal-Medium.ttf",
+      "sha256": "1ff8bd943a261c9dd7906bdb1993cab87b6d925a7fb5f848cdb51ed301531090"
+    },
+    {
+      "path": "web_ui/static/fonts/Tajawal-Regular.ttf",
+      "sha256": "6882892da3e03527d5db2bbab3b48bde6ef2e878a43f522d1a4eebda90010a19"
+    },
+    {
+      "path": "web_ui/static/js/api.js",
+      "sha256": "2d92fb4d97a8012476db9a8647000be9e575e799fabddbf10823d6d3cf9aed6c"
+    },
+    {
+      "path": "web_ui/static/js/app.js",
+      "sha256": "04989ae59758739e7c37fa285466a32e096a8da4b75dc7ee6c68261b3644a6da"
+    },
+    {
+      "path": "web_ui/static/js/column_mapper.js",
+      "sha256": "897d97024e21279d0403b66d50aa9609347d3f9a747bfb30a8c84ac092075f6c"
+    },
+    {
+      "path": "web_ui/static/js/dashboard.js",
+      "sha256": "f9f68c2a7cebae435ce518d8306b5c3001e6c08362fc73183ca35678ea947dbc"
+    },
+    {
+      "path": "web_ui/static/js/live_feed.js",
+      "sha256": "0314ef3afa93729c7ee29d29f6c68ad2a9ca94d5be063692e56cf79c47bea431"
+    },
+    {
+      "path": "web_ui/static/js/pricing.js",
+      "sha256": "08003d7b6b9f041af71f733375d88351b897af4837b92671ad27d1a3f6a2164e"
+    },
+    {
+      "path": "web_ui/static/js/queue_ui.js",
+      "sha256": "6108aef003599640d116adc9bd6b53b0531b2d01a630f026fb60b2dc1ff6d488"
+    },
+    {
+      "path": "web_ui/static/js/restart_modal.js",
+      "sha256": "1bb58ae7afbaede4449ffd7d3fa164eac593c7190c64b86656e2b56f8275b03b"
+    },
+    {
+      "path": "web_ui/static/js/results_browser.js",
+      "sha256": "a9f01f8d9f008435765c9f06f377065c4e2064f03cb6fdb6693c50db0904aeb5"
+    },
+    {
+      "path": "web_ui/static/js/session_timing.js",
+      "sha256": "75a2676e9718fcfb7ad81a141886a2531b5de9b33a175b7b24b58a1cc8368b26"
+    },
+    {
+      "path": "web_ui/static/js/telegram-motion.js",
+      "sha256": "4a7ed6395c9ca9dcfb5d5fa2c26e69f7454cd38e34ee4e403896053fb636de75"
+    },
+    {
+      "path": "web_ui/static/js/telegram-sheet-preview.js",
+      "sha256": "fc990690007c668e7b6e998c09bb0287aa311ad3058e604e25c918bb12ea13f4"
+    },
+    {
+      "path": "web_ui/static/js/worker_monitor.js",
+      "sha256": "b0f7c9857b60411ab5fc1ac51e1bc4b16f6af2ae57bd6a7eba70a866754d572a"
+    },
+    {
+      "path": "web_ui/static/promo/assets/art.js",
+      "sha256": "6882a26dea252c0ca0a474da15fc9e673a57ef629d16190ce298a2b4ab4ce37d"
+    },
+    {
+      "path": "web_ui/static/promo/assets/campaign-data.js",
+      "sha256": "977b3bff204679d01eb2aee0737ec6c804644d046cd1c97e26da48086a9a0864"
+    },
+    {
+      "path": "web_ui/static/promo/assets/campaign-videos.js",
+      "sha256": "f1d7f72366eb720db03925bc3308026aec926f0009b9aec0833ffa8650399673"
+    },
+    {
+      "path": "web_ui/static/promo/assets/campaign.css",
+      "sha256": "9e1ca55b8aea484b10c2690406cdcac70d13e3b0164132d1ba3416527be01458"
+    },
+    {
+      "path": "web_ui/static/promo/assets/fonts/Tajawal-Bold.ttf",
+      "sha256": "0342ab6b74b6bd1b4b5bf7beda45a9734a2b3147a31e8a3a45b6a3417a52d9d7"
+    },
+    {
+      "path": "web_ui/static/promo/assets/fonts/Tajawal-Medium.ttf",
+      "sha256": "1ff8bd943a261c9dd7906bdb1993cab87b6d925a7fb5f848cdb51ed301531090"
+    },
+    {
+      "path": "web_ui/static/promo/assets/fonts/Tajawal-Regular.ttf",
+      "sha256": "6882892da3e03527d5db2bbab3b48bde6ef2e878a43f522d1a4eebda90010a19"
+    },
+    {
+      "path": "web_ui/static/promo/assets/landing.js",
+      "sha256": "353f071b4304bb415b7ee7447756a80f63311fab33ae49631fb84eb606da116e"
+    },
+    {
+      "path": "web_ui/static/promo/assets/motion.js",
+      "sha256": "e62432ee6973341dbb1a554f6ce1febdfe9766b148bf5757b4f7450054c97d62"
+    },
+    {
+      "path": "web_ui/static/promo/assets/studio.js",
+      "sha256": "ef3a3a6775046959d9ea606b4bb969cd1af9d489b37b7b1972bac85baf58bb1d"
+    },
+    {
+      "path": "web_ui/static/promo/assets/vendor/gsap.min.js",
+      "sha256": "92bb9a96476f983d212a2bc4f54c889039c1696dd4461d40a736860938570fbb"
+    },
+    {
+      "path": "web_ui/static/promo/assets/vendor/jszip.min.js",
+      "sha256": "7f839b2d4688b845c105ebf5d2f9803075f91ea0fe72bdaac176c3a04dd3d2c1"
+    },
+    {
+      "path": "web_ui/static/promo/index.html",
+      "sha256": "a32b5c7c7199a484f6c333031392f4fd79dc82269bef898630f00dd13195707a"
+    },
+    {
+      "path": "web_ui/static/promo/preview_server.py",
+      "sha256": "b63cd4b074a5682231a4c510a525c37ba4e30c2b5a0082f9988276a323f89336"
+    },
+    {
+      "path": "web_ui/static/promo/studio.html",
+      "sha256": "ab9d914ded3128158b54f9916281517cd564cb72d9e6cc13da5e2797ed9f17e4"
+    },
+    {
+      "path": "web_ui/static/telegram-preview.html",
+      "sha256": "05d1eef3a80d73a8b19cc13c19cb8f8f4e828805d23c0a8f78929e00834914d0"
+    },
+    {
+      "path": "workers/__init__.py",
+      "sha256": "d52b4507b8804caaf7077c69c5c50b574aa5e618de564a67f80f45bb2f397cad"
+    },
+    {
+      "path": "workers/account_transport.py",
+      "sha256": "6cb6a71fc1ff8b1b62b3ab11b0ba48e0ff3c8502c3e62f810b3eac3ab0462693"
+    },
+    {
+      "path": "workers/actor.py",
+      "sha256": "8c56210ce9d834e03a14f07f62ce3476a7a2bfa1c160da25a0968ef84e385537"
+    },
+    {
+      "path": "workers/launcher.py",
+      "sha256": "93e277fcdd9cca3cd5dcb6ced8ed47a468f918055ed2a3e28eb32fc96ca9101b"
+    },
+    {
+      "path": "workers/proxy.py",
+      "sha256": "74ce76d84c83bf2078346b7a8fcc2fcce489e0d8fa99d2de8404240b6ef15b42"
+    },
+    {
+      "path": "workers/service_transport.py",
+      "sha256": "339fbca011ac1ba42fe64e44dad865f6537b0093ee48dee0b72ee2feb277b49f"
+    },
+    {
+      "path": "workers/stealth_service_engine.py",
+      "sha256": "d335de5a2487ae308bd441ef8f379669dfda63f0b42903c58d42961cda958d8b"
+    },
+    {
+      "path": "workers/supervisor.py",
+      "sha256": "020b56c84561547178afa6c09eb8357af76d2784b81dcbc3c2e73e3cf51bda30"
+    },
+    {
+      "path": "workers/zain_api.py",
+      "sha256": "d0b87b98d7bd62828a7ae46571d76b3f19292cb9e129ddbdd343283c2db83d6d"
+    },
+    {
+      "path": "zain_checker/__init__.py",
+      "sha256": "0be41893731add19de023a364c893252b64a861c80220d4d4663b8177e8af27d"
+    },
+    {
+      "path": "zain_checker/async_pipeline_engine.py",
+      "sha256": "d7db26f1ed6463c90cbb3e45ac38632fc9afe3490e735bcda3fa4165817ac86e"
+    },
+    {
+      "path": "zain_checker/chrome_manager.py",
+      "sha256": "81ede0c8c99425611508bc5ec277f623bec7773cf1beb21c6d6a211f3cf9241f"
+    },
+    {
+      "path": "zain_checker/clean_sheet_builder.py",
+      "sha256": "cc729ed4bd7a6affa803d28730ffd3d0431b0dc5eff7a0990d1b700153e58ff2"
+    },
+    {
+      "path": "zain_checker/config.py",
+      "sha256": "b627e4014b28d089ed3608b8c8ba6b789c882bba0192acd78659c4d4f8bc5533"
+    },
+    {
+      "path": "zain_checker/console.py",
+      "sha256": "f36f6fc4a70dd42e7e1c7bf7277caab0ba883319afed71551478cf8d10ea7983"
+    },
+    {
+      "path": "zain_checker/domain_models.py",
+      "sha256": "c856c692effb7b1283a8a3da69c56812b3812978f7e98f6936f0f612aab6e4ac"
+    },
+    {
+      "path": "zain_checker/executive_reporter.py",
+      "sha256": "d5605d33c12910b2b09cf8be208b2ba3f104d2c760ece19cb7b9ce037abc00db"
+    },
+    {
+      "path": "zain_checker/extension_data.py",
+      "sha256": "c685c507c81c18981cbdaf7a0be3dcc2d7b313ae50572ba23040cc0fc9cf077b"
+    },
+    {
+      "path": "zain_checker/finalize_all_rows.py",
+      "sha256": "2a8467eeaa02c0d826daaa8ea5a7133beb92b6227d012fda53e28aabadaa8ff4"
+    },
+    {
+      "path": "zain_checker/master_dual_engine.py",
+      "sha256": "64e8c6530fbe77f029191b42980736cf15ae3e2983f0370bb5c7ab607a7e31db"
+    },
+    {
+      "path": "zain_checker/money.py",
+      "sha256": "1d760fea5cba5f0735e0d441a4328f2059605f6343bea0088790c6a5d159c3dd"
+    },
+    {
+      "path": "zain_checker/pipeline.py",
+      "sha256": "16c9761027e418106bb315e8035b2ceb3eaf6c2cc247735aa0fa084726c10d7c"
+    },
+    {
+      "path": "zain_checker/queue_manager.py",
+      "sha256": "43f9c6a14a172d06e4ec34adb4aaf52e308f33e70141fc3169178182565b7787"
+    },
+    {
+      "path": "zain_checker/reconciliation.py",
+      "sha256": "231d4f85e6e55896684fd575d7b3b1ba4f8fd5f5813fec217480f0c4b5fbac6f"
+    },
+    {
+      "path": "zain_checker/security.py",
+      "sha256": "99f53989e98df4d2533e8d979237cea9f364d1a14a1f2545d101996196e8a5d4"
+    },
+    {
+      "path": "zain_checker/sheet_updater.py",
+      "sha256": "67e643f3fd9cc65e1f6c38cb8174f7ddab1e5eaedd94292f1f73bea98c30a352"
+    },
+    {
+      "path": "zain_checker/simulation_suite.py",
+      "sha256": "2b94f9ed6d1ecefe6acca472ab99e66d7cad49c2af2344b8bf81b9a409da34ca"
+    },
+    {
+      "path": "zain_checker/telegram_controller.py",
+      "sha256": "7349972c5f9518b44e3997544c08530c3a1fdbe0c45d3ade5a530ae76990f976"
+    },
+    {
+      "path": "zain_checker/telemetry.py",
+      "sha256": "c891ce9cd2508e050687f114fd69e01362fdd921335b2816a632b6b9200e0aac"
+    },
+    {
+      "path": "zain_checker/web_bridge.py",
+      "sha256": "641b022ed6b3c155982a696325e4c36e8552966ff5035e9ed7643a404135d2a2"
+    },
+    {
+      "path": "zain_checker/workbook.py",
+      "sha256": "b088097cfd0add684c336abd051cca02b8deba58f2e96672ce423c79f12be02a"
+    },
+    {
+      "path": "zain_checker/zain.py",
+      "sha256": "e3be963b8528da11645001e5cb9f549f509e17b00f7cd9ace9e9676b1a419202"
+    }
+  ],
+  "publication_adjustments": [
+    {
+      "path": "zain_checker/telegram_controller.py",
+      "change": "Read legacy bot token from service environment; no credential published"
+    }
+  ],
+  "customer_state_included": false,
+  "credentials_included": false
+}
