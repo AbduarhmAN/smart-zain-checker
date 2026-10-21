@@ -1,0 +1,21 @@
+{
+  "deployed": true,
+  "verified_at_baghdad": "2026-10-21T08:36:23.165223+03:00",
+  "runtime_commit": "f2935c93e59f5e16b0317891c19f5eaa71c2d9da",
+  "runtime_files": 21,
+  "supabase_migration": "202610210051_commerce_telegram_presentation",
+  "local_tests_passed": 342,
+  "production_interpreter_tests_passed": 342,
+  "source_hashes_verified": 21,
+  "polling_healthy": true,
+  "completed_queue_records_retained": 26,
+  "owner_only_maintenance_preserved": true,
+  "worker_configuration_preserved": true,
+  "customer_state_preserved": true,
+  "old_ahmed_hidden_from_current_presentation": true,
+  "old_ahmed_financial_history_preserved": true,
+  "files_deleted": false,
+  "builds_run": false,
+  "financial_test_transactions": 0,
+  "broadcasts_sent": 0
+}

@@ -1,6 +1,6 @@
 # Telegram presentation update — 2026-10-21
 
-Implemented and verified locally. This task has not published a GitHub commit, changed Supabase production, restarted the VPS or sent customer messages.
+Published to GitHub and deployed to the VPS on 2026-10-21, after confirming that all 26 queued records were completed and no checking was running. Supabase migration 0051 is applied. The deployment script sent no customer messages.
 
 ## Result
 
@@ -25,7 +25,7 @@ Telegram names come from private updates or read-only `getChat` lookups, using `
 
 The migration preserves signatures, grants, ownership checks and financial expressions. It does not update partner identities, referral codes, historical events, wallets or ledger rows. The earlier migrations are unchanged.
 
-For a later authorized release, apply migration 0051 before installing the UI source. Deploy against a newly checked production baseline and preserve ongoing work. Do not copy the whole dirty workspace or an older scheduler checkout over the VPS. The source-only task manifest and patch identify this task's runtime changes relative to its retained pre-edit snapshot.
+Release order was migration 0051 followed by the 21 UI runtime files. For future releases, apply the database dependency before installing the UI source. Deploy against a newly checked production baseline and preserve ongoing work. Do not copy the whole dirty workspace or an older scheduler checkout over the VPS. The source-only task manifest and patch identify this task's runtime changes relative to its retained pre-edit snapshot.
 
 ## Verification
 
@@ -48,3 +48,14 @@ Local artifacts are retained under `outputs/telegram_ui_20261021/`:
 - `monitoring_diff.txt`, `source_before.json`, `source_recovery.json`, `before/`
 
 One unreadable local legacy-wallet source file was restored from the exact tracked Git blob after confirming that blob matched the readable live VPS file. Its original bytes remain in the pre-edit snapshot. This was source recovery, not a financial logic change, and is excluded from the UI patch.
+
+## Verified production release
+
+- Runtime source commit: `f2935c93e59f5e16b0317891c19f5eaa71c2d9da` on `codex/telegram-presentation-20261021`.
+- GitHub publication preceded database and VPS publication. The branch also captures the source dependencies already running on the VPS; deployment changed only the 21 reviewed Telegram runtime files.
+- Both Windows and the VPS production interpreter passed 342 offline regression tests.
+- Independent verification matched all 21 deployed source hashes, confirmed fresh bot polling without a reported error, and found all 26 queue records still completed.
+- The current owner-only maintenance policy, worker/proxy configuration and customer state were preserved. A single Telegram poller remains active. Public service was not reopened.
+- The live earnings read model retains the former AHMED financial record with its end date; the UI excludes it from current lists. ZAIN and _ZAIN remain active. No identity/code mapping, balance or previous notice was changed.
+- Backups, migration source, local and Linux test logs and deployment receipts are retained privately. No build or compilation command, file deletion, test payment or broadcast was run.
+- Send `/start` to the bot as the authorized owner to request a fresh panel. Existing Telegram messages are not rewritten by deployment.
