@@ -1,0 +1,56 @@
+{
+  "github": {
+    "repository": "https://github.com/AbduarhmAN/smart-zain-checker",
+    "branch": "codex/empty-wallet-mapping-20261021",
+    "runtime_commit": "3e807eff11bcb5eb015f6a1d7aca9c8e7e924f43",
+    "remote_verified": true,
+    "runtime_sha256": "b5ffac948475e2ee8e52855812eee1fbd0e0add3a3e297941da611af85c5e883",
+    "changed_files": [
+      "docs/schema_lookup_20261021.md",
+      "domain/workbook.py",
+      "tests/test_lookup_schema_priority.py"
+    ]
+  },
+  "deployment": {
+    "deployed": true,
+    "runtime_files": 1,
+    "candidate_sha256": "b5ffac948475e2ee8e52855812eee1fbd0e0add3a3e297941da611af85c5e883",
+    "linux_tests": 53,
+    "checking_was_idle": true,
+    "polling_healthy": true,
+    "access_and_proxy_policy_unchanged": true,
+    "queue_wallet_and_draft_state_unchanged_by_source_update": true,
+    "customer_workbooks_modified": 0,
+    "messages_sent_by_deployment": 0,
+    "files_deleted": 0,
+    "builds_run": 0,
+    "backup": "/root/zain_check/.code-backups/empty-wallet-20261021T174859Z"
+  },
+  "independent_verification": {
+    "runtime_sha256": "b5ffac948475e2ee8e52855812eee1fbd0e0add3a3e297941da611af85c5e883",
+    "smoke_passed": true,
+    "polling_healthy": true,
+    "maintenance_marker_present": false,
+    "service_active": true,
+    "real_workbook": {
+      "available": true,
+      "passed": true,
+      "lookup_col": "L",
+      "service_col": "AF",
+      "validated_rows": 1574,
+      "executable_checks": 1504,
+      "source_unchanged": true,
+      "paid_requests_executed": 0
+    }
+  },
+  "linux_validation": {
+    "passed": true,
+    "tests": 53,
+    "failures": 0,
+    "errors": 0,
+    "seconds": 11.00109140801942,
+    "candidate_sha256": "b5ffac948475e2ee8e52855812eee1fbd0e0add3a3e297941da611af85c5e883",
+    "live_network": "blocked",
+    "fixture_cleanup": "retained"
+  }
+}

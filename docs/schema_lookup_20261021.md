@@ -3,13 +3,13 @@
 `inspect_sheet_schema` delegates to `detect_smart_sheet_columns` in
 `domain/workbook.py`. The change is confined to that detector.
 
-## Local correction: empty wallet and separate account/service roles
+## Deployed correction: empty wallet and separate account/service roles
 
 The earlier deployed detector selected a wallet by its header even when every
 wallet cell was empty, then assigned that column to both `lookup_col` and
 `service_col`. This displaced populated account and service columns.
 
-The local correction scans declared identifier candidates for readable data,
+The correction scans declared identifier candidates for readable data,
 including data below the first five rows. Account/contract columns keep their
 own `lookup_col`. Service selection uses populated wallet, primary service,
 then secondary service columns, independently of the account column. Without
@@ -35,11 +35,26 @@ External traffic was blocked and all fixture files were retained. The unused
 pytest import in the three pure results/error tests was omitted in an isolated
 test copy; their test bodies ran unchanged with unittest.
 
-The correction is local; the earlier deployment receipt below does not confirm
-deployment of this follow-up. Verification is retained privately under
+The correction was published to GitHub as runtime commit
+`3e807eff11bcb5eb015f6a1d7aca9c8e7e924f43` on branch
+`codex/empty-wallet-mapping-20261021`, then deployed to the VPS after idle
+checking was confirmed. One runtime file changed. Independent live verification
+confirmed healthy public polling, the expected source hash, and successful
+offline parsing/validation of the retained real source workbook with L/AF.
+Access rules, proxy configuration, queue/draft state and financial state were
+preserved during source publication. No customer workbook was changed and no
+paid checking requests or deployment broadcasts were sent.
+
+Runtime SHA-256:
+`b5ffac948475e2ee8e52855812eee1fbd0e0add3a3e297941da611af85c5e883`.
+The previous module is retained under
+`/root/zain_check/.code-backups/empty-wallet-20261021T174859Z/workbook.py`.
+The public deployment receipt is
+`docs/telegram_commerce/empty_wallet_mapping_deployment_20261021.json`.
+Detailed verification remains private under
 `outputs/empty_wallet_mapping_20261021/`.
 
-## Earlier deployed behavior (superseded locally)
+## Earlier deployed behavior (superseded)
 
 The earlier automatic lookup precedence, independent of column order, was:
 
