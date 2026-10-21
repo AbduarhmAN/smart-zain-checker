@@ -18,7 +18,7 @@ def enabled(proxy_url=None):
 def query_service(number,proxy_url=None,timeout=20,on_verification=None):
     try:key=route_key(proxy_url)
     except ValueError:return 'error',None,'Invalid HTTP service configuration'
-    try:SCHEDULER.acquire(key)
+    try:SCHEDULER.acquire_wait(key)
     except RouteNotReady as exc:
         set_ip_service_cooldown(key,exc.seconds)
         return ('verification_required' if exc.blocked else 'network_error'),None,'Service route is waiting for its cooldown'

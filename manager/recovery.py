@@ -6,6 +6,8 @@ import json
 import os
 from pathlib import Path
 
+from domain.check_messages import recoverable_check_failure
+
 
 def input_signature(customers, mapping, mode, amount_target, sheet_index):
     digest = hashlib.sha256()
@@ -53,6 +55,8 @@ def restore_records(customers, saved, records):
         record = records.get(customer.row_number)
         if record is None:
             continue
+        if recoverable_check_failure(record.get('status'), record.get('error') or ''):
+            continue  # A durable failed attempt is not a completed verification.
         numbers = {str(customer.lookup_number or ''), str(customer.service_number or ''), str(customer.contract or '')} - {''}
         if str(record.get('account') or '') not in numbers and str(record.get('service') or '') not in numbers and str(record.get('contract') or '') not in numbers:
             continue

@@ -108,7 +108,7 @@ class ExtensionBridgeHandler(BaseHTTPRequestHandler):
     def handle_lease_task(self, worker_id: str) -> None:
         task = self.orchestrator.lease_next_task_for_worker(worker_id)
         if task:
-            total_count = len(getattr(self.orchestrator, "customers", [])) or 1
+            total_count = task.get("total_records") or len(getattr(self.orchestrator, "customers", [])) or 1
             sequence = task.get("row_number", 1)
             # Status MUST be 'check' for the Chrome content script / service worker loop to proceed
             self.send_cors_json(200, {

@@ -26,7 +26,8 @@ def main():
     try:
         if args.service=='engine':
             from server.runtime_guard import AppRuntimeGuard
-            runtime_guard=AppRuntimeGuard(root).acquire('127.0.0.1',())
+            gateway_ports=(int(os.environ.get('ZAIN_DASHBOARD_PORT','5050')),int(os.environ.get('ZAIN_BRIDGE_PORT','8766'))) if os.environ.get('ZAIN_ENGINE_GATEWAY','1')=='1' else ()
+            runtime_guard=AppRuntimeGuard(root).acquire('127.0.0.1',gateway_ports)
         module=importlib.import_module('services.'+args.service)
         application=module.build(root) if hasattr(module,'build') else None
         handlers=application.handlers() if application else module.handlers(root)
@@ -38,8 +39,8 @@ def main():
             retry_safe=getattr(application or module,'retry_safe',()))
         def shutdown(*_): stopped.set()
         signal.signal(signal.SIGINT,shutdown); signal.signal(signal.SIGTERM,shutdown)
-        server.start()
         if application: application.start()
+        server.start()
         logging.getLogger('Services').info('service=%s pid=%s ready',args.service,os.getpid())
         while not stopped.wait(.5): pass
     finally:

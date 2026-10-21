@@ -115,7 +115,7 @@ class CommerceBotMixin:
             else:
                 self._commerce_callback('referral',chat_id,None)
             return True
-        if command not in {'/partner_add','/partners'}:
+        if command not in {'/partner_add','/partners','/partner_reactivate','/partner_reopen'}:
             return False
         if not is_admin:
             self._commerce_notice(chat_id,'غير مصرح','إعداد الشركاء خاص بمدير البوت.')
@@ -123,8 +123,24 @@ class CommerceBotMixin:
         try:
             if command == '/partners':
                 self._commerce_callback('cp:list:0',chat_id,None)
+            elif command in {'/partner_reactivate','/partner_reopen'}:
+                if len(parts) < 2 or not parts[1].isdigit() or int(parts[1]) <= 0:
+                    self._commerce_notice(chat_id,'إعادة تفعيل شريك','اكتب الأمر متبوعاً بمعرّف المستخدم:\n<code>/partner_reactivate 123456</code>',message_id)
+                    return True
+                from ..payment_manager import PAYMENT_MGR
+                target_raw = int(parts[1])
+                found = PAYMENT_MGR.find_user_by_account_id(target_raw)
+                resolved_tg_id = int(found[0]) if found else target_raw
+                ended_list = self._commerce().rpc('ended_partners', {'p_actor_telegram_id': chat_id, 'p_offset': 0})
+                matched = [p for p in ended_list if p.get('telegram_user_id') == resolved_tg_id]
+                if not matched:
+                    self._commerce_notice(chat_id, 'غير موجود بالسابقين', f'الحساب <code>{resolved_tg_id}</code> ليس في سجل الشركاء السابقين، أو أنه شريك نشط حالياً.', message_id)
+                    return True
+                rec = matched[0]
+                pid = str(UUID(rec['id']))
+                self._partner_lifecycle_callback(f'pl:reopen:{pid}', chat_id, message_id)
             elif len(parts) != 3 or not parts[1].isdigit() or int(parts[1]) <= 0:
-                self._commerce_notice(chat_id,'إضافة شريك','اكتب /partner_add ثم رقم مستخدم Telegram ثم الكود، مثال: /partner_add 123456 PARTNER1')
+                self._commerce_notice(chat_id,'إضافة شريك','اكتب /partner_add ثم رقم مستخدم Telegram ثم الكود، مثال: /partner_add 123456 PARTNER1',message_id)
             else:
                 from .referrals import normalize_referral_code
                 from ..payment_manager import PAYMENT_MGR
@@ -134,17 +150,49 @@ class CommerceBotMixin:
                 result = self._commerce().rpc('add_partner_with_notice',{'p_actor_telegram_id':chat_id,'p_telegram_user_id':resolved_tg_id,
                                                              'p_code':normalize_referral_code(parts[2])})
                 pid = str(UUID(result['partner_id']))
-                if result.get('partnership_ended'):
-                    self._commerce_notice(chat_id,'الشراكة منتهية','هذا الحساب محفوظ في سجل الشركاء السابقين. إضافة الكود مجدداً لا تعيد تفعيله.',message_id)
+                if result.get('reactivated'):
+                    if hasattr(self, '_grant_partner_role'):
+                        self._grant_partner_role(resolved_tg_id)
+                    try: self._sync_partner_menus()
+                    except Exception: pass
+                    rows = [
+                        [views.button('⚙️ ضبط شروط ونسبة الشريك', f'cp:terms:{pid}')],
+                        [views.button('‹ قائمة الشركاء', 'cp:list:0')]
+                    ]
+                    if result.get('notice_event_id'):
+                        rows.insert(0, [views.button('توثيق إشعار الاستئناف', 'pl:view:' + result['notice_event_id'])])
+                    self._show_panel(chat_id, views.Panel(
+                        f"<b>تمت استعادة وتفعيل الشراكة بنجاح!</b>\nالكود: <code>{views.safe(result['code'])}</code>\n\n"
+                        "كان هذا الحساب شريكاً سابقاً وتمت استعادته وتحديث كوده بنجاح. حدد النسبة والاستحقاق الآن لتفعيل كود الإحالة.",
+                        rows), message_id)
                     return True
+                if result.get('already_partner'):
+                    rows = [
+                        [views.button('⚙️ تعديل شروط الشريك', f'cp:terms:{pid}')],
+                        [views.button('‹ قائمة الشركاء', 'cp:list:0')]
+                    ]
+                    self._show_panel(chat_id, views.Panel(
+                        f"<b>هذا الحساب مسجل كشريك بالفعل!</b>\nالكود الحالي: <code>{views.safe(result['code'])}</code>\n\n"
+                        "تم تحديث كود الإحالة للشريك بنجاح.",
+                        rows), message_id)
+                    return True
+                if hasattr(self, '_grant_partner_role'):
+                    self._grant_partner_role(resolved_tg_id)
+                try: self._sync_partner_menus()
+                except Exception: pass
                 rows=[[views.button('إعداد الشريك',f'cp:terms:{pid}')],[views.button('‹ الشركاء','cp:list:0')]]
                 if result.get('notice_event_id'):rows.insert(0,[views.button('توثيق إشعار الإضافة','pl:view:'+result['notice_event_id'])])
                 notice='\nحُفظ إشعار الإضافة للشريك وقناة التوثيق؛ راجع حالته للتأكد من الوصول.' if result.get('notice_event_id') else ''
-                self._show_panel(chat_id,views.Panel(f"<b>تم حفظ الشريك</b>\nالكود: <code>{views.safe(result['code'])}</code>\n\nحدد النسبة والاستحقاق لتفعيل الكود."+notice,rows))
+                self._show_panel(chat_id,views.Panel(f"<b>تم حفظ الشريك</b>\nالكود: <code>{views.safe(result['code'])}</code>\n\nحدد النسبة والاستحقاق لتفعيل الكود."+notice,rows), message_id)
         except (ValueError,KeyError,TypeError):
-            self._commerce_notice(chat_id,'راجع البيانات','تأكد من رقم Telegram والكود.')
-        except CommerceUnavailable:
-            self._commerce_failed(chat_id)
+            self._commerce_notice(chat_id,'راجع البيانات','تأكد من رقم Telegram والكود.',message_id)
+        except CommerceUnavailable as exc:
+            if exc.reason == 'code_assigned_elsewhere':
+                self._commerce_notice(chat_id,'الكود مستخدم','هذا الكود مستخدم لشريك آخر. اختر كوداً مختلفاً.',message_id)
+            elif exc.reason == 'invalid_referral_code':
+                self._commerce_notice(chat_id,'كود غير صالح','الكود يجب أن يحتوي على أحرف إنجليزية وأرقام بطول 3 إلى 48 حرفاً.',message_id)
+            else:
+                self._commerce_failed(chat_id,message_id)
         return True
 
     @_serial_user
@@ -208,6 +256,8 @@ class CommerceBotMixin:
                         views.button('صرف الأرباح','wa:paypartner:'+str(partner['telegram_user_id']),'primary')])
                     rows.append([views.button('⚙️ شروط الشريك',f'cp:terms:{pid}'),
                         views.button('إنهاء الشراكة','pl:remove:'+pid)])
+                    access='مسموح' if partner.get('partner_sheet_enabled',True) else 'متوقف'
+                    rows.append([views.button('📄 فحص بسعر الشريك: '+access,'ps:access:'+pid)])
                 if offset:
                     rows.append([views.button('‹ السابق',f'cp:list:{max(0,offset-10)}')])
                 if len(partners) == 10:

@@ -17,7 +17,7 @@ DELIVERY={'pending':'بانتظار الإرسال','sending':'جارٍ الإر
 
 
 def lifecycle_panel(event,*,admin=False):
-    title={'added':'إشعار إضافة الشريك','activated':'إشعار تفعيل الشراكة','ended':'إشعار انتهاء الشراكة'}[event['kind']]
+    title={'added':'إشعار إضافة الشريك','activated':'إشعار تفعيل الشراكة','ended':'إشعار انتهاء الشراكة','reactivated':'إشعار استئناف الشراكة'}.get(event.get('kind',''),'إشعار الشراكة')
     text='<b>'+title+'</b>\n\n'+views.safe(event['body'],3500)
     text+='\n\nبصمة نص الإشعار SHA-256: <code>'+views.safe(event['body_sha256'])+'</code>'
     if event.get('acknowledged_at'):
@@ -32,11 +32,13 @@ def lifecycle_panel(event,*,admin=False):
             if delivery.get('telegram_message_id'):text+='\nرقم رسالة Telegram: '+str(delivery['telegram_message_id'])
             if delivery.get('telegram_date'):text+='\nوقت الرسالة لدى Telegram UTC: '+_utc_stamp(delivery['telegram_date'])
             if delivery.get('completed_at'):text+='\nوقت تسجيل نتيجة الإرسال UTC: '+_utc_stamp(delivery['completed_at'])
+        if event.get('kind')=='ended' and event.get('partner_id'):
+            rows.append([views.button('🔄 إعادة تفعيل الشراكة',f"pl:reopen:{event['partner_id']}")])
         rows.extend([[views.button('تحديث حالة التوثيق','pl:view:'+event['id'])],
                      [views.button('الشركاء السابقون','pl:ended:0')],[views.button('الشركاء','cp:list:0')]])
     elif not event.get('acknowledged_at'):
         rows.append([views.button('اطلعت على الإشعار فقط','pl:ack:'+event['id'])])
-    rows.extend([[views.button('الدعم','support')],[views.button('الرئيسية','home')]])
+    rows.extend([[views.button('الرئيسية','home')]])
     return views.Panel(text,rows)
 
 
@@ -51,7 +53,10 @@ class PartnerLifecycleMixin(PartnerRoleMixin):
     @_serial_user
     def _partner_lifecycle_callback(self,command,actor,message_id=None,callback=None):
         try:
-            _,action,value=command.split(':')
+            parts = command.split(':')
+            if len(parts) < 3: raise ValueError('Invalid command')
+            action = parts[1]
+            value = ':'.join(parts[2:])
             if action in {'view','ack'}:
                 event_id=str(UUID(value))
                 if action=='ack':
@@ -68,15 +73,55 @@ class PartnerLifecycleMixin(PartnerRoleMixin):
                 offset=max(0,int(value));records=self._commerce().rpc('ended_partners',{'p_actor_telegram_id':actor,'p_offset':offset})
                 rows=[]
                 for record in records:
-                    rows.append([views.button(str(record['telegram_user_id'])+' · '+_utc_stamp(record['ended_at']),
+                    code_lbl = f" ({record['code']})" if record.get('code') else ""
+                    rows.append([views.button(f"{record['telegram_user_id']}{code_lbl} · {_utc_stamp(record['ended_at'])}",
                                               'pl:view:'+record['event_id'])])
                 if offset:rows.append([views.button('الأحدث','pl:ended:'+str(max(0,offset-10)))])
                 if len(records)==10:rows.append([views.button('الأقدم','pl:ended:'+str(offset+10))])
                 rows.append([views.button('الشركاء الحاليون','cp:list:0')])
                 self._show_panel(actor,views.Panel('<b>الشركاء السابقون وسجل الإخطار</b>\n\n'+
-                    ('السجلات المالية محفوظة. اختر الإشعار لعرض النص والتوقيت وحالة الإرسال والاطلاع.' if records else 'لا توجد شراكات منتهية في هذه الصفحة.'),rows),message_id)
+                    ('السجلات المالية محفوظة. اختر الإشعار لعرض النص والتوقيت وحالة الإرسال والاطلاع، أو إعادة تفعيل الشراكة.' if records else 'لا توجد شراكات منتهية في هذه الصفحة.'),rows),message_id)
                 return
-            if action not in {'remove','endconfirm'}:raise ValueError('Unknown lifecycle action')
+            if action not in {'remove','endconfirm','reopen','reopenconfirm','rok'}:raise ValueError('Unknown lifecycle action')
+            if action in {'reopen','reopenconfirm','rok'}:
+                vparts = value.split(':')
+                partner = str(UUID(vparts[0]))
+                target_tg = vparts[1] if len(vparts)>1 else ''
+                if action=='reopen':
+                    text = ('<b>مراجعة استئناف وإعادة تفعيل الشراكة</b>\n\n'
+                            + (f'الشريك: <code>{target_tg}</code>\n\n' if target_tg else '')
+                            + 'عند التأكيد، ستتم استعادة ملف الشريك في قائمة الشركاء وتعيين حالته بانتظار ضبط الشروط، '
+                            'مع إرسال إشعار توثيق باستئناف الشراكة للشريك وقناة التوثيق.\n\n'
+                            'ستنتقل بعدها مباشرة لتحديد النسبة والاستحقاق وتفعيل كود الإحالة.')
+                    rows = [
+                        [views.button('✅ تأكيد إعادة تفعيل الشراكة', f'pl:rok:{partner}', 'success')],
+                        [views.button('إلغاء', 'pl:ended:0')]
+                    ]
+                    self._show_panel(actor, views.Panel(text, rows), message_id)
+                    return
+                # reopenconfirm or rok
+                receipt = (callback or {}).get('id') or f"manual-{int(time.time())}"
+                res = self._commerce().rpc('reactivate_partner', {
+                    'p_actor_telegram_id': actor,
+                    'p_partner_id': partner,
+                    'p_reference': 'telegram-partner-reopen:' + receipt
+                })
+                pid = str(UUID(res['partner_id']))
+                target_user = res.get('telegram_user_id') or (int(target_tg) if target_tg.isdigit() else None)
+                if target_user:
+                    self._grant_partner_role(int(target_user))
+                    try: self._sync_partner_menus()
+                    except Exception: pass
+                rows = [
+                    [views.button('⚙️ ضبط شروط ونسبة الشريك', f'cp:terms:{pid}')],
+                    [views.button('‹ قائمة الشركاء', 'cp:list:0')]
+                ]
+                notice = '\nحُفظ إشعار استئناف الشراكة للشريك وقناة التوثيق.' if res.get('notice_event_id') else ''
+                self._show_panel(actor, views.Panel(
+                    f"<b>تمت إعادة الشراكة بنجاح!</b>\nالكود: <code>{views.safe(res.get('code',''))}</code>\n\n"
+                    "حدد النسبة والاستحقاق للشريك الآن لتفعيل كود الإحالة." + notice,
+                    rows), message_id)
+                return
             partner=str(UUID(value))
             if action=='remove':
                 preview=self._commerce().rpc('partner_end_preview',{'p_actor_telegram_id':actor,'p_partner_id':partner})
@@ -123,7 +168,7 @@ class PartnerLifecycleMixin(PartnerRoleMixin):
             rows=[]
             if notice['recipient_kind']=='partner' and notice['kind']=='event':
                 rows=[[views.button('اطلعت على الإشعار فقط','pl:ack:'+notice['event_id'])],
-                      [views.button('عرض سجل الإشعار','pl:view:'+notice['event_id'])],[views.button('الدعم','support')]]
+                      [views.button('عرض سجل الإشعار','pl:view:'+notice['event_id'])]]
             attempted=True
             response=self._api_call('sendMessage',{'chat_id':notice['recipient_chat_id'],'text':notice['body'],
                 'reply_markup':{'inline_keyboard':rows}})
@@ -145,6 +190,11 @@ class PartnerLifecycleMixin(PartnerRoleMixin):
                 self._revoke_partner_role(notice['recipient_chat_id'])
                 self._reset_customer_menu(notice['recipient_chat_id'])
             except Exception:logger.warning('Retired partner menu refresh unavailable; role controls remain on server.')
+        elif state=='sent' and notice.get('event_kind') in ('activated','reactivated') and notice['recipient_kind']=='partner':
+            try:
+                self._grant_partner_role(notice['recipient_chat_id'])
+                self._sync_partner_menus()
+            except Exception:pass
         return True
 
     def _start_partner_lifecycle_notifications(self):

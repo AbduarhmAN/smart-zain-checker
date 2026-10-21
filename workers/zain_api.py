@@ -61,6 +61,9 @@ def query_direct_business_api(
         try:
             data=json.loads(reply.body)
         except (ValueError,UnicodeError):
+            body_low = reply.body.lower()
+            if reply.status in (403, 401) or b'cloudflare' in body_low or b'challenge' in body_low or b'waf' in body_low or b'<html' in body_low:
+                return 'blocked', None, f'حظر جدار حماية زين (WAF/Cloudflare HTTP {reply.status}) - يلزم بروكسي سكني سعودي'
             return 'unknown_response',None,'Account API returned a non-JSON response'
         if not isinstance(data,dict):return 'unknown_response',None,'Invalid account API response'
         if reply.status in (400,404) and data.get('is_successful') is False and data.get('response_code')=='EZB5029':
@@ -103,7 +106,7 @@ def query_contract_due_amount(
             return query_service(num_clean,proxy_url=proxy_url,timeout=float(timeout if timeout is not None else 20),
                 on_verification=on_verification)
         from .stealth_service_engine import query_service_stealth
-        kwargs = {"timeout_seconds": float(timeout if timeout is not None else 12), "proxy_url": proxy_url}
+        kwargs = {"timeout_seconds": float(timeout if timeout is not None else 45), "proxy_url": proxy_url}
         if on_verification is not None:
             kwargs["on_verification"] = on_verification
         return query_service_stealth(num_clean, **kwargs)

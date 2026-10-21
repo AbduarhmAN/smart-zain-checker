@@ -117,6 +117,8 @@ class CheckResult:
     details: str = ""
 
     def to_dict(self) -> dict[str, Any]:
+        from domain.check_messages import public_check_details
+
         return {
             "row": self.row,
             "record_type": self.record_type,
@@ -128,7 +130,7 @@ class CheckResult:
             "status": self.status,
             "worker_id": self.worker_id,
             "time": self.timestamp,
-            "details": self.details,
+            "details": public_check_details(self.status, self.details),
         }
 
 

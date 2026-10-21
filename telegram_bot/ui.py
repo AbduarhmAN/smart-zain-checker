@@ -8,7 +8,10 @@ from pathlib import Path
 from functools import wraps
 from . import views
 from .authorization import admin_ids
+from .subscription_policy import CHECK_CALLBACK, support_route
+from .photo_panels import show_photo_panel,remember_media,is_media_message,retire_keyboard,show_photo_page
 from .order_history import OrderHistoryMixin
+from .commerce.customer_activity import CustomerActivityMixin
 
 
 def _serialized_payment(method):
@@ -25,7 +28,7 @@ def _serialized_payment(method):
     return wrapped
 
 
-class TelegramUiMixin(OrderHistoryMixin):
+class TelegramUiMixin(CustomerActivityMixin, OrderHistoryMixin):
     def _get_user_mode(self, chat_id: int) -> str:
         with self._ui_lock:
             if not hasattr(self, "_user_modes"):
@@ -56,12 +59,24 @@ class TelegramUiMixin(OrderHistoryMixin):
         auth_set = admin_ids(self)
         is_admin_mode = (chat_id in auth_set and self._get_user_mode(chat_id) == "admin")
         rows = panel.rows if is_admin_mode else views.customer_rows(panel.rows)
+        if not is_admin_mode and any(item.get('callback_data')=='zc:pc:home:0' for row in rows for item in row):
+            if not getattr(self,'_partner_sheet_access_allowed',lambda _:True)(chat_id):
+                rows=[[item for item in row if item.get('callback_data')!='zc:pc:home:0'] for row in rows]
+                rows=[row for row in rows if row]
         if is_admin_mode and not getattr(self,'_role_owner',lambda _:False)(chat_id):
             rows=[[item for item in row if item.get('callback_data')!='zc:admin_roles' and
                 not str(item.get('callback_data','')).startswith('zc:am:')] for row in rows]
             rows=[row for row in rows if row]
+        rows = views.inline_rows(rows)
+        if getattr(panel,'photo',None):
+            handled,response=show_photo_panel(self,chat_id,views.copyable_message(panel.text),rows,panel.photo,message_id)
+            if handled:return response
         payload = {"chat_id":chat_id, "text":views.copyable_message(panel.text), "parse_mode":"HTML",
                    "reply_markup":{"inline_keyboard":rows}}
+        if message_id and is_media_message(self,chat_id,message_id):
+            response=self._api_call('sendMessage',payload)
+            if isinstance(response,dict) and response.get('ok'):retire_keyboard(self,chat_id,message_id)
+            return response
         if message_id:
             response = self._api_call("editMessageText", {**payload, "message_id":message_id})
             if response and (response.get("ok") or "message is not modified" in str(response.get("description", "")).lower()):
@@ -74,16 +89,32 @@ class TelegramUiMixin(OrderHistoryMixin):
             self._waiting_user_inputs.pop(chat_id, None)
         support=getattr(self,'_support_service',None)
         if support is not None:support.store.end_context(chat_id)
+        if command == 'status' and (chat_id not in admin_ids(self) or self._get_user_mode(chat_id) == 'customer'):
+            # A customer's status always means their own orders, including partners.
+            self._history_callback('oh:list:0',chat_id,message_id)
+            return True
         if command.startswith('oh:'):
             self._history_callback(command,chat_id,message_id)
+            return True
+        if command.startswith('cr:'):
+            self._customer_activity(command,chat_id,message_id)
             return True
         if command.startswith('menu:'):
             section=command.partition(':')[2]
             if chat_id not in admin_ids(self):
                 self._show_panel(chat_id,views.notice('غير مصرح','هذه الأقسام متاحة للإدارة فقط.'),message_id)
                 return True
-            if section not in {'money','partners','offers','settings'}:return False
-            self._show_panel(chat_id,views.admin_menu(section),message_id)
+            if section == 'operations':
+                state = self.orchestrator.get_live_status()
+                jobs = (self.queue_service.cached_jobs() if getattr(self.orchestrator,'remote',False) is True
+                        else self.queue_service.get_jobs())
+                self._show_panel(chat_id,views.operations(state,jobs),message_id)
+                return True
+            if section not in {'money','partners','offers','settings','customers'}:return False
+            panel=views.admin_menu(section)
+            if section=='partners' and self._role_owner(chat_id):
+                panel=views.Panel(panel.text,panel.rows[:-1]+[[views.button('🎟 موافقات أكواد الشركاء','pa:list:0')]]+panel.rows[-1:])
+            self._show_panel(chat_id,panel,message_id)
             return True
         if command=='admin_roles':
             self._admin_roles_callback('am:list:0',chat_id,message_id,{})
@@ -267,11 +298,12 @@ class TelegramUiMixin(OrderHistoryMixin):
             return "أكمل تحقق زين في المتصفح أو لوحة التحكم أولًا."
         if action == "pause" and state.get("paused"):
             return "الجلسة متوقفة مؤقتًا بالفعل."
-        if action == "resume" and not state.get("paused"):
+        if action == "resume" and not state.get("paused") and not (state.get('scheduling') or {}).get('paused_files'):
             return "الجلسة تعمل بالفعل."
         return ""
 
     def _handle_callback(self, callback):
+        if self._maintenance_gate({'callback_query':callback}):return
         from_user = callback.get("from", {})
         user_id = from_user.get("id")
         chat_id = callback.get("message", {}).get("chat", {}).get("id", user_id)
@@ -284,6 +316,7 @@ class TelegramUiMixin(OrderHistoryMixin):
             or data.startswith("zc:paycheck:")
             or data.startswith("zc:co:")
             or data.startswith('zc:cw:')
+            or data.startswith('zc:vc:')
             or data.startswith('zc:oh:')
             or data.startswith('zc:bn:')
             or data.startswith('zc:pf:')
@@ -294,13 +327,16 @@ class TelegramUiMixin(OrderHistoryMixin):
             or data.startswith('zc:ar:result:')
             or data.startswith('zc:sp:history:')
             or data.startswith('zc:sp:compose:')
+            or data.startswith('zc:panel:')
             or data == 'zc:archive'
             or data == 'zc:support'
+            or data == CHECK_CALLBACK
             or data.startswith("zc:wallet")
             or data.startswith("zc:switch_mode:")
             or data == "zc:home"
             or data == "zc:upload"
             or data == "zc:help"
+            or data == "zc:status"
             or data == "zc:referral"
             or data.startswith("zc:drafts:")
         )
@@ -313,6 +349,18 @@ class TelegramUiMixin(OrderHistoryMixin):
                 "text": "هذه اللوحة للمشرف فقط.",
                 "show_alert": True
             })
+            return
+
+        remember_media(self,chat_id,callback.get('message') or {})
+        if support_route(data):
+            self._api_call('answerCallbackQuery', {'callback_query_id': callback.get('id')})
+            self._official_support(chat_id)
+            return
+        if not self._subscription_gate(chat_id, message_id=callback.get('message',{}).get('message_id'),
+                callback_id=callback.get('id'), verify=data==CHECK_CALLBACK):
+            return
+        if data.startswith('zc:panel:'):
+            show_photo_page(self,chat_id,callback)
             return
 
         if data.startswith("zc:switch_mode:"):
@@ -330,6 +378,9 @@ class TelegramUiMixin(OrderHistoryMixin):
         if not data.startswith("zc:"):
             return
         command = data[3:]
+        if command.startswith('pa:'):
+            self._partner_campaign_approval_callback(command,chat_id,message_id,callback)
+            return
         if command.startswith('bn:'):
             self._binance_note_callback(command,chat_id,message_id,callback)
             return
@@ -364,6 +415,8 @@ class TelegramUiMixin(OrderHistoryMixin):
                 self._payment_review_callback(command,chat_id,message_id,callback)
         elif command.startswith('cw:'):
             self._wallet_callback(command,chat_id,message_id,callback)
+        elif command.startswith('vc:'):
+            self._vodafone_callback(command,chat_id,message_id,callback)
         elif command.startswith('ca:'):
             if is_admin:self._cash_topup_callback(command,chat_id,message_id,callback)
         elif command.startswith('cc:'):
@@ -430,9 +483,15 @@ class TelegramUiMixin(OrderHistoryMixin):
         balance = PAYMENT_MGR.get_wallet_balance(chat_id)
         acc_id = getattr(self,"_wallet_account_label",PAYMENT_MGR.get_user_account_id)(chat_id)
         panel = views.wallet_topup_menu_panel(balance, account_id=acc_id, live_rate=0)
+        panel = views.Panel(panel.text, [[views.button('فودافون كاش · دفع يدوي','vc:start:0')],
+            [views.button('طلباتي بفودافون كاش','vc:list:0')]] + panel.rows)
         self._show_panel(chat_id, panel, message_id)
 
     def _show_wallet_topup_detail(self, method_key: str, chat_id: int, message_id: int):
+        from .config import show_crypto_payments
+        if not show_crypto_payments():
+            self._show_wallet_topup_menu(chat_id, message_id)
+            return
         from .payment_manager import PAYMENT_MGR
         from .crypto_pay import get_live_usd_egp_rate,ExchangeRateUnavailable
         acc_id = getattr(self,"_wallet_account_label",PAYMENT_MGR.get_user_account_id)(chat_id)
@@ -459,7 +518,12 @@ class TelegramUiMixin(OrderHistoryMixin):
         self._show_panel(chat_id, panel, message_id)
 
     def _show_wallet_topup_tx_prompt(self, method_key: str, chat_id: int, message_id: int):
+        from .config import show_crypto_payments
+        if not show_crypto_payments():
+            self._show_wallet_topup_menu(chat_id, message_id)
+            return
         from .payment_manager import PAYMENT_MGR
+
         cfg = PAYMENT_MGR.get_config()
         nets = cfg.get("crypto_networks", {})
         if method_key == "binance":
@@ -607,16 +671,20 @@ class TelegramUiMixin(OrderHistoryMixin):
                     self._sheet_drafts.pop(token, None)
                 if hasattr(self, "_persist_sheet_drafts"):
                     self._persist_sheet_drafts()
-                from .crypto_pay import get_live_usd_egp_rate
-                lr = draft.get("live_rate", 0)
-                rem_usdt = f" (~{new_bal / lr:.2f} USDT)" if (lr > 0 and new_bal > 0) else ""
+                from .config import show_crypto_payments
+                if show_crypto_payments():
+                    from .crypto_pay import get_live_usd_egp_rate
+                    lr = draft.get("live_rate", 0)
+                    rem_usdt = f" (~{new_bal / lr:.2f} USDT)" if (lr > 0 and new_bal > 0) else ""
+                else:
+                    rem_usdt = ""
                 panel = views.Panel(
                     f"<b>✅ تم الخصم من محفظتك بنجاح!</b>\n\n"
                     f"🆔 رقم المستخدم (User ID): <code>{acc_id}</code>\n"
                     f"{op_line}"
                     f"📁 الملف: <b>{views.safe(sheet_name)}</b>\n"
                     f"💵 المبلغ المخصوم: <b>{amount_egp:.2f} جنيه مصري</b>\n"
-                    f"👛 رصيدك المتبقي: <b>{new_bal:.2f} جنيه مصري</b>{rem_usdt}\n\n"
+                    f"💼 رصيدك المتبقي: <b>{new_bal:.2f} جنيه مصري</b>{rem_usdt}\n\n"
                     f"تمت إضافة الشيت إلى الطابور. ستصلك النتيجة بعد إتمام الفحص.",
                     self._payment_success_rows(chat_id)
                 )
@@ -624,22 +692,28 @@ class TelegramUiMixin(OrderHistoryMixin):
             else:
                 self._api_call("answerCallbackQuery", {
                     "callback_query_id": callback.get("id"),
-                    "text": f"⚠️ رصيد محفظتك ({new_bal:.2f} ج.م) غير كافٍ. المطلوب {amount_egp:.2f} ج.م. يرجى الدفع بطريقة أخرى.",
+                    "text": f"⚠️ رصيد محفظتك ({new_bal:.2f} ج.م) غير كافٍ. المطلوب {amount_egp:.2f} ج.م. يرجى شحن المحفظة أولاً.",
                     "show_alert": True
                 })
 
-        elif method == "binance":
-            pay_link = cfg.get("binance_pay_link", "https://app.binance.com/uni-qr/RiLBez57")
-            panel = views.binance_pay_panel(
-                sheet_name,
-                amount_usdt,
-                token,
-                pay_link=pay_link,
-                amount_egp=draft.get("egp_amount", 30.0),
-                live_rate=draft.get("live_rate", 0.0),
-                binance_pay_id=cfg.get("binance_pay_id", "852195905"),
-            )
-            self._show_panel(chat_id, panel, message_id)
+        elif method in ("binance", "crypto_menu", "net", "bep20"):
+            from .config import show_crypto_payments
+            if not show_crypto_payments():
+                self._show_panel(chat_id, views.notice("طريقة الدفع غير متاحة", "طرق الدفع بالعملات الرقمية غير مفعلة حالياً. يمكنك الدفع من رصيد المحفظة أو باستخدام كود خصم."), message_id)
+                return
+            if method == "binance":
+                pay_link = cfg.get("binance_pay_link", "https://app.binance.com/uni-qr/RiLBez57")
+                panel = views.binance_pay_panel(
+                    sheet_name,
+                    amount_usdt,
+                    token,
+                    pay_link=pay_link,
+                    amount_egp=draft.get("egp_amount", 30.0),
+                    live_rate=draft.get("live_rate", 0.0),
+                    binance_pay_id=cfg.get("binance_pay_id", "852195905"),
+                )
+                self._show_panel(chat_id, panel, message_id)
+
 
         elif method == "crypto_menu":
             panel = views.crypto_menu_panel(
@@ -769,7 +843,7 @@ class TelegramUiMixin(OrderHistoryMixin):
                     f"💳 طريقة الدفع: <b>{views.safe(method)}</b>\n"
                     f"🪙 المبلغ المعتمد: <b>{amount_usdt:.2f} USDT/USDC</b>\n"
                     f"💵 الرصيد المضاف: <b>+{amount_egp:.2f} جنيه مصري</b>\n"
-                    f"👛 رصيدك الإجمالي الجديد: <b>{new_bal:.2f} جنيه مصري</b>\n\n"
+                    f"💼 رصيدك الإجمالي الجديد: <b>{new_bal:.2f} جنيه مصري</b>\n\n"
                     f"✅ يمكنك الآن استخدام رصيدك لفحص أي شيت بضغطة زر واحدة 🚀"
                 )
                 self._api_call("sendMessage", {

@@ -82,6 +82,12 @@ class WorkerActor:
 
         if self.use_direct_api:
             try:
+                from workers.service_dispatch import is_http_service_actor
+                if is_http_service_actor(self):
+                    self.status = "ready"
+                    self.status_reason = "HTTP service route configured; connectivity is checked by its first request."
+                    self.last_active_time = time.time()
+                    return True
                 if self.use_proxy and self.proxy_url:
                     is_healthy, msg = verify_proxy_connectivity(self.proxy_url)
                     if not is_healthy:
@@ -195,7 +201,7 @@ class WorkerActor:
             from services.browser_client import remote_browser_enabled
             if remote_browser_enabled():
                 from services.browser_client import query
-                return query(contract_number, timeout_seconds=12.0, proxy_url=effective_proxy,
+                return query(contract_number, timeout_seconds=45.0, proxy_url=effective_proxy,
                              on_verification=getattr(self, 'on_verification', None),
                              task_id=(self.current_task or {}).get('task_id'))
         kwargs={'proxy_url':effective_proxy,'on_verification':getattr(self,'on_verification',None)}

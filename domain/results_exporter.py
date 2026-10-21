@@ -13,6 +13,7 @@ from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
 from domain.models import CheckError, Mismatch
+from domain.check_messages import check_error_code, public_check_details
 from domain.money import halalas_to_sar_float
 from services.file_client import atomic_workbook_save
 
@@ -246,8 +247,8 @@ def append_error_record(file_path: Path, error: CheckError) -> None:
         error.lookup_number,
         error.customer_name or "-",
         error.collector_name or "-",
-        error.error_code,
-        error.error_details,
+        check_error_code(error.error_code, error.error_details),
+        public_check_details(error.error_code, error.error_details),
         amt_sar,
         error.detected_at.strftime("%Y-%m-%d %H:%M:%S"),
     )

@@ -4,6 +4,7 @@ import threading
 import time
 import sqlite3
 from pathlib import Path
+from .maintenance_access import active as maintenance_active
 
 class TelegramIntegration:
     def __init__(self, orchestrator, queue_service, project_root: Path, *,
@@ -35,10 +36,11 @@ class TelegramIntegration:
         self.notifier.commerce_bridge = self.commerce_bridge
         self.runner.commerce_bridge = self.commerce_bridge
         self.commerce_bridge.start()
-        if self.archive_dispatcher is not None:self.archive_dispatcher.start()
+        private_maintenance=maintenance_active(project_root)
+        if self.archive_dispatcher is not None and not private_maintenance:self.archive_dispatcher.start()
         self.checkout_recovery = threading.Thread(target=self.runner._recover_commerce_checkouts,
             name='CommerceCheckoutRecovery',daemon=True)
-        self.checkout_recovery.start()
+        if not private_maintenance:self.checkout_recovery.start()
         self.lock = threading.RLock()
         self.connected = None
         self.username = ""
@@ -68,7 +70,7 @@ class TelegramIntegration:
                 try:
                     self.runner.start()
                     self.notifier.start_listening()
-                    self.notifier.recover_commerce_deliveries()
+                    if not maintenance_active(self.runner.project_root):self.notifier.recover_commerce_deliveries()
                 except Exception:
                     self.notifier.stop_listening();self.runner.stop();raise
             else:

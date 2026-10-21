@@ -174,6 +174,7 @@ class OrderHistoryMixin:
         if offset:rows.append([views.button('الأحدث',f'oh:{action}:{max(0,offset-8)}')])
         if offset+8<len(records):rows.append([views.button('الأقدم',f'oh:{action}:{offset+8}')])
         rows.append([views.button('سجل المحفظة','oh:ledger:0')])
+        rows.append([views.button('تحديث الطلبات',f'oh:{action}:{offset}')])
         rows.append([views.button('الرئيسية','home')])
         text = '<b>طلبات العملاء</b>' if admin else '<b>طلباتي ومدفوعاتي</b>'
         text += '\n\nاختر طلبًا لمراجعة الدفع وحالة الفحص. عرض الحالة لا يخصم رصيدًا أو يعيد تنفيذ الطلب.' if records else '\n\nلا توجد طلبات دفع محفوظة.'
@@ -212,18 +213,23 @@ class OrderHistoryMixin:
             if job.get('status')=='pending':
                 pending=[j for j in self.queue_service.get_jobs() if j.get('status') in {'pending','active'} and j.get('column_mapping',{}).get('payment_token')]
                 position=next((i for i,j in enumerate(pending) if j['id']==job['id']),None)
-                if position is not None:lines.append('ملفات أمامك في الطابور: '+str(position))
+                if position is not None:
+                    if getattr(self.orchestrator,'cross_file_enabled',False) is True:
+                        lines.append('ترتيب الإضافة: '+str(position+1))
+                        lines.append('قد يبدأ فحص الأرقام المتاحة قبل اكتمال الملفات السابقة.')
+                    else:
+                        lines.append('ملفات أمامك في الطابور: '+str(position))
         if job.get('status') not in {'completed','archived'}:lines.append('ستظهر النتيجة بعد اكتمال الفحص؛ لا توجد نتيجة مؤرشفة لهذا الطلب حتى الآن.')
         rows=[]
         if order:
-            rows.append([views.button('سجل الدعم',f'sp:history:{order}:0')])
             rows.append([views.button('الأرشيف',f'oh:archive:{token}')])
+            rows.append([views.support_button()])
             if not state.get('refund_consent_reference') and state.get('payment_state')=='reserved':
                 rows.append([views.button('أوافق على الاسترداد للمحفظة وأتابع طلبي',f'oh:consent:{token}')])
             if job.get('status') in {'pending','active','paused'} and not job.get('column_mapping',{}).get('customer_stop'):
                 rows.append([views.button('إيقاف طلبي واسترداد المتبقي',f'oh:stop:{token}')])
         else:
-            lines.append('أُنشئ هذا الطلب بالنظام السابق. رقم عمليته محفوظ أعلاه؛ ربطه بالأرشيف والدعم الجديد يحتاج استكمالًا.')
+            lines.append('أُنشئ هذا الطلب بالنظام السابق. رقم عمليته محفوظ أعلاه؛ ربطه بالأرشيف الجديد يحتاج استكمالًا.')
             if self._history_legacy_stop_allowed(record,actor) and not job.get('column_mapping',{}).get('customer_stop'):
                 rows.append([views.button('إيقاف فحص طلبي',f'oh:stop:{token}')])
             if job.get('column_mapping',{}).get('customer_stop'):
@@ -265,7 +271,8 @@ class OrderHistoryMixin:
         action='cadmin' if admin else 'clist'
         if offset:rows.append([views.button('الأحدث',f'oh:{action}:{max(0,offset-8)}')])
         if offset+8<page['total']:rows.append([views.button('الأقدم',f'oh:{action}:{offset+8}')])
-        rows.extend([[views.button('سجل محفظتي','oh:ledger:0')],[views.button('الرئيسية','home')]])
+        rows.extend([[views.button('تحديث الطلبات',f'oh:{action}:{offset}')],
+                     [views.button('سجل محفظتي','oh:ledger:0')],[views.button('الرئيسية','home')]])
         self._show_panel(actor,views.Panel(('<b>طلبات العملاء</b>' if admin else '<b>طلباتي</b>')+
             ('\n\nاختر طلبًا لمراجعة حالته.' if rows and page['items'] else '\n\nلا توجد طلبات محفوظة.'),rows),message_id)
 
@@ -284,6 +291,12 @@ class OrderHistoryMixin:
             'القيمة المحفوظة: '+egp_from_minor(item['quoted_minor'])+' جنيه',
             'الدفع: '+payment.get(item['payment_state'],'تحتاج مراجعة'),
             'الفحص: '+execution_label]
+        if 'account_count' in item or 'service_count' in item:
+            accounts,services=item.get('account_count'),item.get('service_count')
+            if type(accounts) is not int or type(services) is not int or min(accounts,services)<0 or accounts+services!=item['requested_checks']:
+                raise ValueError('Order check counts do not match its manifest')
+            lines[3:3]=['عدد أرقام الحسابات: '+views.count(accounts),
+                        'عدد أرقام الخدمة/المحافظ: '+views.count(services)]
         if admin:lines.append('العميل: <code>'+str(item['owner_telegram_id'])+'</code>')
         if item.get('charged_minor') is not None:
             lines.extend(['الرسوم النهائية: '+egp_from_minor(item['charged_minor'])+' جنيه',
@@ -297,7 +310,7 @@ class OrderHistoryMixin:
             else:lines.append('طلب الإيقاف محفوظ؛ تُستكمل الأعمال الجارية فقط وتُسلّم النتيجة المنجزة قبل تسوية المتبقي.')
         rows=[]
         if not admin:
-            rows.append([views.button('سجل الدعم',f'sp:history:{order}:0')])
+            rows.append([views.support_button()])
             if item['delivery_state']=='confirmed':rows.append([views.button('تحميل النتيجة',f'ar:result:{order}')])
             if item['payment_state']=='reserved':
                 if not item.get('refund_consent_reference'):rows.append([views.button('أوافق على الاسترداد للمحفظة وأتابع',f'oh:cconsent:{order}')])

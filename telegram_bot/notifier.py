@@ -198,6 +198,9 @@ class TelegramNotifier(NotificationDelivery):
     def _on_session_started(self, event_type: str, payload: Any) -> None:
         if not isinstance(payload, dict):
             return
+        restored=payload.get('previously_completed',0)
+        if type(restored) is int and restored>0:
+            return  # Loading saved progress must not resend the customer's start notice.
         from telegram_bot.views import safe, count
 
         wb = payload.get("workbook", "ملف إكسل")

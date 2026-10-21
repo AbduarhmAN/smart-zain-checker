@@ -6,12 +6,18 @@ from html import escape
 import math
 import re
 from datetime import datetime, timedelta, timezone
+from .official_support import support_button
+from .button_layout import inline_rows
 
 
 @dataclass(frozen=True)
 class Panel:
     text: str
     rows: list[list[dict]]
+    photo: str | None = None
+
+    def __post_init__(self):
+        object.__setattr__(self, 'rows', inline_rows(self.rows))
 
 
 def safe(value, limit=110):
@@ -101,33 +107,52 @@ def payment_invoice_panel(
     account_id: int | str = 0,
     operation_id: str = "",
     amount_egp: float = 30.0,
+    show_crypto: bool | None = None,
 ):
-    rate_info = f"\n📈 سعر الصرف الحي: <b>{live_rate:.2f} جنيه / دولار</b>" if live_rate > 0 else ""
+    if show_crypto is None:
+        try:
+            from .config import show_crypto_payments
+            show_crypto = show_crypto_payments()
+        except Exception:
+            show_crypto = False
+
     id_info = f"\n🆔 رقم المستخدم (User ID): <code>{account_id}</code>" if account_id else ""
     op_info = f"\n🧾 رقم العملية: <code>#{operation_id}</code>" if operation_id else ""
-    wallet_usdt = round(wallet_balance / live_rate, 2) if (live_rate > 0 and wallet_balance > 0) else 0.0
-    usdt_note = f" (~{wallet_usdt:.2f} USDT)" if live_rate > 0 and wallet_balance > 0 else ""
+
+    if show_crypto:
+        rate_info = f"\n📈 سعر الصرف الحي: <b>{live_rate:.2f} جنيه / دولار</b>" if live_rate > 0 else ""
+        wallet_usdt = round(wallet_balance / live_rate, 2) if (live_rate > 0 and wallet_balance > 0) else 0.0
+        usdt_note = f" (~{wallet_usdt:.2f} USDT)" if live_rate > 0 and wallet_balance > 0 else ""
+        crypto_equiv_line = f"🪙 المعادل بالعملة الرقمية: <b>{amount_usdt:.2f} USDT / USDC</b>{rate_info}\n"
+    else:
+        usdt_note = ""
+        crypto_equiv_line = ""
+
     text = (
         f"<b>💳 اختر طريقة الدفع لبدء فحص الشيت</b>\n\n"
         f"📁 الملف: <b>{safe(sheet_name)}</b>\n"
         f"🔢 عدد السجلات: <b>{count(rows_count)}</b>{id_info}{op_info}\n"
         f"💵 الرسوم الأساسية: <b>{amount_egp:.2f} جنيه مصري</b>\n"
-        f"🪙 المعادل بالعملة الرقمية: <b>{amount_usdt:.2f} USDT / USDC</b>{rate_info}\n"
-        f"👛 رصيدك في المحفظة: <b>{wallet_balance:.2f} جنيه مصري</b>{usdt_note}\n\n"
+        f"{crypto_equiv_line}"
+        f"💼 رصيدك في المحفظة: <b>{wallet_balance:.2f} جنيه مصري</b>{usdt_note}\n\n"
         f"<i>اختر إحدى طرق الدفع التالية:</i>"
     )
     rows = [
         [button("🎫 Promo Code", f"pay:promo:{token}")],
         [button(f"💰 الدفع من المحفظة ({wallet_balance:.2f} ج.م)", f"pay:wallet:{token}")],
-        [button("🟡 Pay with Binance", f"pay:binance:{token}")],
-        [button("🟢 USDT / USDC (BSC - BEP20) ⚡", f"pay:bep20:{token}")],
-        [button("🌐 شبكات أخرى (TON / SOL / ERC20)", f"pay:crypto_menu:{token}")],
     ]
-    if pay_url:
-        rows.append([url_button(f"💎 ادفع المعادل ({amount_usdt:.2f} USDT) في @CryptoBot", pay_url)])
-        rows.append([button("🔄 تحقق من دفع CryptoBot وابدأ الفحص 🚀", f"paycheck:{invoice_id}:{token}", "success")])
+    if show_crypto:
+        rows.extend([
+            [button("🟡 Pay with Binance", f"pay:binance:{token}")],
+            [button("🟢 USDT / USDC (BSC - BEP20) ⚡", f"pay:bep20:{token}")],
+            [button("🌐 شبكات أخرى (TON / SOL / ERC20)", f"pay:crypto_menu:{token}")],
+        ])
+        if pay_url:
+            rows.append([url_button(f"💎 ادفع المعادل ({amount_usdt:.2f} USDT) في @CryptoBot", pay_url)])
+            rows.append([button("🔄 تحقق من دفع CryptoBot وابدأ الفحص 🚀", f"paycheck:{invoice_id}:{token}", "success")])
     rows.append([button("‹ مراجعة الشيت", f"map:{token}:review"), button("‹ الرئيسية", "home")])
     return Panel(text, rows)
+
 
 
 def promo_input_panel(sheet_name: str, token: str):
@@ -268,33 +293,74 @@ def tx_prompt_panel(sheet_name: str, method_name: str, token: str):
     return Panel(text, [[button("‹ إلغاء ورجوع", f"map:{token}:pay")]])
 
 
-def wallet_panel(user_id: int | str, balance: float, account_id: int | str = 0, live_rate: float = 0.0, sheet_price_egp: float = 30.0):
+def wallet_panel(user_id: int | str, balance: float, account_id: int | str = 0, live_rate: float = 0.0, sheet_price_egp: float = 30.0, show_crypto: bool | None = None):
+    if show_crypto is None:
+        try:
+            from .config import show_crypto_payments
+            show_crypto = show_crypto_payments()
+        except Exception:
+            show_crypto = False
+
     id_val = account_id or user_id
-    usdt_equiv = f" (~{balance / live_rate:.2f} USDT)" if (live_rate > 0 and balance > 0) else ""
-    sheet_usdt = f" (~{sheet_price_egp / live_rate:.2f} USDT)" if live_rate > 0 else ""
-    rate_info = f"\n📈 سعر الصرف الحي: <b>{live_rate:.2f} جنيه / دولار</b>" if live_rate > 0 else ""
+    if show_crypto:
+        usdt_equiv = f" (~{balance / live_rate:.2f} USDT)" if (live_rate > 0 and balance > 0) else ""
+        sheet_usdt = f" (~{sheet_price_egp / live_rate:.2f} USDT)" if live_rate > 0 else ""
+        rate_info = f"\n📈 سعر الصرف الحي: <b>{live_rate:.2f} جنيه / دولار</b>" if live_rate > 0 else ""
+    else:
+        usdt_equiv = ""
+        sheet_usdt = ""
+        rate_info = ""
+
     text = (
-        f"<b>👛 محفظتي</b>\n\n"
+        f"<b>💼 محفظتي</b>\n\n"
         f"🆔 رقم المستخدم: <code>{safe(id_val)}</code>\n"
         f"<i>(اضغط على الرقم لنسخه مباشرة)</i>\n\n"
         f"💰 رصيدك الحالي: <b>{balance:.2f} جنيه مصري</b>{usdt_equiv}{rate_info}\n\n"
         f"يمكنك استخدام رصيد محفظتك لفحص أي شيت بضغطة زر واحدة دون الحاجة للدفع في كل مرة.\n"
         f"رسوم فحص الورقة الحالية: <b>{sheet_price_egp:.2f} جنيه مصري</b>{sheet_usdt}."
     )
-    return Panel(text, [
-        [button("💲 شحن المحفظة (Top up wallet)", "wallet:topup_menu", "success")],
-        [button("🎁 إدخال كود رصيد أو عرض", "wallet:redeem", "primary"), button("⚡ شحن فوري (Binance / Crypto)", "wallet:topup_menu", "primary")],
-        [button('سجل المحفظة','oh:ledger:0'),button('طلباتي ومدفوعاتي','oh:list:0')],
-        [button("🏠 الرئيسية (Home)", "home")]
-    ])
+    if show_crypto:
+        rows = [
+            [button("شحن المحفظة", "wallet:topup_menu", "success"), button("كود رصيد أو عرض", "wallet:redeem")],
+            [button('سجل المحفظة','oh:ledger:0'),button('طلباتي ومدفوعاتي','oh:list:0')],
+            [button("🏠 الرئيسية (Home)", "home")]
+        ]
+    else:
+        rows = [
+            [button("🎁 إدخال كود رصيد أو شحن", "wallet:redeem", "success")],
+            [button('سجل المحفظة','oh:ledger:0'),button('طلباتي ومدفوعاتي','oh:list:0')],
+            [button("🏠 الرئيسية (Home)", "home")]
+        ]
+    return Panel(text, rows)
 
 
-def wallet_topup_menu_panel(balance: float, account_id: int | str = 0, live_rate: float = 0.0):
+def wallet_topup_menu_panel(balance: float, account_id: int | str = 0, live_rate: float = 0.0, show_crypto: bool | None = None):
+    if show_crypto is None:
+        try:
+            from .config import show_crypto_payments
+            show_crypto = show_crypto_payments()
+        except Exception:
+            show_crypto = False
+
+    if not show_crypto:
+        text = (
+            f"<b>💳 شحن رصيد المحفظة</b>\n\n"
+            f"🆔 رقم المستخدم: <code>{safe(account_id)}</code>\n"
+            f"💰 رصيدك الحالي: <b>{balance:.2f} جنيه مصري</b>\n\n"
+            f"لشحن رصيد محفظتك، يرجى إدخال <b>كود رصيد (Redeem Code)</b> أو التواصل مع الإدارة للشحن المباشر.\n"
+        )
+        rows = [
+            [button("🎁 إدخال كود رصيد أو شحن", "wallet:redeem", "primary")],
+            [button("‹ رجوع للمحفظة", "wallet")],
+        ]
+        return Panel(text, rows)
+
     rate_str = f"\n📈 سعر الصرف الحي: <b>{live_rate:.2f} جنيه / دولار</b>" if live_rate > 0 else ""
     text = (
         f"<b>⚡ شحن رصيد المحفظة بالعملات الرقمية</b>\n\n"
-        f"🆔 رقم الحساب: <code>{safe(account_id)}</code>\n"
+        f"🆔 رقم المستخدم: <code>{safe(account_id)}</code>\n"
         f"💰 رصيدك الحالي: <b>{balance:.2f} جنيه مصري</b>{rate_str}\n\n"
+
         f"<i>يمكنك شحن المحفظة بأي مبلغ ترغب به (مثلاً 5$ أو 10$ أو 20$ أو أكثر).</i>\n"
         f"<i>يتم تحويل المبلغ تلقائياً بسعر الصرف وإضافته فوراً إلى رصيد محفظتك 🚀</i>\n\n"
         f"اختر وسيلة الدفع المناسبة لك:"
@@ -308,6 +374,7 @@ def wallet_topup_menu_panel(balance: float, account_id: int | str = 0, live_rate
         [button("‹ رجوع للمحفظة", "wallet")],
     ]
     return Panel(text, rows)
+
 
 
 def wallet_topup_detail_panel(
@@ -416,13 +483,13 @@ def wallet_topup_success_panel(
         f"💳 طريقة الدفع: <b>{safe(method)}</b>\n"
         f"🪙 المبلغ المستلم: <b>{amount_usdt:.2f} USDT/USDC</b>{rate_info}\n"
         f"💵 الرصيد المضاف: <b>+{amount_egp:.2f} جنيه مصري</b>\n"
-        f"👛 رصيدك الإجمالي الجديد: <b>{new_balance:.2f} جنيه مصري</b>\n"
+        f"💼 رصيدك الإجمالي الجديد: <b>{new_balance:.2f} جنيه مصري</b>\n"
         f"🔗 رقم العملية: <code>{safe(tx_id)}</code>\n\n"
         f"✅ يمكنك الآن فحص الشيتات بضغطة زر واحدة من رصيد المحفظة 🚀"
     )
     return Panel(text, [
         [button("📎 فحص شيت جديد", "upload", "primary")],
-        [button("👛 عرض المحفظة", "wallet")],
+        [button("💼 عرض المحفظة", "wallet")],
         [button("‹ الرئيسية", "home")],
     ])
 
@@ -473,11 +540,11 @@ def redeem_success_panel(added_amount: float, new_balance: float, account_id: in
         f"<b>🎉 تم شحن المحفظة بنجاح!</b>\n\n"
         f"{id_info}"
         f"➕ المبلغ المضاف: <b>+{added_amount:.2f} جنيه مصري</b>{added_usdt}\n"
-        f"👛 رصيدك الإجمالي الآن: <b>{new_balance:.2f} جنيه مصري</b>{new_usdt}\n\n"
+        f"💼 رصيدك الإجمالي الآن: <b>{new_balance:.2f} جنيه مصري</b>{new_usdt}\n\n"
         f"يمكنك الآن استخدام رصيدك لفحص أي ملف بضغطة زر 🚀"
     )
     return Panel(text, [
-        [button("📎 رفع ملف جديد", "upload"), button("👛 محفظتي", "wallet")],
+        [button("📎 رفع ملف جديد", "upload"), button("💼 محفظتي", "wallet")],
         [button("‹ الرئيسية", "home")]
     ])
 
@@ -515,6 +582,8 @@ def state_label(state):
     if state.get("verifications"):
         return "🟠 بانتظار تحقق زين"
     if state.get("running"):
+        if not state.get('paused') and (state.get('scheduling') or {}).get('paused_files'):
+            return '🟠 الفحص جارٍ؛ بعض الملفات متوقفة للمراجعة'
         return "⏸ متوقف مؤقتًا" if state.get("paused") else "🟢 الفحص جارٍ"
     if state.get("finalizing"):
         return "◷ جارٍ حفظ النتائج"
@@ -531,6 +600,8 @@ def controls(state):
     if state.get("running") and not state.get("verifications"):
         rows.append([button("▶ استئناف الفحص", "resume", "success") if state.get("paused")
                      else button("⏸ إيقاف مؤقت", "pause")])
+    if state.get('running') and not state.get('paused') and (state.get('scheduling') or {}).get('paused_files'):
+        rows.append([button('▶ استئناف الملفات المتوقفة', 'resume', 'success')])
     kpis = state.get("kpis", {})
     if (not state.get("running") and not state.get("round_pending") and not state.get("finalizing")
             and state.get("result_ready") is not False and number(kpis.get("total")) > 0
@@ -546,7 +617,12 @@ def admin_menu(section):
         'money':('💳 الطلبات والمال','متابعة طلبات العملاء، والتحصيل، والأرباح.',[
             [button('🧾 طلبات العملاء','oh:admin:0'),button('💳 مراجعة الدفع','payment_reviews')],
             [button('📊 الأرباح','pf:admin:0'),button('💸 السحوبات','withdrawals')],
-            [button('👛 محفظتي','wallet')]]),
+            [button('👥 تقارير العملاء','menu:customers'),support_button()],
+            [button('📚 سجل الدعم السابق','support_inbox')]]),
+        'customers':('👥 تقارير العملاء','شحن الأكواد والاستفادة الفعلية من الفحص المجاني؛ دون الشركاء والمديرين.',[
+            [button('💳 العملاء الذين شحنوا بالأكواد','cr:list:codes:0')],
+            [button('🎁 العملاء المستفيدون من المجاني','cr:list:free:0')],
+            [button('‹ الطلبات والمال','menu:money')]]),
         'partners':('🤝 الشركاء','الشراكات الحالية والسابقة ومراجعة ملفات الشركاء.',[
             [button('🤝 الشركاء الحاليون','cp:list:0'),button('🕘 الشركاء السابقون','pl:ended:0')],
             [button('📋 موافقات الشيت','ps:list:0')]]),
@@ -560,13 +636,30 @@ def admin_menu(section):
     return Panel('<b>'+title+'</b>\n\n'+description,rows+[[button('‹ الرئيسية','home')]])
 
 
+def operations(state, jobs):
+    state = dict(state)
+    state['round_pending'] = any(job.get('status') in {'pending','active'} for job in jobs)
+    rows = [[button('📊 الحالة','status'),button('📁 إدارة الطابور','queue:0')]]
+    rows.extend(controls(state))
+    if (state.get('engine_online') is not False and not state.get('stale') and not state.get('running')
+            and not state.get('finalizing') and not any(job.get('status') == 'active' for job in jobs)
+            and any(job.get('status') == 'pending' for job in jobs)):
+        rows.append([button('▶ بدء الملفات المنتظرة','start_queue','success')])
+    rows.extend([[button('📋 ملفات المراجعة','drafts:0'),button('📎 رفع شيت','upload')],
+                 [button('🗂 الأرشيف','archive'),button('❔ المساعدة','help')],
+                 [button('↻ تحديث','menu:operations'),button('‹ الرئيسية','home')]])
+    return Panel('<b>⚙️ إدارة التشغيل</b>\n\n'+state_label(state)+
+                 '\nاختر الحالة أو ملفًا من الطابور لمراجعته. إجراءات التشغيل تعرض تأكيدًا قبل التنفيذ.',rows)
+
+
 def partner_home_rows():
     return [button('💰 أرباحي','pf:home:0'),button('🎁 حملاتي','po:list:0'),button('📄 فحص الشركاء','pc:home:0')]
 
 
 def home(state, jobs, account_id: int | str = 0, is_admin: bool = False, mode: str = "customer", wallet_balance: float = 0.0):
-    id_line = f"🆔 رقم حسابك الداخلي: <code>{account_id}</code>\n" if account_id else ""
-    bal_line = f"👛 رصيدك في المحفظة: <b>{wallet_balance:.2f} جنيه مصري</b>\n\n" if wallet_balance >= 0 else "\n"
+    id_line = f"🆔 رقم المستخدم: <code>{account_id}</code>\n" if account_id else ""
+    bal_line = f"💼 رصيدك في المحفظة: <b>{wallet_balance:.2f} جنيه مصري</b>\n\n" if wallet_balance >= 0 else "\n"
+
 
     if mode == "admin" and is_admin:
         pending = sum(job.get("status") == "pending" for job in jobs)
@@ -586,8 +679,9 @@ def home(state, jobs, account_id: int | str = 0, is_admin: bool = False, mode: s
             *[quick[i:i+2] for i in range(0,len(quick),2)],
             [button('💳 الطلبات والمال','menu:money'),button('🤝 الشركاء','menu:partners')],
             [button('🎁 العروض والأكواد','menu:offers'),button('⚙️ الإعدادات','menu:settings')],
-            [button('🗂 الأرشيف','archive'),button('💬 الدعم','support_inbox'),button('❔ المساعدة','help')],
-            [button('👛 محفظتي','wallet'),button('👤 وضع الزبون','switch_mode:customer')],
+            [button('⚙️ إدارة التشغيل','menu:operations'),button('🗂 الأرشيف','archive')],
+            [button('💼 محفظتي','wallet'),button('👤 وضع الزبون','switch_mode:customer')],
+            [support_button()],
         ])
 
     # Default / Customer Mode:
@@ -600,8 +694,9 @@ def home(state, jobs, account_id: int | str = 0, is_admin: bool = False, mode: s
     rows = [
         [button('📎 رفع ملف للفحص','upload','success')],
         [button('📋 ملفاتي للمراجعة','drafts:0'),button('🧾 طلباتي ومدفوعاتي','oh:list:0')],
-        [button('👛 محفظتي','wallet'),button('📦 نتائجي السابقة','archive')],
-        [button('💬 دعم طلب','support'),button('❔ المساعدة','help')],
+        [button('💼 محفظتي','wallet'),button('📦 نتائجي السابقة','archive')],
+        [button('📊 حالة فحوصاتي','status'),button('❔ المساعدة','help')],
+        [support_button()],
     ]
     if is_admin:
         rows.append([button('🛡 العودة للإدارة','switch_mode:admin')])
@@ -628,6 +723,10 @@ def status(state):
             f"مهلات وأخطاء: {count(k.get('errors'))}\n"
             f"مؤجلة: {count(k.get('deferred'))}\n\n"
             "<i>نسبة المعالجة مستقلة عن عدد الأرصدة المؤكدة.</i>")
+    scheduling = state.get('scheduling') or {}
+    if scheduling.get('mode') == 'cross_file_by_type':
+        text += ('\n\nملفات تعمل بالتوازي: <b>' + count(scheduling.get('active_files')) + '</b>'
+                 '\nالأرقام أعلاه تخص الملف المعروض. الإيقاف المؤقت يشمل الملفات الجارية كلها.')
     timing = state.get("session_timing") or {}
     started, server_time = number(timing.get("started_at")), number(timing.get("server_time"))
     if started > 0 and server_time >= started:
@@ -681,17 +780,16 @@ def customer_home(account_id=0):
                  "① أرسل ملف XLSX\n② راجع الأعمدة والبيانات\n③ اختر الدفع ثم انتظر تأكيد المعالجة\n\n"
                  "ملفات المراجعة ومحفظتك تخص هذه المحادثة.",
                  [[button("📎 إرسال ملف XLSX", "upload", "primary")],
-                  [button("📋 ملفاتي للمراجعة", "drafts:0"), button("👛 محفظتي", "wallet")],
+                  [button("📋 ملفاتي للمراجعة", "drafts:0"), button("💼 محفظتي", "wallet")],
                   [button('استرجاع نتيجة سابقة','archive')],
-                  [button('دعم طلب','support')],
                   [button("💡 خطوات الاستخدام", "help")]])
 
 
 def customer_rows(rows):
     """Keep customer navigation usable when a shared notice contains admin links."""
-    allowed = {"home", "upload", "help", "wallet", "archive", "support"}
+    allowed = {"home", "upload", "help", "wallet", "archive", "status", "subscription:check"}
     prefixes = ("wallet:", "drafts:", "map:", "pay:", "paycheck:", "switch_mode:","co:","cw:","bn:","pc:","pf:","po:","of:","cc:","ar:result:","sp:history:","sp:compose:","oh:list:","oh:open:","oh:ledger:","oh:archive:","oh:repeat:","oh:stop:","oh:stopconfirm:","oh:consent:","oh:clist:","oh:copen:","oh:cstop:","oh:cconsent:")
-    prefixes = prefixes + ('pl:view:','pl:ack:')
+    prefixes = prefixes + ('pl:view:','pl:ack:','vc:start:','vc:list:','vc:open:','vc:phone:','vc:complaint:','panel:')
     result = []
     for row in rows:
         kept = []
@@ -729,13 +827,13 @@ def help_panel(admin=True):
                      "② <b>مراجعة الأعمدة</b> · اختر عمود الرقم وعمود المبلغ؛ الصفر مبلغ صالح والخانة الفارغة تحتاج تصحيحًا.\n"
                      "③ <b>الدفع</b> · افتح الرسوم وطرق الدفع بعد نجاح التحقق.\n\n"
                      "يمكنك الرجوع إلى ملفاتك للمراجعة أو محفظتك من الرئيسية.",
-                     [[button("📎 إرسال ملف", "upload", "primary"), button("‹ الرئيسية", "home")]])
+                     [[button("📎 إرسال ملف", "upload", "primary"), button("‹ الرئيسية", "home")],[support_button()]])
     return Panel("<b>💡 استخدام تشيك</b>\n\n"
                  "<b>متابعة الفحص</b>\nالتقدم، الأرصدة المؤكدة، الفروقات، وحالات المراجعة في بطاقة واحدة. اضغط تحديث لقراءة الحالة الحالية.\n\n"
                  "<b>التحكم في الجلسة</b>\nأزرار الإيقاف والاستئناف تظهر عند وجود جلسة. إذا طلب زين تحققًا، أكمله في المتصفح أو اللوحة.\n\n"
                  "<b>النتائج</b>\nاضغط استلام النتائج، ثم أكد إرسال ملف الجلسة إلى هذه المحادثة.\n\n"
                  "<b>اختصارات</b>\n/start · /status · /queue · /results · /help",
-                 [[button("📎 إضافة ملف", "upload")], nav()])
+                 [[button("📎 إضافة ملف", "upload")],[support_button()], nav()])
 
 
 def notice(title, text, html=False):

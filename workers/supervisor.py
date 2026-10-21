@@ -64,6 +64,8 @@ class WorkerSupervisor:
                     },
                 ]
 
+        from workers.service_dispatch import service_worker_config
+        cfgs = service_worker_config(cfgs, root)
         for cfg in cfgs:
             uses_proxy = bool(cfg.get("use_proxy", bool(cfg.get("proxy_url") or cfg.get("proxy"))))
             if uses_proxy and not enable_proxy_workers:

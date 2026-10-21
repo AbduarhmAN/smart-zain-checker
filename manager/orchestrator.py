@@ -80,7 +80,7 @@ class Orchestrator:
         self.retry_attempts_by_status: Dict[int, dict[str, int]] = {}
         self.reviews_count = 0
         self.not_found_count = 0
-        self.max_block_retries = 2
+        self.max_block_retries = 3
         self.session_token = uuid.uuid4().hex
         self.session_started_at: Optional[float] = None
         self.session_initial_completed = 0
@@ -88,6 +88,7 @@ class Orchestrator:
         self.verification_pause_tasks: set[str] = set()
         self.verification_auto_resume = False
         self.blocked_service_routes: dict[str, dict[str, Any]] = {}
+        self.service_recovery_rounds: dict[str, int] = {}
         self.telegram_enabled = False
         self.source_workbook_path: Optional[Path] = None
         self.source_sheet_index: int = 0
@@ -282,8 +283,10 @@ class Orchestrator:
             if not force_restart:
                 self.deferred_indices = [int(i) for i in saved.get("deferred_indices", [])
                                          if 0 <= int(i) < len(self.customers) and int(i) not in self.completed_indices]
-                self.deferred_attempts = {int(i): int(n) for i, n in saved.get("deferred_attempts", {}).items()}
-                self.retry_attempts_by_status = {int(i): dict(n) for i, n in saved.get("retry_attempts_by_status", {}).items()}
+                self.deferred_attempts = {int(i): int(n) for i, n in saved.get("deferred_attempts", {}).items()
+                                          if int(i) in self.deferred_indices}
+                self.retry_attempts_by_status = {int(i): dict(n) for i, n in saved.get("retry_attempts_by_status", {}).items()
+                                                 if int(i) in self.deferred_indices}
                 self.deferred_retry_at = {int(i): time.monotonic() + max(0.0, float(n))
                                           for i, n in saved.get("deferred_retry_delays", {}).items()}
             self.target_url = target_url
@@ -296,6 +299,9 @@ class Orchestrator:
             self.verification_pause_tasks.clear()
             self.verification_auto_resume = False
             self.blocked_service_routes.clear()
+            self.service_recovery_rounds.clear()
+            if not force_restart:
+                self._restore_service_recoveries_locked(saved)
             self.active_leases.clear()
             self.recent_results.clear()
             self._init_task_queues_locked()
@@ -332,8 +338,34 @@ class Orchestrator:
             if self.is_finalizing:threading.Thread(target=self._finalize_job,name='CustomerStopFinalize',daemon=True).start()
             return True
 
-        # Start isolated worker actors
-        self.supervisor.start_all(target_url=target_url)
+        # Recovered terminal rows need publication only. Never launch a fresh
+        # proxy/browser pool just to export already journaled results.
+        with self.lock:
+            already_terminal=bool(self.customers) and len(self.completed_indices)==len(self.customers) and not self.active_leases
+            if already_terminal:self.is_finalizing=True
+        if already_terminal:
+            threading.Thread(target=self._finalize_job,name='RecoveredResultFinalize',daemon=True).start()
+            return True
+
+        self._start_worker_pool()
+
+        job_owner=next((job.get('column_mapping',{}).get('telegram_chat_id') for job in self.queue_service.get_jobs() if job.get('id')==self.current_job_id),None)
+        EVENT_BUS.publish("session_started", {
+            "telegram_chat_id":job_owner,
+            "workbook": self.workbook_name,
+            "target_url": self.target_url,
+            "total_records": len(self.customers),
+            "previously_completed": len(self.completed_indices),
+        })
+        return True
+
+    def _start_worker_pool(self) -> None:
+        """A file owns its state; the scheduler owns the shared worker pool."""
+        pool = getattr(self, "shared_worker_pool", None)
+        if pool is not None:
+            pool.request_worker_start()
+            return
+        self.supervisor.start_all(target_url=self.target_url)
 
         # Launch Direct API background threads for active workers
         for actor in self.supervisor.get_all_workers():
@@ -346,15 +378,6 @@ class Orchestrator:
                 )
                 w_thread.start()
 
-        job_owner=next((job.get('column_mapping',{}).get('telegram_chat_id') for job in self.queue_service.get_jobs() if job.get('id')==self.current_job_id),None)
-        EVENT_BUS.publish("session_started", {
-            "telegram_chat_id":job_owner,
-            "workbook": self.workbook_name,
-            "target_url": self.target_url,
-            "total_records": len(self.customers),
-            "previously_completed": len(self.completed_indices),
-        })
-        return True
 
     @staticmethod
     def _search_number(customer: Customer) -> str:
@@ -415,6 +438,7 @@ class Orchestrator:
         with self.lock:
             if not self.is_running or self.is_paused:
                 return None
+            self._release_due_service_recoveries_locked()
             actor = self.supervisor.get_worker(worker_id)
             if actor is None or actor.status in ("stopped", "error") or actor.is_in_cooldown():
                 return None
@@ -460,6 +484,7 @@ class Orchestrator:
             can_service = (
                 can_check_srv
                 and actor.ip_group not in busy
+                and not getattr(self, "service_route_unavailable", lambda route: False)(actor.ip_group)
                 and actor.ip_group not in getattr(self, 'blocked_service_routes', {})
                 and not get_ip_service_lock(actor.ip_group).locked()
                 and get_ip_service_retry_after(actor.ip_group) <= 0
@@ -496,7 +521,9 @@ class Orchestrator:
                 elif can_service and next_srv is not None:
                     candidate = self._pending_services.popleft()
 
-            if candidate is None and not has_regular:
+            selected_deferred = False
+            eligible_regular = (can_check_acc and next_acc is not None) or (can_service and next_srv is not None)
+            if candidate is None and (not has_regular or (getattr(self, "shared_worker_pool", None) is not None and not eligible_regular)):
                 candidate = next((i for i in self.deferred_indices
                                   if i not in self.completed_indices and i not in leased
                                   and self.deferred_retry_at.get(i, 0.0) <= now
@@ -504,6 +531,7 @@ class Orchestrator:
                                       (self._is_service_index(i) and can_service)
                                       or (not self._is_service_index(i) and can_check_acc)
                                   )), None)
+                selected_deferred = candidate is not None
 
             if candidate is None:
                 return None
@@ -527,7 +555,7 @@ class Orchestrator:
             task_id = f"task_{self.session_token}_{candidate}_{uuid.uuid4().hex}"
             data = {"index": candidate, "customer": self.customers[candidate],
                     "worker_id": worker_id, "leased_at": now, "ip_group": actor.ip_group,
-                    "phase": 'retry' if not has_regular else 'regular'}
+                    "phase": 'retry' if selected_deferred else 'regular'}
             self.active_leases[task_id] = data
             task = self._task_payload(task_id, data)
             actor.assign_task({"task_id": task_id, "row": task["row_number"],
@@ -549,13 +577,20 @@ class Orchestrator:
                        "deferred_indices": list(self.deferred_indices),
                        "deferred_attempts": dict(self.deferred_attempts),
                        "retry_attempts_by_status": dict(self.retry_attempts_by_status),
+                       "blocked_service_routes": {
+                           route: {**{k: v for k, v in block.items() if k != 'retry_at'},
+                                   **({'retry_delay': max(0.0, block['retry_at'] - now)}
+                                      if block.get('automatic_recovery') else {})}
+                           for route, block in self.blocked_service_routes.items()
+                       },
+                       "service_recovery_rounds": dict(self.service_recovery_rounds),
                        "deferred_retry_delays": {i: max(0.0, at - now) for i, at in self.deferred_retry_at.items()}},
             )
 
     def defer_task_to_end(self, task_id: str, reason: str = "", *,
                           worker_id: Optional[str] = None, retry_after: float = SERVICE_INTERVAL,
                           category: str = "blocked", max_attempts: Optional[int] = None) -> None:
-        """Retry at the end; exhausted rejections become review, never row errors."""
+        """Retry transient failures; unresolved service checks stay uncompleted."""
         with self.lock:
             lease = self.active_leases.get(task_id)
             if not lease or (worker_id is not None and lease["worker_id"] != worker_id):
@@ -567,9 +602,37 @@ class Orchestrator:
             attempts[category] = attempts.get(category, 0) + 1
             self.deferred_attempts[idx] = self.deferred_attempts.get(idx, 0) + 1
             threshold = max_attempts if max_attempts is not None else 3
-            if attempts[category] >= threshold:
+            recoverable_service = self._is_service_index(idx) and category in {
+                'blocked', 'session_expired', 'browser_recovery', 'network_error',
+                'unknown_response', 'verification_required',
+            }
+            exhausted = attempts[category] >= threshold
+            if exhausted and not recoverable_service:
                 self.record_task_outcome(task_id, None, "needs_review", reason, lease["worker_id"])
                 return
+            if recoverable_service and category != 'verification_required':
+                retry_after = max(retry_after, min(120.0, 5.0 * 2 ** min(attempts[category] - 1, 5)))
+                if category == 'blocked':
+                    set_ip_service_cooldown(lease['ip_group'], retry_after)
+            if recoverable_service and exhausted:
+                # Open this route's circuit breaker. Retry automatically after
+                # a longer wait; actual human verification still waits for a person.
+                automatic = category != 'verification_required'
+                group = lease['ip_group']
+                rounds = self.service_recovery_rounds.get(group, 0) + 1
+                if automatic:
+                    self.service_recovery_rounds[group] = rounds
+                    retry_after = max(retry_after, get_ip_service_retry_after(group),
+                                      min(300.0, 60.0 * 2 ** min(rounds - 1, 3)))
+                self.blocked_service_routes[lease['ip_group']] = {
+                    'task_id': task_id, 'worker_id': lease['worker_id'],
+                    'index': idx, 'pending': False, 'category': category,
+                    'automatic_recovery': automatic,
+                    **({'retry_at': time.monotonic() + retry_after} if automatic else {}),
+                    'message': ('تجري استعادة مسار الخدمة تلقائيًا؛ الصفوف قيد الانتظار وستُعاد المحاولة.'
+                                if automatic else 'يتطلب المسار تحققًا بشريًا؛ الصفوف قيد الانتظار.'),
+                }
+                self._refresh_verification_notice_locked()
             self.active_leases.pop(task_id)
             if idx in self.deferred_indices:
                 self.deferred_indices.remove(idx)
@@ -688,6 +751,8 @@ class Orchestrator:
             if tracker is not None:
                 tracker.complete('service' if self._effective_search_number(cust).startswith('2') and getattr(self, "mode", "") != "account_only" else 'account', phase=lease.get('phase', 'regular'))
             self.active_leases.pop(task_id)
+            if status in ('match', 'mismatch', 'not_found'):
+                self.service_recovery_rounds.pop(lease['ip_group'], None)
             if task_id in self.verification_pause_tasks:
                 self.verification_pause_tasks.discard(task_id)
             for route, block in list(getattr(self, 'blocked_service_routes', {}).items()):
@@ -788,6 +853,33 @@ class Orchestrator:
         blocks = getattr(self, 'blocked_service_routes', {})
         self.verification_notice = ' · '.join(dict.fromkeys(block['message'] for block in blocks.values()))
 
+    def _release_due_service_recoveries_locked(self) -> None:
+        now = time.monotonic()
+        due = [route for route, block in self.blocked_service_routes.items()
+               if block.get('automatic_recovery') and not block.get('pending')
+               and block.get('retry_at', float('inf')) <= now
+               and get_ip_service_retry_after(route) <= 0]
+        for route in due:
+            block = self.blocked_service_routes.pop(route)
+            index = block.get('index')
+            if index is not None:
+                self.retry_attempts_by_status.pop(index, None)
+                self.deferred_attempts.pop(index, None)
+        if due:
+            self._refresh_verification_notice_locked()
+            self._save_checkpoint_locked(-1)
+
+    def _restore_service_recoveries_locked(self, saved) -> None:
+        now = time.monotonic()
+        self.blocked_service_routes.update({
+            route: {**block, 'pending': False,
+                    **({'retry_at': now + max(0.0, float(block.get('retry_delay', 0)))}
+                       if block.get('automatic_recovery') else {})}
+            for route, block in saved.get('blocked_service_routes', {}).items()
+        })
+        self.service_recovery_rounds.update(saved.get('service_recovery_rounds', {}))
+        self._refresh_verification_notice_locked()
+
     def resume_service_route(self, worker_id: str) -> bool:
         with self.lock:
             actor = self.supervisor.get_worker(worker_id)
@@ -798,7 +890,12 @@ class Orchestrator:
             blocks.pop(actor.ip_group)
             from workers.low_bandwidth_transport import enabled,SCHEDULER
             if enabled(actor.proxy_url if actor.use_proxy else None):SCHEDULER.unblock(actor.ip_group)
+            index = block.get('index')
+            if index is not None:
+                self.retry_attempts_by_status.pop(index, None)
+                self.deferred_attempts.pop(index, None)
             self._refresh_verification_notice_locked()
+            self._save_checkpoint_locked(-1)
             return True
 
     def resume_session(self) -> None:
@@ -824,9 +921,10 @@ class Orchestrator:
                 if job and job.status == 'active':
                     job.status = 'pending'
                     self.queue_service._save_to_disk()
-        from workers.stealth_service_engine import cancel_pending_verifications
-        cancel_pending_verifications()
-        self.supervisor.stop_all()
+        if getattr(self, "shared_worker_pool", None) is None:
+            from workers.stealth_service_engine import cancel_pending_verifications
+            cancel_pending_verifications()
+            self.supervisor.stop_all()
         if self.writer_thread and self.result_queue:
             self.result_queue.put("STOP_SENTINEL")
             self.writer_thread.join(timeout=10.0)
@@ -854,83 +952,107 @@ class Orchestrator:
                     break
                 time.sleep(0.4)
                 continue
-            task_id = task["task_id"]
-            is_service = str(task["search_number"]).startswith("2") and task.get("record_type") != "account"
-            stop_heartbeat = threading.Event() if is_service else None
-            heartbeat_thread = None
-            if is_service:
-                def heartbeat():
-                    while not stop_heartbeat.wait(10.0):
-                        if not self.renew_task_lease(task_id, worker_id):
-                            break
-                heartbeat_thread = threading.Thread(target=heartbeat, daemon=True, name=f"LeaseHeartbeat-{worker_id}")
-                heartbeat_thread.start()
+            self.execute_leased_task_api(worker_id, task, session_token)
+
+    def execute_leased_task_api(self, worker_id: str, task: dict, session_token: str) -> bool:
+        """Execute one leased row using this file's immutable session identity."""
+        actor = self.supervisor.get_worker(worker_id)
+        if actor is None or self.session_token != session_token:
+            return False
+        with self.lock:
+            lease = self.active_leases.get(task['task_id'])
+            if lease is None or lease['worker_id'] != worker_id or not self.is_running:
+                return False
+        task_id = task["task_id"]
+        is_service = str(task["search_number"]).startswith("2") and task.get("record_type") != "account"
+        stop_heartbeat = threading.Event() if is_service else None
+        heartbeat_thread = None
+        if is_service:
+            def heartbeat():
+                while not stop_heartbeat.wait(10.0):
+                    if not self.renew_task_lease(task_id, worker_id):
+                        break
+            heartbeat_thread = threading.Thread(target=heartbeat, daemon=True, name=f"LeaseHeartbeat-{worker_id}")
+            heartbeat_thread.start()
+        try:
             try:
-                try:
-                    actor.on_verification = lambda message: self.notify_pending_verification(task_id, message, worker_id)
-                    status, amount, message = actor.execute_task_api(task["search_number"])
-                except Exception as exc:
-                    status, amount, message = "network_error", None, f"تعذر استكمال الطلب: {type(exc).__name__}"
-            finally:
-                if stop_heartbeat and heartbeat_thread:
-                    stop_heartbeat.set()
-                    heartbeat_thread.join(timeout=1.0)
-            if self.session_token != session_token:
-                break
-            if status == "ok":
-                self.record_task_outcome(task_id, amount, "match", worker_id=worker_id)
-            elif status == "verification_required":
-                self.handle_verification_required(task_id, message, worker_id)
-            elif status == 'account_backoff' and not is_service:
-                from workers.account_transport import account_retry_after
-                from workers.zain_api import API_BASE_URL
-                delay=account_retry_after(API_BASE_URL,actor.proxy_url if actor.use_proxy else None,worker_id)
-                self.defer_task_to_end(task_id,message,worker_id=worker_id,retry_after=max(.5,delay),
-                    category='account_route_cooldown',max_attempts=2)
-            elif status == 'network_error' and ('TargetClosed' in str(message) or 'المتصفح' in str(message)):
-                actor.status_reason = 'استعادة جلسة المتصفح لهذا المسار'
-                self.defer_task_to_end(task_id, message, worker_id=worker_id,
-                    retry_after=SERVICE_INTERVAL, category='browser_recovery', max_attempts=2)
-            elif status in ("blocked", "session_expired"):
-                effective_status = status
-                if effective_status == "blocked":
-                    set_ip_service_cooldown(actor.ip_group, 3.0)
-                    if not actor.use_proxy:
-                        actor.set_cooldown(3.0, "حظر مؤقت - جاري التبريد والانتظار...")
-                    else:
-                        actor.status_reason = "حظر مؤقت على البروكسي - جاري الانتظار والتبريد..."
-                delay = max(SERVICE_INTERVAL, get_ip_service_retry_after(actor.ip_group), 3.0 if effective_status == "blocked" else 0.0)
-                self.defer_task_to_end(
-                    task_id, message, worker_id=worker_id, retry_after=delay,
-                    category=effective_status, max_attempts=getattr(self, "max_block_retries", 2)
-                )
-            elif status == "not_found":
-                self.record_task_outcome(task_id, None, "not_found", message, worker_id)
-            elif status in ("unknown_response", "error"):
-                self.record_task_outcome(task_id, None, "needs_review", message, worker_id)
-            else:
-                with self.lock:
-                    lease = self.active_leases.get(task_id)
-                    if not lease or lease["worker_id"] != worker_id:
-                        continue
-                    lease["retries"] = lease.get("retries", 0) + 1
-                    attempts = lease["retries"]
-                if attempts <= 2:
-                    if not actor.use_proxy and not task["search_number"].startswith("2"):
-                        actor.set_cooldown(2.0, message)
-                    time.sleep(0.5)
-                    continue
-                self.record_task_outcome(task_id, None, "needs_review", message, worker_id)
-            if is_service:
-                time.sleep(0.35)
-            else:
-                time.sleep(0.05)
+                actor.on_verification = lambda message: self.notify_pending_verification(task_id, message, worker_id)
+                status, amount, message = actor.execute_task_api(task["search_number"])
+            except Exception as exc:
+                status, amount, message = "network_error", None, f"تعذر استكمال الطلب: {type(exc).__name__}"
+        finally:
+            if stop_heartbeat and heartbeat_thread:
+                stop_heartbeat.set()
+                heartbeat_thread.join(timeout=1.0)
+        if self.session_token != session_token:
+            return False
+        if status == "ok":
+            self.record_task_outcome(task_id, amount, "match", worker_id=worker_id)
+        elif status == "verification_required":
+            self.handle_verification_required(task_id, message, worker_id)
+        elif status == 'account_backoff' and not is_service:
+            from workers.account_transport import account_retry_after
+            from workers.zain_api import API_BASE_URL
+            delay=account_retry_after(API_BASE_URL,actor.proxy_url if actor.use_proxy else None,worker_id)
+            self.defer_task_to_end(task_id,message,worker_id=worker_id,retry_after=max(.5,delay),
+                category='account_route_cooldown',max_attempts=2)
+        elif status == 'network_error' and ('TargetClosed' in str(message) or 'المتصفح' in str(message)):
+            actor.status_reason = 'استعادة جلسة المتصفح لهذا المسار'
+            self.defer_task_to_end(task_id, message, worker_id=worker_id,
+                retry_after=SERVICE_INTERVAL, category='browser_recovery', max_attempts=4)
+        elif is_service and status in ('network_error', 'unknown_response'):
+            self.defer_task_to_end(task_id, message, worker_id=worker_id,
+                retry_after=SERVICE_INTERVAL, category=status, max_attempts=4)
+        elif status in ("blocked", "session_expired"):
+            effective_status = status
+            if effective_status == "blocked":
+                set_ip_service_cooldown(actor.ip_group, 3.0)
+                if not actor.use_proxy:
+                    actor.set_cooldown(3.0, "حظر مؤقت - جاري التبريد والانتظار...")
+                else:
+                    actor.status_reason = "حظر مؤقت على البروكسي - جاري الانتظار والتبريد..."
+            delay = max(SERVICE_INTERVAL, get_ip_service_retry_after(actor.ip_group), 3.0 if effective_status == "blocked" else 0.0)
+            self.defer_task_to_end(
+                task_id, message, worker_id=worker_id, retry_after=delay,
+                category=effective_status,
+                max_attempts=4 if effective_status == 'session_expired' else getattr(self, "max_block_retries", 3)
+            )
+        elif status == "not_found":
+            self.record_task_outcome(task_id, None, "not_found", message, worker_id)
+        elif status in ("unknown_response", "error"):
+            self.record_task_outcome(task_id, None, "needs_review", message, worker_id)
+        else:
+            with self.lock:
+                lease = self.active_leases.get(task_id)
+                if not lease or lease["worker_id"] != worker_id:
+                    return False
+                lease["retries"] = lease.get("retries", 0) + 1
+                attempts = lease["retries"]
+            if attempts <= 2:
+                if not actor.use_proxy and not task["search_number"].startswith("2"):
+                    actor.set_cooldown(2.0, message)
+                time.sleep(0.5)
+                return True
+            self.record_task_outcome(task_id, None, "needs_review", message, worker_id)
+        if is_service:
+            time.sleep(0.35)
+        else:
+            time.sleep(0.05)
+
+        return True
 
     def _finalize_job(self) -> None:
+        pool = getattr(self, "shared_worker_pool", None)
+        if pool is not None:
+            return pool.finalize_session(self)
+        return self._finalize_job_impl()
+
+    def _finalize_job_impl(self) -> None:
         with self.lock:
             self.is_running = False
             self.is_paused = False
-        self.supervisor.stop_all()
+        if getattr(self, "shared_worker_pool", None) is None:
+            self.supervisor.stop_all()
 
         # Stop and flush async writer thread
         if self.writer_thread and self.result_queue:
@@ -987,11 +1109,15 @@ class Orchestrator:
                 try:
                     import shutil
                     default_path = self.project_root / "نتائج فحص زين.xlsx"
-                    if default_path.resolve() != self.result_path.resolve():
+                    if getattr(self, "shared_worker_pool", None) is None and default_path.resolve() != self.result_path.resolve():
                         shutil.copy2(self.result_path, default_path)
                 except Exception as copy_err:
                     logger.debug(f"Default result copy note: {copy_err}")
         except Exception as e:
+            from services.ipc import ServiceUnavailable
+            if isinstance(e,ServiceUnavailable):
+                self._defer_file_dependency()
+                return
             logger.error(f"Failed to generate executive deliverable: {e}")
 
         if not self.result_ready:
@@ -1072,8 +1198,16 @@ class Orchestrator:
                                 and not job.get('column_mapping',{}).get('commerce_order_id')],
         })
 
+        if getattr(self, "shared_worker_pool", None) is not None:
+            self.is_finalizing = False
+            return
+
         # Auto-advance to next pending queue job if present
         service=getattr(self,'continuous_service',None)
+        if (self.project_root/'.maintenance/enabled').exists():
+            with self.lock:
+                self.is_finalizing=False;self.reserved_next_job_id=None
+            return
         if finished_mapping.get('commerce_order_id') or finished_mapping.get('customer_stop'):
             with self.lock:
                 self.is_finalizing=False;self.reserved_next_job_id=None
@@ -1127,6 +1261,9 @@ class Orchestrator:
 
     def start_queue(self, job_id: Optional[str] = None) -> bool:
         """Starts processing the first pending job in the sequential queue."""
+        from services.ipc import ServiceUnavailable
+        ready=getattr(self,'execution_dependencies_ready',None)
+        if ready is not None and not ready():raise ServiceUnavailable('File service temporarily unavailable')
         with self.lock:
             if self.is_running or getattr(self, 'is_finalizing', False):
                 logger.warning("Cannot start queue: session is already running.")
@@ -1152,12 +1289,25 @@ class Orchestrator:
                     result_file=getattr(next_job, "result_file", "نتائج فحص زين.xlsx"),
                     force_restart=should_force,
                 )
+            except ServiceUnavailable:
+                self._defer_file_dependency(next_job.id)
+                raise
             except Exception:
                 self.queue_service.mark_job_failed(next_job.id, "تعذر بدء فحص الشيت")
                 raise
             if not started:
                 self.queue_service.mark_job_failed(next_job.id, "لم تبدأ جلسة الفحص")
             return started
+
+    def _defer_file_dependency(self,job_id=None):
+        """Re-run publication from WAL after recovery, without repeating checks."""
+        with self.lock:
+            target=job_id or self.current_job_id
+            if target:self.queue_service.defer_job(target)
+            self.is_running=False;self.is_finalizing=False;self.reserved_next_job_id=None
+            self.waiting_dependency='files'
+        service=getattr(self,'continuous_service',None)
+        if service is not None:service.wake()
 
     def get_live_status(self) -> dict[str, Any]:
         """Provides real-time telemetry for the Web UI without locking any inputs."""
@@ -1202,9 +1352,13 @@ class Orchestrator:
         workers_info = self.supervisor.get_status_summary()
         for worker in workers_info:
             block = route_blocks.get(worker.get('ip_group'))
-            worker['service_verification_required'] = bool(block)
-            worker['service_verification_pending'] = bool(block and block['pending'])
-            worker['service_retry_seconds'] = round(get_ip_service_retry_after(worker.get('ip_group', '')), 1)
+            automatic = bool(block and block.get('automatic_recovery'))
+            worker['service_verification_required'] = bool(block and not automatic)
+            worker['service_verification_pending'] = bool(block and block['pending'] and not automatic)
+            worker['service_recovery_pending'] = automatic
+            worker['service_retry_seconds'] = round(max(
+                get_ip_service_retry_after(worker.get('ip_group', '')),
+                max(0.0, block['retry_at'] - time.monotonic()) if automatic else 0.0), 1)
             worker["waiting_for_shared_service_browser"] = bool(
                 self.is_running and not self.is_paused and worker["status"] == "ready"
                 and worker.get("ip_group") in busy_service_groups)
@@ -1220,6 +1374,7 @@ class Orchestrator:
             "session_timing": session_timing,
             "verification_notice": verification_notice,
             "telegram_enabled": self.telegram_enabled,
+            "waiting_dependency":getattr(self,'waiting_dependency',None),
             "verifications": pending_verifications(),
             "kpis": {
                 "total": total,
@@ -1408,17 +1563,7 @@ class Orchestrator:
                     )
                     self.writer_thread.start()
 
-                # Start supervisor and background worker threads
-                self.supervisor.start_all(target_url=getattr(self, "target_url", "https://business.zain.sa/dashboard/quick-pay"))
-                for actor in self.supervisor.get_all_workers():
-                    if getattr(actor, "use_direct_api", False) and actor.status == "ready":
-                        t = threading.Thread(
-                            target=self._run_worker_api_loop,
-                            args=(actor.worker_id, self.session_token),
-                            daemon=True,
-                            name=f"WorkerAPI-{actor.worker_id}",
-                        )
-                        t.start()
+                self._start_worker_pool()
             else:
                 # If paused, resume
                 if self.is_paused:
@@ -1559,29 +1704,18 @@ class Orchestrator:
             self.writer_thread.start()
 
             # Start isolated workers
-            self.supervisor.start_all(target_url=target_url)
+            self._start_worker_pool()
 
-            # Start Direct API worker threads
-            for actor in self.supervisor.get_all_workers():
-                if getattr(actor, "use_direct_api", False) and actor.status == "ready":
-                    w_thread = threading.Thread(
-                        target=self._run_worker_api_loop,
-                        args=(actor.worker_id, self.session_token),
-                        name=f"DirectApiWorkerRepair-{actor.worker_id}",
-                        daemon=True,
-                    )
-                    w_thread.start()
+        EVENT_BUS.publish("session_started", {
+            "workbook": self.workbook_name,
+            "target_url": self.target_url,
+            "total_records": len(self.customers),
+            "is_repair_session": True,
+        })
 
-            EVENT_BUS.publish("session_started", {
-                "workbook": self.workbook_name,
-                "target_url": self.target_url,
-                "total_records": len(self.customers),
-                "is_repair_session": True,
-            })
-
-            return {
-                "status": "ok",
-                "message": f"تم بدء صيانة {len(records)} صف بنجاح.",
-                "total_records": len(records),
-            }
+        return {
+            "status": "ok",
+            "message": f"تم بدء صيانة {len(records)} صف بنجاح.",
+            "total_records": len(records),
+        }
 

@@ -1,6 +1,6 @@
 """Archive dispatch runs independently from financial outbox and browser workers."""
 from __future__ import annotations
-import json
+from domain import decimal_json as json
 import threading
 import time
 from pathlib import Path
@@ -10,11 +10,12 @@ from .archive_store import ArchiveStore
 from .archive_transport import ArchiveAmbiguous,ArchiveRejected,document_receipt
 from .bridge import file_sha256
 from .client import CommerceUnavailable
+from domain.decimal_money import egp_from_minor
 
 
 def archive_caption(plan,kind,digest):
     label='الملف الأصلي' if kind=='original' else 'ملف النتيجة'
-    def money(value):return f'{value//100}.{value%100:02d}'
+    money=egp_from_minor
     text=(f"أرشيف التشييك · {label}\nOrder ID: {plan['order_id']}\n"
         f"Telegram: {plan['telegram_user_id']}\nالتشييكات: {plan['requested_checks']}\n"
         f"نتائج صحيحة: {plan['valid_checks']} · أعطال: {plan['technical_failures']}\n"

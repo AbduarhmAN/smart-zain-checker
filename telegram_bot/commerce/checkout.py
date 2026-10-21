@@ -15,7 +15,7 @@ from .bot_workflow import _serial_user
 from .bridge import file_sha256
 from .client import CommerceUnavailable
 from .finance import FinanceService
-from .order_input import quote_rows
+from .order_input import quote_rows,summarize_quote_rows
 from .payment_providers import CryptoInvoiceAdapter
 from .payment_quotes import PaymentQuote, freeze_quote
 from .payments import PaymentService
@@ -113,11 +113,23 @@ class CommerceCheckoutMixin:
             'p_order_id': str(UUID(draft['commerce_order_id'])), 'p_telegram_user_id': user_id})
         if not isinstance(state, dict) or state.get('order_id') != draft['commerce_order_id']:
             raise ValueError('Checkout state is unavailable')
-        if any(state.get('source_snapshot', {}).get(key) != value for key, value in draft['commerce_source'].items()):
+        metadata={'original_telegram_file_id','original_telegram_file_unique_id','original_filename'} if state.get('check_storage_version')==2 else set()
+        if any(state.get('source_snapshot', {}).get(key) != value for key, value in draft['commerce_source'].items() if key not in metadata):
             raise ValueError('Server checkout differs from frozen input')
         if state['requested_checks'] != len(draft['commerce_rows']):
             raise ValueError('Server checkout differs from executable checks')
+        for key,value in summarize_quote_rows(draft['commerce_rows']).items():
+            if key in state and (type(state[key]) is not int or state[key]!=value):
+                raise ValueError('Server account/service counts differ from executable checks')
+            state[key]=value
         return state
+
+    def _checkout_reserve(self,draft,user_id,state,*,payment_id=None):
+        # Existing orders use their original RPC. V2 creates details and holds
+        # funds atomically, including recovery after a lost acknowledgement.
+        rows=draft['commerce_rows'] if state.get('check_storage_version')==2 else None
+        return FinanceService(self._commerce()).reserve(draft['commerce_order_id'],user_id,
+            state['refund_consent_reference'],payment_id=payment_id,rows=rows)
 
     @_serial_user
     def _commerce_start_checkout(self, token, user_id, message_id):
@@ -140,7 +152,7 @@ class CommerceCheckoutMixin:
                 if not draft.get('admin') and len(rows)>4000:raise ValueError('Customer sheets are limited to 4000 checks')
                 source = {'file_sha256': digest, 'sheet_index': draft['sheet_index'],
                           'mapping': json.loads(json.dumps(draft['mapping'])),
-                          'mode': draft['mode'], 'amount_target': draft['amount_target']}
+                          'mode': draft['mode'], 'amount_target': draft['amount_target'],'storage_version':2}
                 for key in ('original_telegram_file_id','original_telegram_file_unique_id','original_filename'):
                     if draft.get(key):source[key]=draft[key]
                 with self._ui_lock:
@@ -184,9 +196,9 @@ class CommerceCheckoutMixin:
                       'باختيار الدفع توافق على سياسة الاسترداد للمحفظة.')
             if pricing.get('pricing_version'):
                 text+='\n\nسعر العميل الأساسي: '+egp(pricing['base_minor'])+' جنيه'
-                text+='\nأرقام الحسابات: '+str(pricing['account_count'])
                 text+='\nأرقام الخدمة ضمن أول '+str(pricing['service_threshold'])+': '+str(pricing['service_standard_count'])
                 text+='\nأرقام الخدمة الإضافية: '+str(pricing['service_excess_count'])+' × '+egp(pricing['service_excess_minor'])+' جنيه'
+            text+=f"\n\nعدد أرقام الحسابات: {state['account_count']:,}\nعدد أرقام الخدمة/المحافظ: {state['service_count']:,}"
             if pricing.get('discount_total_minor'):
                 text+=f"\n\nالسعر قبل العرض: {egp(pricing['base_total_minor'])} جنيه\nالخصم: {egp(pricing['discount_total_minor'])} جنيه\n"
                 offer=pricing.get('applied_campaign') or {}
@@ -196,19 +208,54 @@ class CommerceCheckoutMixin:
                     text+='\nالتكلفة المتوقعة عند اكتمال الفحص: '+egp(pricing['estimated_final_minor'])+' جنيه'
                     text+='\nتُحجز القيمة قبل الخصم مؤقتًا، ثم يُعاد الخصم المستحق وقيمة الفحوص غير المنجزة إلى محفظتك بعد تسليم النتيجة. يُحسب الخصم على الفحوص الصحيحة المؤهلة؛ قد يقل عند الإيقاف أو انتهاء الاستحقاق. هذا العرض يستخدم رصيدك المدفوع.'
                 else:text+='\nالسعر المعروض محفوظ لهذا الطلب.'
+
+            if pricing.get('free_checks_applied'):
+                if pricing.get('service_count', 0) > 500:
+                    text += '\n\n💡 <b>تنبيه العرض الترويجي:</b> أي ملف يحتوي على أرقام محافظ/خدمات أكثر من 500 يتم حساب أرقام المحافظ الزائدة (من 501 حتى 1500) بالسعر العادي.'
+            elif pricing.get('free_checks_disqualified_reason') == 'exceeds_total_limit':
+                count = state.get('requested_checks', 0)
+                text += f"\n\n⚠️ <b>الملف خارج العرض الترويجي:</b> الحد الأقصى لعدد العملاء في العرض المجاني هو 3400 عميل (يحتوي ملفك على {count} عميل). يمكنك تقسيم الملف بحيث لا يتجاوز 3400 عميل للاستفادة من العرض المجاني، أو المتابعة بفحص الملف كاملاً بالسعر العادي."
+            elif pricing.get('free_checks_disqualified_reason') == 'exceeds_service_limit':
+                count = pricing.get('service_count', 0)
+                text += f"\n\n⚠️ <b>الملف خارج العرض الترويجي:</b> الحد الأقصى لأرقام المحافظ/الخدمات في العرض المجاني هو 1500 رقم (يحتوي ملفك على {count} رقم). يمكنك إضافة ملف يحتوي على أرقام محافظ أقل من 1500 للاستفادة من العرض المجاني، أو المتابعة بفحص الملف كاملاً بالسعر العادي."
+            elif not pricing.get('discount_total_minor'):
+                try:
+                    active_offers = self._commerce().rpc('customer_campaigns', {'p_telegram_user_id': user_id})
+                    has_free_checks = any(
+                        isinstance(o, dict) and o.get('benefit_kind') == 'free_checks' and o.get('state') == 'active'
+                        and (o.get('consumed_checks', 0) + o.get('reserved_checks', 0) < o.get('max_checks', 1))
+                        for o in (active_offers or [])
+                    )
+                except Exception:
+                    has_free_checks = False
+                if has_free_checks:
+                    req_checks = state.get('requested_checks', 0)
+                    srv_count = pricing.get('service_count', 0)
+                    if req_checks > 3400:
+                        text += f"\n\n⚠️ <b>الملف خارج العرض الترويجي:</b> الحد الأقصى لعدد العملاء في العرض المجاني هو 3400 عميل (يحتوي ملفك على {req_checks} عميل). يمكنك تقسيم الملف بحيث لا يتجاوز 3400 عميل للاستفادة من العرض المجاني، أو المتابعة بفحص الملف كاملاً بالسعر العادي."
+                    elif srv_count > 1500:
+                        text += f"\n\n⚠️ <b>الملف خارج العرض الترويجي:</b> الحد الأقصى لأرقام المحافظ/الخدمات في العرض المجاني هو 1500 رقم (يحتوي ملفك على {srv_count} رقم). يمكنك إضافة ملف يحتوي على أرقام محافظ أقل من 1500 للاستفادة من العرض المجاني، أو المتابعة بفحص الملف كاملاً بالسعر العادي."
+
             funding = draft.get('commerce_funding')
             rows = []
             if funding in {None,'wallet'}:
-                rows.append([views.button('أوافق · تنفيذ العرض' if state['quoted_minor']==0 else 'أوافق · الدفع بالمحفظة', f'co:wallet:{token}', 'success')])
-            if state['quoted_minor']>0 and funding in {None,'invoice'}:
-                rows.append([views.button('أوافق · فاتورة Crypto Pay', f'co:invoice:{token}')])
-            if state['quoted_minor']>0 and funding in {None,'transfer'}:
-                rows.extend(getattr(self,'_commerce_transfer_buttons',lambda value:[])(token))
-            if draft.get('commerce_quote') and funding=='invoice':
-                rows.append([views.button('التحقق من دفع الفاتورة', f'co:check:{token}')])
-            if funding=='transfer' and draft.get('commerce_quote'):
-                rows.append([views.button('إرسال مرجع التحويل',f'co:sendref:{token}')])
+                btn_label = '🚀 أوافق · تنفيذ الفحص المجاني الآن' if state['quoted_minor'] == 0 else 'أوافق · الدفع بالمحفظة'
+                rows.append([views.button(btn_label, f'co:wallet:{token}', 'success')])
+                if state['quoted_minor']>0:
+                    rows.append([views.button('شحن المحفظة بفودافون كاش','vc:start:0')])
+            from telegram_bot.config import show_crypto_payments
+            if show_crypto_payments():
+                if state['quoted_minor']>0 and funding in {None,'invoice'}:
+                    rows.append([views.button('أوافق · فاتورة Crypto Pay', f'co:invoice:{token}')])
+                if state['quoted_minor']>0 and funding in {None,'transfer'}:
+                    rows.extend(getattr(self,'_commerce_transfer_buttons',lambda value:[])(token))
+                if draft.get('commerce_quote') and funding=='invoice':
+                    rows.append([views.button('التحقق من دفع الفاتورة', f'co:check:{token}')])
+                if funding=='transfer' and draft.get('commerce_quote'):
+                    rows.append([views.button('إرسال مرجع التحويل',f'co:sendref:{token}')])
+
             if funding is None:rows.append([views.button('إلغاء السعر وإعادة حصة العرض','co:cancel:'+token)])
+            rows.append([views.support_button()])
             rows.append([views.button('الرئيسية', 'home')])
             self._show_panel(user_id, views.Panel(text, rows), message_id)
         except (CommerceUnavailable, OSError, ValueError, KeyError):
@@ -304,8 +351,8 @@ class CommerceCheckoutMixin:
                     return
                 confirmed = service.confirm_invoice(frozen.id, user_id, adapter)
                 payment_id = confirmed['payment_id']
-            reservation = FinanceService(self._commerce()).reserve(draft['commerce_order_id'], user_id,
-                draft['commerce_consent'], payment_id=payment_id)
+            state['refund_consent_reference']=draft['commerce_consent']
+            reservation = self._checkout_reserve(draft,user_id,state,payment_id=payment_id)
             if reservation.get('state') == 'insufficient_balance':
                 draft['commerce_funding'] = None
                 self._checkout_save()
@@ -324,6 +371,8 @@ class CommerceCheckoutMixin:
             raise ValueError('Owner approval required for partner sheet')
         if state.get('reservation_state') != 'held' or state.get('payment_state') != 'reserved':
             raise ValueError('Held reservation required before checking')
+        if state.get('check_storage_version')==2 and state.get('checks_materialized') is not True:
+            raise ValueError('Materialized checks required before checking')
         if not hasattr(self, 'commerce_bridge'):
             raise ValueError('Durable commerce bridge is unavailable')
         draft['commerce_quoted_minor'] = state['quoted_minor']
@@ -355,8 +404,7 @@ class CommerceCheckoutMixin:
                     quote=PaymentQuote(**checked['commerce_quote'])
                     request,_=PaymentService(self._commerce()).load(quote.id,draft['chat'])
                     if request.get('payment_id') and state.get('refund_consent_reference'):
-                        FinanceService(self._commerce()).reserve(quote.order_id,draft['chat'],
-                            state['refund_consent_reference'],payment_id=request['payment_id'])
+                        self._checkout_reserve(checked,draft['chat'],state,payment_id=request['payment_id'])
                         state=self._checkout_state(checked,draft['chat'])
                 if state.get('reservation_state') == 'held':
                     self._checkout_enqueue(token, checked, draft['chat'], state)

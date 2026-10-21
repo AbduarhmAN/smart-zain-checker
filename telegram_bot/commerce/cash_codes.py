@@ -88,6 +88,7 @@ class CashCreditMixin:
         if field=='code':rows.append([views.button('توليد كود تلقائي','cg:generate:'+token)])
         if field=='receipt':
             values=review['values']
+            rows.append([views.button('توليد رقم إيصال تلقائي','cg:genrec:'+token)])
             label=('هذا كود رصيد مدفوع، وليس هدية ترويجية.\nالقيمة لكل حساب: '+egp(values['credit'])+' جنيه\nعدد الحسابات: '+str(values['count'])+
                 '\nالإجمالي المحسوب: '+egp(values['funded'])+' جنيه\n\n'
                 'أرسل مرجع إيصال الاستلام فقط؛ لا تحتاج إعادة كتابة الإجمالي. ستؤكد استلامه مرة واحدة قبل إصدار الكود. '
@@ -102,7 +103,10 @@ class CashCreditMixin:
         body=('رفضت قاعدة البيانات الحفظ بسبب صلاحيات الخدمة. لم يُعتمد الكود بهذه المحاولة. '
             'احتفظ بنفس الكود والإيصال؛ يلزم إصلاح صلاحيات النظام قبل إعادة التأكيد.'
             if reason=='permission_denied' else
-            'الكود أو مرجع الإيصال مستخدم بالفعل، أو انتهت صلاحية الكود. راجع البيانات قبل المحاولة.'
+            'تعذر الحفظ لوجود تعارض في البيانات المسجلة:\n\n'
+            '• إما أن <b>اسم الكود</b> مستخدم بالفعل (سواء ككود شحن سابق أو كود شريك).\n'
+            '• أو أن <b>مرجع الإيصال</b> مستخدم في شحن أو كود سابق (كل كود يتطلب رقم إيصال فريد).\n\n'
+            '💡 نصيحة: استخدم زر «توليد كود تلقائي» وزر «توليد رقم إيصال تلقائي» لتجنب التعارض تماماً.'
             if reason in {'cash_conflict','duplicate_record'} else
             'راجع قيمة الرصيد وعدد الاستخدامات: النقد المستلم يجب أن يساوي الإجمالي.' if reason=='cash_invalid' else
             'لم نتأكد من حفظ الكود. افتح قائمة الأكواد أولًا؛ لا تدخل إيصالًا جديدًا لمعالجة مشكلة الاتصال.')
@@ -123,16 +127,48 @@ class CashCreditMixin:
             if action=='list':
                 records=self._commerce().rpc('list_cash_credit_codes',{'p_offset':int(token)})
                 text='<b>أكواد الرصيد النقدي</b>\n\n'
+                rows=[]
                 for record in records:
                     text+=f"<code>{views.safe(record['code'])}</code> · {egp(record['credit_minor'])} جنيه لكل عميل\n"
+                    text+='الحالة: '+('نشط' if record['active'] else 'ملغى / متوقف')+'\n'
                     text+=f"الاستخدام: {record['redemptions']} / {record['max_redemptions']} · مبلغ غير مستبدل: {egp(record['cash_funded_minor']-record['cash_redeemed_minor'])} جنيه\n"
                     text+='العميل: '+str(record.get('bound_telegram_user_id') or 'يمكن تسليمه لأي حساب')+'\n'
                     text+='ينتهي: '+views.safe(record.get('expires_at') or 'بلا انتهاء')+'\nإيصال: <code>'+views.safe(record['receipt_reference'],128)+'</code>\n\n'
+                    if record['active']:
+                        rows.append([views.button('إلغاء الكود '+record['code'],'cg:cancel:'+str(UUID(record['code_id'])),'danger')])
                 if not records:text+='لا توجد أكواد نقدية.\n'
-                rows=[[views.button('إنشاء كود بعد استلام النقد','cg:new:0')]]
+                rows.append([views.button('إنشاء كود بعد استلام النقد','cg:new:0')])
                 if int(token)>0:rows.append([views.button('الأحدث','cg:list:'+str(max(0,int(token)-5)))])
                 if len(records)==5:rows.append([views.button('الأقدم','cg:list:'+str(int(token)+5))])
                 rows.append([views.button('‹ الرئيسية','home')]);self._show_panel(user_id,views.Panel(text,rows),message_id);return
+            if action=='cancel':
+                record=self._commerce().rpc('cash_credit_code_record',{
+                    'p_actor_telegram_id':user_id,'p_code_id':str(UUID(token))})
+                if not record:
+                    self._commerce_notice(user_id,'الكود غير موجود','افتح قائمة أكواد الرصيد وحدد الكود مجددًا.',message_id);return
+                rows=[[views.button('رجوع للأكواد','cg:list:0')]]
+                if not record['active']:
+                    body='الكود <code>'+views.safe(record['code'])+'</code> متوقف بالفعل.'
+                else:
+                    body='الكود: <code>'+views.safe(record['code'])+'</code>\n'
+                    body+=f"الاستخدام: {record['redemptions']} / {record['max_redemptions']}\n"
+                    body+='المبلغ غير المستبدل: '+egp(record['cash_funded_minor']-record['cash_redeemed_minor'])+' جنيه\n\n'
+                    body+='سيُمنع استخدام الكود مجددًا. الأرصدة التي شُحنت سابقًا تبقى كما هي، ويظل المبلغ غير المستبدل مسجلًا دون رد نقدي تلقائي.'
+                    rows.insert(0,[views.button('تأكيد إلغاء الكود','cg:cancelok:'+str(UUID(token)),'danger')])
+                self._show_panel(user_id,views.Panel('<b>إلغاء كود الرصيد</b>\n\n'+body,rows),message_id);return
+            if action=='cancelok':
+                if not isinstance(callback.get('id'),str) or not callback['id'].strip():raise ValueError('Cancellation receipt required')
+                result=self._commerce().rpc('cancel_cash_credit_code',{'p_actor_telegram_id':user_id,
+                    'p_code_id':str(UUID(token)),'p_reference':'telegram-cash-code-cancel:'+str(user_id)+':'+callback['id']})
+                state=result.get('state')
+                if state=='invalid_code':
+                    self._commerce_notice(user_id,'الكود غير موجود','افتح قائمة أكواد الرصيد وحدد الكود مجددًا.',message_id);return
+                if state not in {'cancelled','already_cancelled'}:raise ValueError('Unexpected cancellation state')
+                body=('الكود ملغى بالفعل: ' if state=='already_cancelled' else 'تم إلغاء الكود: ')
+                body+='<code>'+views.safe(result['code'])+'</code>\nلن يقبل استخدامات جديدة. الأرصدة المشحونة سابقًا محفوظة.'
+                body+='\nالمبلغ غير المستبدل المسجل: '+egp(result['unredeemed_minor'])+' جنيه. لم يُنفذ رد نقدي تلقائي.'
+                self._show_panel(user_id,views.Panel('<b>حالة إلغاء الكود</b>\n\n'+body,
+                    [[views.button('أكواد الرصيد','cg:list:0')]]),message_id);return
             if action=='new':
                 token=str(uuid4())
                 with self._ui_lock:
@@ -148,6 +184,16 @@ class CashCreditMixin:
                 if not review or review['actor']!=user_id or review['expires']<=time.monotonic() or FIELDS[review['step']][0]!=field:
                     raise ValueError('Matching active input required')
                 raw='CASH_'+secrets.token_hex(12).upper()
+                with self._ui_lock:self._waiting_user_inputs.pop(user_id,None)
+                self._commerce_text_input(user_id,raw,{'action':'commerce_cash_code_value','token':token,'field':field,
+                    'expires':review['expires'],'message_id':message_id})
+                return
+            if action=='genrec':
+                review=getattr(self,'_cash_code_reviews',{}).get(str(UUID(token)))
+                field='receipt'
+                if not review or review['actor']!=user_id or review['expires']<=time.monotonic() or FIELDS[review['step']][0]!=field:
+                    raise ValueError('Matching active input required')
+                raw='REC_'+secrets.token_hex(6).upper()
                 with self._ui_lock:self._waiting_user_inputs.pop(user_id,None)
                 self._commerce_text_input(user_id,raw,{'action':'commerce_cash_code_value','token':token,'field':field,
                     'expires':review['expires'],'message_id':message_id})
@@ -170,6 +216,9 @@ class CashCreditMixin:
                 [[views.button('أكواد الرصيد','cg:list:0')],[views.button('‹ الرئيسية','home')]]),message_id)
         except (CommerceUnavailable,OSError,ValueError,KeyError,TypeError,sqlite3.Error,IndexError) as exc:
             if action=='save':self._cash_save_failure(user_id,message_id,token,exc)
+            elif action=='cancelok':
+                self._show_panel(user_id,views.Panel('<b>لم نتأكد من إلغاء الكود</b>\n\n'
+                    'افتح قائمة الأكواد للتحقق من الحالة قبل إعادة المحاولة.',[[views.button('أكواد الرصيد','cg:list:0')]]),message_id)
             else:self._wallet_failure(user_id,message_id)
 
     def _commerce_text_input(self,user_id,text,waiting):

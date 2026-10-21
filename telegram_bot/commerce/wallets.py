@@ -84,15 +84,16 @@ class WalletPaymentsMixin:
                     'رصيد الطلبات وأرباح الشريك منفصلان. شحن المحفظة لا يُحسب خدمة مدفوعة أو عمولة.')
             if customer.get('expired_promotional_minor'):
                 text+='\n\nرصيد ترويجي انتهت صلاحيته: '+egp(customer['expired_promotional_minor'])+' جنيه.'
+            if customer.get('reclaimed_promotional_minor'):
+                text+='\n\nرصيد ترويجي استُرجع بعد إلغاء حملته: '+egp(customer['reclaimed_promotional_minor'])+' جنيه.'
             if customer.get('next_promotional_expiry'):
                 text+='\nموعد انتهاء أقرب رصيد ترويجي: '+views.safe(customer['next_promotional_expiry'])
             legacy=self._legacy_balance_pending_minor(user_id)
             if legacy:
                 text+='\n\nرصيد سابق محفوظ بانتظار النقل: '+egp(legacy)+' جنيه. يظهر منفصلًا ولا يدخل في الرصيد المتاح أعلاه. طلباتك السابقة محفوظة في سجل الطلبات.'
-            rows=[[views.button('شحن المحفظة','cw:topup:0','success')],
-                [views.button('إدخال كود رصيد أو عرض','cc:redeem:0')],
-                [views.button('طلبات الشحن السابقة','cw:list:0')],[views.button('سجل المحفظة','oh:ledger:0')],
-                [views.button('عروضي وحدودها','of:list:0')]]
+            rows=[[views.button('شحن المحفظة','cw:topup:0','success'),views.button('كود رصيد أو عرض','cc:redeem:0')],
+                [views.button('طلبات الشحن','cw:list:0'),views.button('سجل المحفظة','oh:ledger:0')],
+                [views.button('عروضي وحدودها','of:list:0'),views.button('طلباتي','oh:list:0')]]
             if state.get('is_partner'):
                 rows.append([views.button('أرباح الشريك','pf:home:0'),views.button('حملاتي','po:list:0')])
             rows.append([views.button('الرئيسية','home')])
@@ -120,11 +121,23 @@ class WalletPaymentsMixin:
             action=parts[1];value=parts[2]
             if action=='topup':
                 if not self._uses_commerce_wallet(user_id):raise ValueError('Commerce wallet is not enabled')
-                rows=[[views.button('فاتورة Crypto Pay · USDT','cw:amount:cryptopay')]]
-                rows.extend([[views.button('Binance Pay' if route.name=='binance' else route.asset+' على BSC',
-                    'cw:amount:'+route.name)] for route in self._transfer_routes().all()])
+                from telegram_bot.config import show_crypto_payments
+                if not show_crypto_payments():
+                    rows = [
+                        [views.button('دفع فودافون كاش', 'vc:start:0'), views.button('طلباتي فودافون كاش', 'vc:list:0')],
+                        [views.button('🎁 إدخال كود رصيد أو عرض', 'cc:redeem:0')],
+                        [views.button('المحفظة', 'wallet')]
+                    ]
+                    self._show_panel(user_id, views.Panel('<b>شحن المحفظة</b>\n\nاختر فودافون كاش للدفع والمراجعة اليدوية، أو أدخل كود رصيد.', rows), message_id)
+                    return
+                methods=[views.button('Crypto Pay · USDT','cw:amount:cryptopay')]
+                methods.extend(views.button('Binance Pay' if route.name=='binance' else route.asset+' على BSC',
+                    'cw:amount:'+route.name) for route in self._transfer_routes().all())
+                rows=[[views.button('دفع فودافون كاش','vc:start:0'),views.button('طلباتي فودافون كاش','vc:list:0')]]
+                rows.extend(methods[index:index+2] for index in range(0,len(methods),2))
                 rows.append([views.button('المحفظة','wallet')])
                 self._show_panel(user_id,views.Panel('<b>شحن المحفظة</b>\n\nاختر الوسيلة ثم أدخل مبلغ الشحن بالجنيه.',rows),message_id)
+
             elif action=='amount':
                 if not self._uses_commerce_wallet(user_id):raise ValueError('Commerce wallet is not enabled')
                 if value!='cryptopay':self._transfer_routes().get(value)

@@ -117,6 +117,47 @@ class FastWorkbook:
         pass
 
 
+class StreamingReadWorkbook:
+    """Materialize each selected sheet once with the existing openpyxl reader.
+
+    ReadOnlyWorksheet.cell replays XML from its beginning. Schema detection's
+    scattered cell probes therefore must operate on a value matrix, rather
+    than repeatedly opening a streaming worksheet. No formatting is copied;
+    writable source updates continue using their separate full workbook path.
+    """
+    def __init__(self,path):
+        self.path=path;self._sheets={};self._lock=threading.Lock()
+        from openpyxl import load_workbook
+        workbook=load_workbook(path,read_only=True,data_only=True)
+        try:
+            try:
+                self.sheetnames=list(workbook.sheetnames)
+            except TypeError:
+                self.sheetnames=[getattr(ws, 'title', str(i)) for i, ws in enumerate(getattr(workbook, 'worksheets', []))]
+        finally:workbook.close()
+
+    def get_sheet(self,index):
+        with self._lock:
+            if index not in self._sheets:
+                from openpyxl import load_workbook
+                workbook=load_workbook(self.path,read_only=True,data_only=True)
+                try:
+                    target_ws=workbook.worksheets[index]
+                    if not hasattr(target_ws,'iter_rows'):
+                        self._sheets[index]=target_ws
+                        return target_ws
+                    data=[list(row) for row in target_ws.iter_rows(values_only=True)]
+                finally:workbook.close()
+                while data and not any(data[-1]):data.pop()
+                self._sheets[index]=CalamineSheetAdapter(data,self.sheetnames[index])
+            return self._sheets[index]
+
+    @property
+    def worksheets(self):return [self.get_sheet(index) for index in range(len(self.sheetnames))]
+    def __getitem__(self,index):return self.get_sheet(index if isinstance(index,int) else self.sheetnames.index(index))
+    def close(self):pass
+
+
 def get_workbook_sheet_names(workbook_path: Path | str) -> list[str]:
     """Retrieves sheet names instantly via Calamine Rust engine with openpyxl fallback."""
     from services.file_client import remote_files_enabled, file_rpc
@@ -173,21 +214,24 @@ def load_fast_workbook(workbook_path: Path | str, **read_options) -> Any:
         import python_calamine
         cal_wb = python_calamine.CalamineWorkbook.from_path(path_str)
         wb = FastWorkbook(cal_wb)
-        with _CACHE_LOCK:
-            # File service is a bounded cache owner; discard superseded file
-            # versions instead of retaining several parsed copies of one ZIP.
-            for previous in list(_FAST_WB_CACHE):
-                if previous[0] == path_str and previous != cache_key:
-                    _FAST_WB_CACHE.pop(previous)
-            import os
-            capacity = 2 if os.environ.get('ZAIN_SERVICE_ROLE') in {'files', 'file'} else 8
-            if len(_FAST_WB_CACHE) >= capacity:
-                _FAST_WB_CACHE.clear()
-            _FAST_WB_CACHE[cache_key] = wb
-        return wb
     except Exception:
-        from openpyxl import load_workbook
-        return load_workbook(path_str, read_only=True, data_only=True)
+        wb = StreamingReadWorkbook(path_str)
+    if mtime==0.0:
+        # Missing/unstatable inputs must not create a reusable phantom cache
+        # entry (also important for in-memory reader fixtures).
+        return wb
+    with _CACHE_LOCK:
+        # Both readers retain only bounded value matrices, with no open ZIP
+        # handles and no superseded version of the same input.
+        for previous in list(_FAST_WB_CACHE):
+            if previous[0] == path_str and previous != cache_key:
+                _FAST_WB_CACHE.pop(previous)
+        import os
+        capacity = 2 if os.environ.get('ZAIN_SERVICE_ROLE') in {'files', 'file'} else 8
+        if len(_FAST_WB_CACHE) >= capacity:
+            _FAST_WB_CACHE.clear()
+        _FAST_WB_CACHE[cache_key] = wb
+    return wb
 
 
 

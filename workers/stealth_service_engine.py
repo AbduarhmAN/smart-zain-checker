@@ -158,9 +158,11 @@ def _get_or_create_socks5_bridge(proxy_url: str) -> Optional[str]:
 
 
 class StealthServiceWorker(threading.Thread):
-    def __init__(self, headless: bool = False, proxy_url: Optional[str] = None):
+    def __init__(self, headless: Optional[bool] = None, proxy_url: Optional[str] = None):
         super().__init__(daemon=True, name="ServiceBrowserThread")
-        self.headless = headless
+        if headless is None:
+            headless = (os.name != 'nt') or (os.getenv('ZAIN_BROWSER_HEADLESS', '0') == '1')
+        self.headless = bool(headless)
         self.proxy_url = proxy_url
         self.work_queue: queue.Queue = queue.Queue(maxsize=16)
         self.is_ready_event = threading.Event()
@@ -372,9 +374,10 @@ class StealthServiceWorker(threading.Thread):
                                         job.number, status
                                     )
                                     try:
+                                        # Reserve renewal time before closing/reopening
+                                        # Chrome so the caller does not cancel midway.
+                                        job.deadline = max(job.deadline, time.monotonic() + job.timeout + 5.0)
                                         context = self._heal_context(pw, context)
-                                        if job.deadline - time.monotonic() < 20.0:
-                                            job.deadline = time.monotonic() + 25.0
                                         if not job.cancelled.is_set():
                                             res = self._do_query(context, job)
                                     except Exception as retry_exc:
@@ -486,7 +489,7 @@ class StealthServiceWorker(threading.Thread):
                     result = classify_web_response(status, header_message, page.content(), url)
                 # A full context snapshot also propagates cookie deletions.
                 store_browser_cookies(ip_tag, context.cookies(), replace=True)
-                if result[0] in ("session_expired", "blocked"):
+                if result[0] == "session_expired":
                     context.clear_cookies(domain=re.compile(r"(^|\.)zain\.com$", re.I))
                     clear_ip_cookies(ip_tag)
                 if result[0] == "blocked":
@@ -540,18 +543,20 @@ def get_stealth_service_worker(proxy_url: Optional[str] = None, *, reserve=False
                 for key, route_worker in list(_PROXY_BROWSER_WORKERS.items()):
                     if route_worker is idle:
                         del _PROXY_BROWSER_WORKERS[key]
-        headless = os.getenv('ZAIN_BROWSER_HEADLESS', '1' if os.name != 'nt' else '0') == '1' if os.getenv('ZAIN_SERVICE_ROLE') == 'browser' else False
+        is_linux = (os.name != 'nt')
+        default_headless = '1' if is_linux else '0'
+        headless = is_linux or os.getenv('ZAIN_BROWSER_HEADLESS', default_headless) == '1'
         if proxy_url:
             key = connection_group(proxy_url)
             worker = _PROXY_BROWSER_WORKERS.get(key)
             if worker is None or not worker.is_alive():
-                options = {'headless': headless} if os.getenv('ZAIN_SERVICE_ROLE') == 'browser' else {}
+                options = {'headless': headless}
                 worker = StealthServiceWorker(proxy_url=proxy_url, **options)
                 _PROXY_BROWSER_WORKERS[key] = worker
                 worker.start()
         else:
             if _GLOBAL_STEALTH_WORKER is None or not _GLOBAL_STEALTH_WORKER.is_alive():
-                options = {'headless': headless} if os.getenv('ZAIN_SERVICE_ROLE') == 'browser' else {}
+                options = {'headless': headless}
                 _GLOBAL_STEALTH_WORKER = StealthServiceWorker(**options)
                 _GLOBAL_STEALTH_WORKER.start()
             worker = _GLOBAL_STEALTH_WORKER

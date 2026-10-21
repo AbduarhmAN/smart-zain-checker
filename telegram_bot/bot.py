@@ -25,6 +25,9 @@ if TYPE_CHECKING:
     from manager.orchestrator import Orchestrator
     from manager.queue import QueueService
 from telegram_bot.ui import TelegramUiMixin
+from telegram_bot.subscription import SubscriptionMixin
+from telegram_bot.subscription_policy import support_route
+from telegram_bot.maintenance_access import MaintenanceAccessMixin,active as maintenance_active
 from telegram_bot.sheet_workflow import SheetWorkflowMixin
 from telegram_bot import views
 from telegram_bot.commerce.bot_workflow import CommerceBotMixin
@@ -39,10 +42,12 @@ from telegram_bot.commerce.binance_note_ui import BinanceNoteUiMixin
 from telegram_bot.authorization import user_id as authorized_user_id
 from telegram_bot.commerce.manual_payments import ManualPaymentsMixin
 from telegram_bot.commerce.wallets import WalletPaymentsMixin
+from telegram_bot.commerce.vodafone_cash import VodafoneCashMixin
 from telegram_bot.commerce.partner_finance import PartnerFinanceMixin
 from telegram_bot.commerce.campaigns import CampaignsMixin
 from telegram_bot.commerce.client import CommerceUnavailable
 from telegram_bot.commerce.admin_roles import AdminRolesMixin
+from telegram_bot.commerce.partner_campaign_approvals import PartnerCampaignApprovalsMixin
 from telegram_bot.logging_safety import install_telegram_log_filter
 
 install_telegram_log_filter()
@@ -54,7 +59,7 @@ DEFAULT_BOT_TOKEN = _CONFIG['bot_token']
 AUTHORIZED_USER_ID = _CONFIG['authorized_id']
 
 
-class TelegramBotRunner(AdminRolesMixin, PartnerLifecycleMixin, PartnerSheetMixin, BinanceNoteUiMixin, PricingUiMixin, SupportUiMixin, ArchiveUiMixin, CashCreditMixin, ManualPaymentsMixin, WalletPaymentsMixin, CampaignsMixin, PartnerFinanceMixin, CommerceCheckoutMixin, CommerceBotMixin, SheetWorkflowMixin, TelegramUiMixin):
+class TelegramBotRunner(MaintenanceAccessMixin, SubscriptionMixin, VodafoneCashMixin, AdminRolesMixin, PartnerCampaignApprovalsMixin, PartnerLifecycleMixin, PartnerSheetMixin, BinanceNoteUiMixin, PricingUiMixin, SupportUiMixin, ArchiveUiMixin, CashCreditMixin, ManualPaymentsMixin, WalletPaymentsMixin, CampaignsMixin, PartnerFinanceMixin, CommerceCheckoutMixin, CommerceBotMixin, SheetWorkflowMixin, TelegramUiMixin):
     def __init__(
         self,
         orchestrator: Orchestrator,
@@ -151,9 +156,8 @@ class TelegramBotRunner(AdminRolesMixin, PartnerLifecycleMixin, PartnerSheetMixi
                 raise ValueError('Telegram bot token is not configured.')
             if self._consumer_lock is not None:
                 raise RuntimeError('Telegram consumer is still shutting down')
-            from services.locking import ServiceLock
-            consumer_lock = ServiceLock(self.project_root / '.services' / 'locks' /
-                                        ('telegram-' + self._bot_fingerprint + '.lock'))
+            from services.locking import TokenLease
+            consumer_lock = TokenLease(self._bot_fingerprint)
             consumer_lock.acquire()
             self._consumer_lock = consumer_lock
             self._update_inbox.recover()
@@ -167,7 +171,7 @@ class TelegramBotRunner(AdminRolesMixin, PartnerLifecycleMixin, PartnerSheetMixi
             self._thread = threading.Thread(target=self._poll_loop, name='telegram-poll', daemon=True)
             self._thread.start()
             try:
-                self.payment_watcher.start()
+                if not maintenance_active(self.project_root):self.payment_watcher.start()
             except Exception as e:
                 logger.warning("Could not start PaymentWatcher: %s", e)
         logger.info("TelegramBotRunner polling started with %s bounded handlers.", self._handler_workers)
@@ -215,16 +219,21 @@ class TelegramBotRunner(AdminRolesMixin, PartnerLifecycleMixin, PartnerSheetMixi
         while not self._stop_event.is_set():
             dispatched = False
             for priority, slots, executor in ((True, self._priority_slots, self._priority_executor),
-                                             (False, self._handler_slots, self._executor)):
-                if not slots.acquire(False):continue
+                                             (None, self._handler_slots, self._executor)):
+                reserved=0
+                while slots.acquire(False):reserved+=1
+                if not reserved:continue
                 try:
-                    update = self._update_inbox.claim(priority=priority)
-                    if update is None:slots.release();continue
-                    executor.submit(self._run_inbox_update, update, slots)
-                    dispatched = True
+                    updates = self._update_inbox.claim_batch(limit=reserved,priority=priority)
+                    for update in updates:
+                        future=executor.submit(self._run_inbox_update,update,slots)
+                        reserved-=1
+                        future.add_done_callback(lambda completed,capacity=slots:capacity.release() if completed.cancelled() else None)
+                        dispatched=True
                 except Exception as exc:
-                    slots.release()
                     logger.warning('Telegram inbox dispatch unavailable (%s).', type(exc).__name__)
+                finally:
+                    for _ in range(reserved):slots.release()
             if not dispatched:self._stop_event.wait(.05)
 
     def _run_inbox_update(self, update, slots=None):
@@ -238,6 +247,7 @@ class TelegramBotRunner(AdminRolesMixin, PartnerLifecycleMixin, PartnerSheetMixi
         """Read-only runtime health. Exception text/credentials are never exposed."""
         thread_alive = bool(self._thread and self._thread.is_alive())
         return {'polling': thread_alive and not self._stop_event.is_set(),
+                'maintenance_active':maintenance_active(self.project_root),
                 'thread_alive': thread_alive, 'stopping': thread_alive and self._stop_event.is_set(),
                 'last_error': self.last_poll_error, 'last_error_at': self.last_error_at,
                 'last_update_at': self.last_update_at, 'last_poll_at': self.last_poll_success,
@@ -245,6 +255,9 @@ class TelegramBotRunner(AdminRolesMixin, PartnerLifecycleMixin, PartnerSheetMixi
                 'inbox': self._update_inbox.counts()}
 
     def _api_call(self, method: str, data: Optional[dict[str, Any]] = None, timeout: int = 25) -> Optional[dict[str, Any]]:
+        if data and 'reply_markup' in data:
+            from .button_layout import normalize_markup
+            data = {**data, 'reply_markup': normalize_markup(data['reply_markup'])}
         safe_retry = method in {'getUpdates', 'getFile', 'getMe', 'setMyCommands','deleteMyCommands',
                                 'editMessageText', 'editMessageReplyMarkup', 'answerCallbackQuery'}
         url = f"{self.api_url}/{method}"
@@ -315,14 +328,17 @@ class TelegramBotRunner(AdminRolesMixin, PartnerLifecycleMixin, PartnerSheetMixi
             logger.warning('Telegram update checkpoint could not be saved.')
 
     def _poll_loop(self) -> None:
-        self._recover_admin_role_action()
-        self._start_partner_sheet_notifications()
-        self._start_payout_notifications()
-        self._start_partner_lifecycle_notifications()
-        for aid in self.current_authorized_ids:
+        private_maintenance=maintenance_active(self.project_root)
+        if not private_maintenance:
+            self._recover_admin_role_action()
+            self._start_partner_sheet_notifications()
+            self._start_payout_notifications()
+            self._start_partner_lifecycle_notifications()
+        for aid in (() if private_maintenance else self.current_authorized_ids):
             self._api_call("setMyCommands", {"scope":{"type":"chat", "chat_id":aid},
                 "commands":[{"command":"start", "description":"القائمة الرئيسية"},
                             {"command":"status", "description":"متابعة تقدم الفحص"},
+                            {"command":"control", "description":"إدارة تشغيل الفحص"},
                             {"command":"wallet", "description":"عرض رصيد المحفظة"},
                             {"command":"queue", "description":"عرض طابور الملفات"},
                             {"command":"results", "description":"استلام نتائج الجلسة"},
@@ -332,20 +348,21 @@ class TelegramBotRunner(AdminRolesMixin, PartnerLifecycleMixin, PartnerSheetMixi
                             {"command":"partner_checks", "description":"شيتات الشركاء بانتظار موافقتي"},
                             {"command":"earnings", "description":"أرباحي وأرباح الشركاء"},
                             {"command":"partner_add", "description":"إضافة شريك بكود إحالة"},
+                            {"command":"partner_reactivate", "description":"إعادة تفعيل شراكة سابقة"},
                             {"command":"archive", "description":"استرجاع نتيجة برقم الطلب"},
                             {"command":"archive_admin", "description":"فهرس الأصل والنتيجة للإدارة"},
-                            {"command":"support_inbox", "description":"طلبات الدعم والردود"},
                             {"command":"help", "description":"طريقة الاستخدام"}]})
-        self._api_call('setMyCommands',{'scope':{'type':'all_private_chats'},'commands':[
+        if not private_maintenance:self._api_call('setMyCommands',{'scope':{'type':'all_private_chats'},'commands':[
             {'command':'start','description':'الرئيسية'},
             {'command':'upload','description':'إرسال ملف XLSX'},
             {'command':'drafts','description':'ملفاتي للمراجعة'},
+            {'command':'status','description':'حالة فحوصاتي وطلباتي'},
             {'command':'wallet','description':'رصيد محفظتي'},
             {'command':'redeem','description':'شحن المحفظة بكود'},
             {'command':'archive','description':'استرجاع نتيجة سابقة'},
-            {'command':'support','description':'دعم طلب ومتابعة الردود'},
             {'command':'help','description':'خطوات الاستخدام'}]})
-        try:self._sync_partner_menus()
+        try:
+            if not private_maintenance:self._sync_partner_menus()
         except (CommerceUnavailable,OSError,ValueError,KeyError,TypeError):
             logger.warning('Partner menu initialization unavailable; /earnings remains accessible.')
         failures = 0
@@ -424,6 +441,7 @@ class TelegramBotRunner(AdminRolesMixin, PartnerLifecycleMixin, PartnerSheetMixi
             return False
 
     def _handle_update(self, update: dict[str, Any]) -> None:
+        if self._maintenance_gate(update):return
         if self._support_handle_message(update):return
         if update.get('edited_message'):return
         if update.get("callback_query"):
@@ -484,11 +502,18 @@ class TelegramBotRunner(AdminRolesMixin, PartnerLifecycleMixin, PartnerSheetMixi
         # Wallets and upload drafts are identified by the private user's chat ID.
         if chat_id != sender_id or chat_type != "private":
             return
+        if support_route(text):
+            self._official_support(chat_id)
+            return
+        if not self._subscription_gate(chat_id):
+            return
         self._refresh_partner_menu_for_chat(chat_id)
         username = from_user.get("username", "")
 
         is_admin = (sender_id in self.current_authorized_ids and chat_id in self.current_authorized_ids)
 
+        if self._vodafone_handle_media(msg, chat_id):
+            return
         doc = msg.get('document')
         if doc:
             if self._archive_forward(msg,chat_id):return
@@ -511,13 +536,14 @@ class TelegramBotRunner(AdminRolesMixin, PartnerLifecycleMixin, PartnerSheetMixi
             "💎 إضافة ملف للفحص": "/upload",
             "💎 المنتجات / فحص زين": "/upload",
             "📊 حالة الفحص": "/status", "📊 متابعة الفحص": "/status",
+            "📊 حالة فحوصاتي": "/status",
             "📁 طابور الملفات": "/queue", "🔄 طابور الملفات": "/queue",
             "⏸ إيقاف مؤقت": "/pause", "▶ استئناف الفحص": "/resume",
             "📎 إضافة ملف": "/upload", "💡 طريقة الاستخدام": "/help",
             "💡 دليل الاستخدام": "/help", "💡 خطوات الاستخدام": "/help",
             "🏠 الرئيسية": "/start", "📥 نتائج الجلسة": "/results",
-            "📥 نتائج الجولة": "/results", "👛 محفظتي": "/wallet",
-            "👛 المحفظة والرصيد": "/wallet",
+            "📥 نتائج الجولة": "/results", "💼 محفظتي": "/wallet",
+            "💼 المحفظة والرصيد": "/wallet",
             "📋 ملفاتي للمراجعة": "/drafts", "📋 طلباتي وملفاتي": "/drafts",
             "🎫 كود الشحن": "/redeem", "🎁 شحن بكود": "/redeem",
             "‹ الرئيسية": "/start", "‹ إلغاء ورجوع للمحفظة": "/wallet",
@@ -527,6 +553,8 @@ class TelegramBotRunner(AdminRolesMixin, PartnerLifecycleMixin, PartnerSheetMixi
             "الشركاء والإحالات": "/partners",
         }
         text_clean = text.strip()
+        from .button_layout import REPLY_ACTIONS
+        text_map.update(REPLY_ACTIONS)
         text_mapped = text_map.get(text_clean, text_clean)
 
         is_cmd_or_nav = (
@@ -550,6 +578,8 @@ class TelegramBotRunner(AdminRolesMixin, PartnerLifecycleMixin, PartnerSheetMixi
                 waiting = self._waiting_user_inputs.pop(chat_id, None)
             if waiting and text:
                 waiting['_telegram_input_message_id']=msg.get('message_id')
+                if waiting.get('action','').startswith('commerce_vodafone_'):
+                    waiting['_telegram_message']=msg
                 self._handle_user_text_input(chat_id, username, text, waiting)
                 return
 
@@ -563,6 +593,7 @@ class TelegramBotRunner(AdminRolesMixin, PartnerLifecycleMixin, PartnerSheetMixi
             "/wallet": "wallet",
             "/drafts": "drafts:0",
             "/status": "status",
+            "/control": "menu:operations",
             "/queue": "queue:0",
             "/pause": "pause",
             "/stop": "pause",
@@ -654,7 +685,7 @@ class TelegramBotRunner(AdminRolesMixin, PartnerLifecycleMixin, PartnerSheetMixi
                 self._reply(chat_id, "ℹ️ أرسل إيموجي مميزاً (Telegram Premium Custom Emoji) في نفس الرسالة مع <code>/get_icon</code> لمعرفة معرّفه الرقمي.")
             return
 
-        if not is_admin and route in {"status", "queue:0", "pause", "resume", "results"}:
+        if not is_admin and route in {"queue:0", "pause", "resume", "results"}:
             self._reply(chat_id, "⚠️ هذا الإجراء متاح للمشرف فقط. يمكنك رفع ملف لفحصه أو عرض محفظتك.")
             return
 
@@ -768,7 +799,7 @@ class TelegramBotRunner(AdminRolesMixin, PartnerLifecycleMixin, PartnerSheetMixi
                 try:
                     self._api_call("sendMessage", {
                         "chat_id": int(uid),
-                        "text": f"🎉 <b>تم شحن محفظتك بواسطة المشرف!</b>\n➕ المبلغ المضاف: <b>+{amount:.2f} جنيه مصري</b>\n👛 رصيدك الحالي: <b>{new_bal:.2f} جنيه مصري</b>",
+                        "text": f"🎉 <b>تم شحن محفظتك بواسطة المشرف!</b>\n➕ المبلغ المضاف: <b>+{amount:.2f} جنيه مصري</b>\n💼 رصيدك الحالي: <b>{new_bal:.2f} جنيه مصري</b>",
                         "parse_mode": "HTML"
                     })
                 except Exception:
@@ -833,8 +864,9 @@ class TelegramBotRunner(AdminRolesMixin, PartnerLifecycleMixin, PartnerSheetMixi
             if route == "home":
                 from .payment_manager import PAYMENT_MGR
                 acc_id = PAYMENT_MGR.get_user_account_id(chat_id)
-                self._reply(chat_id, f"أهلًا بك في تشيك (رقم الحساب الداخلي: <code>{acc_id}</code>). افتح لوحتك من الأزرار أدناه.")
+                self._reply(chat_id, f"أهلًا بك في تشيك (رقم المستخدم: <code>{acc_id}</code>). افتح لوحتك من الأزرار أدناه.")
             self._dispatch_ui(route, chat_id)
+
             return
 
         self._dispatch_ui("help", chat_id)
@@ -947,7 +979,7 @@ class TelegramBotRunner(AdminRolesMixin, PartnerLifecycleMixin, PartnerSheetMixi
                                         f"⚡ <b>تم شحن محفظة عميل تلقائياً عبر Binance Pay!</b>\n\n"
                                         f"👤 العميل: <b>@{views.safe(username or 'Unknown')}</b> (ID: <code>{acc_id}</code>)\n"
                                         f"🪙 المبلغ: <b>{actual_amt:.2f} USDT</b> (+{amount_egp:.2f} ج.م)\n"
-                                        f"👛 الرصيد الجديد: <b>{new_bal:.2f} ج.م</b>\n"
+                                        f"💼 الرصيد الجديد: <b>{new_bal:.2f} ج.م</b>\n"
                                         f"🔗 رقم العملية: <code>{views.safe(text.strip())}</code>"
                                     ),
                                     "parse_mode": "HTML",
@@ -1012,7 +1044,7 @@ class TelegramBotRunner(AdminRolesMixin, PartnerLifecycleMixin, PartnerSheetMixi
                                         f"⚡ <b>تم شحن محفظة عميل تلقائياً عبر البلوكشين (BEP20)!</b>\n\n"
                                         f"👤 العميل: <b>@{views.safe(username or 'Unknown')}</b> (ID: <code>{acc_id}</code>)\n"
                                         f"🪙 المبلغ: <b>{actual_amt:.2f} USDT/USDC</b> (+{amount_egp:.2f} ج.م)\n"
-                                        f"👛 الرصيد الجديد: <b>{new_bal:.2f} ج.م</b>\n"
+                                        f"💼 الرصيد الجديد: <b>{new_bal:.2f} ج.م</b>\n"
                                         f"🔗 هاش المعاملة: <code>{views.safe(text.strip())}</code>"
                                     ),
                                     "parse_mode": "HTML",
@@ -1169,22 +1201,28 @@ class TelegramBotRunner(AdminRolesMixin, PartnerLifecycleMixin, PartnerSheetMixi
                             f"<b>🎉 تم تطبيق الكود {views.safe(code)}.</b>\nالفحص مجاني، وأُضيف الشيت إلى الطابور. ستصلك النتيجة بعد اكتمال الفحص.",
                             self._payment_success_rows(chat_id)), message_id)
                         return
-                    from .crypto_pay import calculate_egp_to_usdt
-                    if "usdt_amount" not in draft:
-                        usdt, rate = calculate_egp_to_usdt(draft["egp_amount"])
-                        draft.update(usdt_amount=usdt, live_rate=rate)
-                        PAYMENT_MGR.record_payment_draft(token, chat_id, draft, kind="promo")
+                    from .config import show_crypto_payments
+                    show_crypto = show_crypto_payments()
+                    if show_crypto:
+                        from .crypto_pay import calculate_egp_to_usdt
+                        if "usdt_amount" not in draft:
+                            usdt, rate = calculate_egp_to_usdt(draft["egp_amount"])
+                            draft.update(usdt_amount=usdt, live_rate=rate)
+                            PAYMENT_MGR.record_payment_draft(token, chat_id, draft, kind="promo")
                     if hasattr(self, "_persist_sheet_drafts"):
                         self._persist_sheet_drafts()
                     panel = views.payment_invoice_panel(
                         sheet_name=draft["sheet_name"], rows_count=draft["validation"]["rows"],
-                        amount_usdt=draft["usdt_amount"], pay_url="", invoice_id=0,
-                        token=token, live_rate=draft["live_rate"],
+                        amount_usdt=draft.get("usdt_amount", 0.0), pay_url="", invoice_id=0,
+                        token=token, live_rate=draft.get("live_rate", 0.0),
                         wallet_balance=PAYMENT_MGR.get_wallet_balance(chat_id),
                         account_id=PAYMENT_MGR.get_user_account_id(chat_id),
-                        operation_id=draft.get("operation_id", ""), amount_egp=draft["egp_amount"])
-                    panel.rows.insert(0, [views.button("فاتورة CryptoBot بالمبلغ بعد الخصم", f"map:{token}:pay", "primary")])
+                        operation_id=draft.get("operation_id", ""), amount_egp=draft["egp_amount"],
+                        show_crypto=show_crypto)
+                    if show_crypto:
+                        panel.rows.insert(0, [views.button("فاتورة CryptoBot بالمبلغ بعد الخصم", f"map:{token}:pay", "primary")])
                     self._show_panel(chat_id, panel, message_id)
+
                 except Exception:
                     self._waiting_user_inputs[chat_id] = waiting
                     self._show_panel(chat_id, views.notice("الكود محفوظ لهذا الطلب", "لم يكتمل الطلب. أعد إدخال نفس الكود للمحاولة دون استهلاكه مرة أخرى أو تكرار الخصم."), message_id)
@@ -1510,37 +1548,6 @@ class TelegramBotRunner(AdminRolesMixin, PartnerLifecycleMixin, PartnerSheetMixi
         }
         if chat_id > 0:
             is_admin_mode = (chat_id in self.current_authorized_ids and self._get_user_mode(chat_id) == "admin")
-            cfg_icons = telegram_settings().get("button_icons", {})
-
-            def kb_btn(t, s=None, ik=None):
-                b = {"text": t}
-                if s:
-                    b["style"] = s
-                icon_id = cfg_icons.get(ik) if ik else None
-                if icon_id:
-                    b["icon_custom_emoji_id"] = str(icon_id)
-                return b
-
-            if is_admin_mode:
-                keyboard = [
-                    [kb_btn("💎 فحص ملف جديد (رفع شيت)", "success", "upload")],
-                    [kb_btn("🔄 طابور الملفات", "primary", "queue"), kb_btn("📊 حالة الفحص", "primary", "status")],
-                    [kb_btn("الشركاء والإحالات", "primary")],
-                    [kb_btn("💡 طريقة الاستخدام", "success", "help"), kb_btn("👛 محفظتي", "primary", "wallet")],
-                    [kb_btn("🏠 الرئيسية", "primary", "home")]
-                ]
-            else:
-                keyboard = [
-                    [kb_btn("💎 إضافة ملف للفحص", "success", "upload")],
-                    [kb_btn("📋 ملفاتي للمراجعة", "primary", "drafts")],
-                    [kb_btn("💡 طريقة الاستخدام", "success", "help"), kb_btn("👛 محفظتي", "primary", "wallet")],
-                    [kb_btn("🎫 كود الشحن", "success", "redeem"), kb_btn("🏠 الرئيسية", "primary", "home")]
-                ]
-
-            payload["reply_markup"] = {
-                "keyboard": keyboard,
-                "resize_keyboard": True,
-                "is_persistent": True,
-                "input_field_placeholder": "اختر إجراءً أو أرسل ملف XLSX",
-            }
+            from .button_layout import reply_keyboard
+            payload["reply_markup"] = reply_keyboard(is_admin_mode, telegram_settings().get("button_icons", {}))
         self._api_call("sendMessage", payload)

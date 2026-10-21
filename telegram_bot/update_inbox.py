@@ -69,23 +69,26 @@ class UpdateInbox:
             conn.executemany('INSERT OR IGNORE INTO telegram_updates(bot,id,actor,payload,received,priority) VALUES (?,?,?,?,?,?)', encoded)
 
     def claim(self, *, priority=None):
+        values=self.claim_batch(limit=1,priority=priority)
+        return values[0] if values else None
+
+    def claim_batch(self, *, limit, priority=None):
+        if type(limit) is not int or not 1<=limit<=64:raise ValueError('Bounded inbox claim required')
         with closing(self._connect()) as conn, conn:
             lane = '' if priority is None else (' AND priority<2' if priority else ' AND priority=2')
             query = '''SELECT * FROM telegram_updates u WHERE bot=? AND state='pending'
                 AND NOT EXISTS (SELECT 1 FROM telegram_updates r WHERE r.bot=u.bot AND r.actor=u.actor AND r.state='running')
                 AND NOT EXISTS (SELECT 1 FROM telegram_updates e WHERE e.bot=u.bot AND e.actor=u.actor
                     AND e.state='pending' AND e.id<u.id)
-                ''' + lane + ' ORDER BY priority,id LIMIT 1'
+                ''' + lane + ' ORDER BY priority,id LIMIT ?'
             # Idle dispatch must not contend with financial writes merely to
             # discover an empty inbox. Recheck under the write transaction
             # before claiming a candidate, so competing dispatchers stay safe.
-            if conn.execute(query, (self.fingerprint,)).fetchone() is None:return None
+            if conn.execute(query, (self.fingerprint,limit)).fetchone() is None:return []
             conn.execute('BEGIN IMMEDIATE')
-            item = conn.execute(query, (self.fingerprint,)).fetchone()
-            if item is None:
-                return None
-            conn.execute("UPDATE telegram_updates SET state='running' WHERE bot=? AND id=?", (self.fingerprint, item['id']))
-            return json.loads(item['payload'])
+            items = conn.execute(query, (self.fingerprint,limit)).fetchall()
+            conn.executemany("UPDATE telegram_updates SET state='running' WHERE bot=? AND id=?",[(self.fingerprint,item['id']) for item in items])
+            return [json.loads(item['payload']) for item in items]
 
     def finish(self, update_id, success):
         with closing(self._connect()) as conn, conn:

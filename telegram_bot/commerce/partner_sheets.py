@@ -33,6 +33,9 @@ class PartnerSheetMixin:
     def _partner_sheet_blocked(self,state,token,user,message_id):
         request=state.get('partner_sheet')
         if not request:return False
+        if state.get('partner_sheet_access_blocked'):
+            self._commerce_notice(user,'فحص بسعر الشريك متوقف','أوقفت الإدارة صلاحية فحص الشيتات بسعر الشريك لحسابك. الطلبات المدفوعة والفواتير الصادرة محفوظة. يمكنك طلب شيت جديد بالسعر العادي.',message_id)
+            return True
         if request['state']=='approved':return False
         rejected=request['state']=='rejected' or state.get('order_state')=='cancelled'
         self._show_panel(user,views.Panel('<b>طلب فحص الشريك</b>\n\n'+
@@ -60,6 +63,8 @@ class PartnerSheetMixin:
                 return
             if action!='home':raise ValueError('Unknown partner sheet action')
             if not context['is_partner']:raise ValueError('Active partner required')
+            if context.get('partner_sheet_enabled',True) is False:
+                self._commerce_notice(actor,'فحص بسعر الشريك متوقف','أوقفت الإدارة هذه الصلاحية لحسابك. الطلبات الجديدة تُحسب بالسعر العادي. راجع الإدارة لإعادة تفعيلها.',message_id);return
             price=context.get('price')
             text='<b>فحص الشركاء بسعر التكلفة</b>\n\n'
             text+=('السعر الحالي للشيت كاملاً: <b>'+egp(price['amount_minor'])+' جنيه</b>\nنسخة السعر: '+str(price['version'])
@@ -81,6 +86,28 @@ class PartnerSheetMixin:
             self._commerce_notice(actor,'غير مصرح','اعتماد الشيت وسعر الشركاء خاصان بالإدارة.',message_id);return
         try:
             _,action,value=command.split(':')
+            if action in {'access','on','off'}:
+                partner=str(UUID(value))
+                if action=='access':
+                    record=self._commerce().rpc('partner_sheet_access',{'p_actor_telegram_id':actor,'p_partner_id':partner})
+                else:
+                    reference=(callback or {}).get('id')
+                    if not isinstance(reference,str) or not reference.strip():raise ValueError('Authenticated access decision required')
+                    record=self._commerce().rpc('configure_partner_sheet_access',{'p_actor_telegram_id':actor,'p_partner_id':partner,
+                        'p_enabled':action=='on','p_reference':'telegram-sheet-access:'+str(actor)+':'+reference})
+                    target=record['telegram_user_id']
+                    remember=getattr(self,'_remember_partner_sheet_access',None)
+                    if remember:remember(target,record['enabled'])
+                    if record.get('state')=='active' and target not in admin_ids(self) and hasattr(self,'_set_partner_menu'):
+                        try:self._set_partner_menu(target)
+                        except Exception:logger.warning('Partner sheet command menu refresh deferred; server permission is already saved.')
+                text='<b>صلاحية فحص الشيتات بسعر الشريك</b>\n\nالشريك: <code>'+views.safe(record.get('code') or record['telegram_user_id'])+'</code>'
+                text+='\nTelegram: <code>'+str(record['telegram_user_id'])+'</code>\nالحالة: '+('مسموح' if record['enabled'] else 'مخفي ومتوقف')
+                text+='\n\nإيقافها يخفي زر فحص الشركاء ويمنع استخدام السعر الخاص في الطلبات الجديدة. تبقى صلاحيات الإحالة والأرباح، وتُحفظ الطلبات المدفوعة والفواتير الصادرة.'
+                rows=[[views.button('إخفاء وتعطيل فحص بسعر الشريك' if record['enabled'] else 'إظهار وتفعيل فحص بسعر الشريك',
+                    'ps:'+('off' if record['enabled'] else 'on')+':'+partner,'danger' if record['enabled'] else 'success')],
+                    [views.button('الشركاء','cp:list:0')],[views.button('سعر شيت الشريك','ps:settings:0')]]
+                self._show_panel(actor,views.Panel(text,rows),message_id);return
             if action in {'settings','edit'}:
                 context=self._commerce().rpc('partner_sheet_context',{'p_telegram_user_id':actor});price=context.get('price')
                 if action=='edit':
@@ -92,6 +119,7 @@ class PartnerSheetMixin:
                 text+='\n\nتعديل السعر يُنشئ إشعاراً لكل شريك نشط. الطلبات المعتمدة تحتفظ بسعرها؛ الطلبات المنتظرة تأخذ السعر الذي توافق عليه عند اعتمادها. كل إيراد هذه الطلبات للمنصة دون عمولة إحالة.'
                 text+='\n\nالإشعارات: وصل '+str(status.get('sent',0))+' · بالانتظار '+str(status.get('pending',0))+' · جارٍ '+str(status.get('sending',0))+' · وصول غير مؤكد '+str(status.get('uncertain',0))+' · مرفوض من Telegram '+str(status.get('rejected',0))
                 rows=[[views.button('تغيير السعر وإشعار الشركاء','ps:edit:0')],
+                      [views.button('صلاحيات فحص الشركاء','cp:list:0')],
                       [views.button('شيتات بانتظار موافقتي','ps:list:0')],[views.button('تحديث حالة الإشعارات','ps:settings:0')],[views.button('الرئيسية','home')]]
                 self._show_panel(actor,views.Panel(text,rows),message_id);return
             if action=='save':
@@ -181,6 +209,14 @@ class PartnerSheetMixin:
         if not record:return False
         payload=record['payload'];kind=payload['kind'];rows=[]
         if kind=='price':
+            context=self._commerce().rpc('partner_sheet_context',{'p_telegram_user_id':record['recipient_telegram_id']})
+            if context.get('partner_sheet_enabled',True) is False:
+                self._commerce().rpc('complete_partner_sheet_notification',{'p_id':record['id'],'p_token':record['token'],
+                    'p_state':'rejected','p_message_id':None})
+                return True
+        if kind in {'campaign_request','campaign_decision'}:
+            text,rows=self._partner_campaign_notice(record)
+        elif kind=='price':
             text='<b>تحديث سعر فحص الشركاء</b>\n\nالسعر الأساسي الجديد: <b>'+egp(payload['amount_minor'])+' جنيه للشيت كاملاً</b>.\nنسخة السعر: '+str(payload['version'])+'\nكل شيت يحتاج موافقة الإدارة. الطلبات المعتمدة تحتفظ بالسعر الذي اعتمدت به.'
             rows=[[views.button('السعر وفحص الشركاء','pc:home:0')]]
         elif kind=='request':

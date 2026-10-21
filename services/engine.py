@@ -22,9 +22,10 @@ class TelegramProxy:
 
 
 class EngineApplication:
+    retry_safe=('queue.request_customer_stop','engine.apply_stop','event.ack','engine.wake','engine.completed_evidence','queue.review_start')
     def __init__(self,root):
         from manager.queue import QueueService
-        from manager.orchestrator import Orchestrator
+        from manager.scheduler import create_orchestrator as Orchestrator
         from workers.supervisor import WorkerSupervisor
         from manager.event_bus import EVENT_BUS
         self.root=Path(root).resolve(); self.stop_event=threading.Event(); self.bus=EVENT_BUS
@@ -32,11 +33,13 @@ class EngineApplication:
         self.supervisor=WorkerSupervisor(project_root=self.root)
         self.orchestrator=Orchestrator(self.supervisor,self.queue,self.root)
         self.orchestrator.execution_authorizer=self.authorize_execution
+        self.orchestrator.execution_dependencies_ready=lambda:self.files_available
         self.orchestrator.telegram_integration=TelegramProxy(self.root)
         self.events=EventStore(self.root)
         self._events={'session_started','session_completed','session_failed','session_paused','session_resumed','session_cancelled','network_alert','service_route_verification'}
         self.snapshot={'state':{'engine_online':True,'running':False,'kpis':{},'stale':True},'observed_at':None,'session_token':self.orchestrator.session_token,'is_running':False,'current_job_id':None,'queue_round_job_ids':[]}
         self.snapshot_lock=threading.Lock(); self.gateway=None; self.continuous=None; self.snapshot_thread=None
+        self.files_available=False;self.dependency_thread=None
 
     def _on_event(self,event,payload):
         if event in self._events: self.events.publish(event,payload)
@@ -50,16 +53,27 @@ class EngineApplication:
         from manager.continuous_service import ContinuousQueueService
         from telegram_bot.commerce.client import CommerceClient
         self.bus.subscribe('*',self._on_event)
-        if os.environ.get('ZAIN_SERVICE_TESTING')!='1':
-            self.continuous=ContinuousQueueService(self.orchestrator,self.queue,self.root,CommerceClient())
-            self.orchestrator.continuous_service=self.continuous; self.continuous.start()
         if os.environ.get('ZAIN_ENGINE_GATEWAY','1')=='1':
             from server.gateway import ServerGateway
             self.gateway=ServerGateway(self.orchestrator,self.queue,self.root/'web_ui',self.root,
                 web_port=int(os.environ.get('ZAIN_DASHBOARD_PORT','5050')),
                 bridge_port=int(os.environ.get('ZAIN_BRIDGE_PORT','8766')))
             self.gateway.start()
+        self.dependency_thread=threading.Thread(target=self._dependencies,name='EngineDependencies',daemon=True);self.dependency_thread.start()
+        if os.environ.get('ZAIN_SERVICE_TESTING')!='1':
+            self.continuous=ContinuousQueueService(self.orchestrator,self.queue,self.root,CommerceClient())
+            self.orchestrator.continuous_service=self.continuous; self.continuous.start()
         self.snapshot_thread=threading.Thread(target=self._snapshot_loop,name='EngineSnapshot',daemon=True); self.snapshot_thread.start()
+
+    def _dependencies(self):
+        client=RpcClient('files',self.root)
+        while not self.stop_event.is_set():
+            try:
+                health=client.health(timeout=.5)
+                self.files_available=bool(health.get('ready',health.get('state')=='ready'))
+                if self.files_available:self.orchestrator.waiting_dependency=None
+            except ServiceUnavailable:self.files_available=False
+            self.stop_event.wait(1)
 
     def _snapshot_loop(self):
         while not self.stop_event.is_set():
@@ -80,7 +94,7 @@ class EngineApplication:
         if value['observed_at'] is None or time.time()-value['observed_at']>2: value['state']['stale']=True
         return value
 
-    def health(self): return {'ready':not self.stop_event.is_set(),'scheduler':self.continuous.status() if self.continuous else {'enabled':False}}
+    def health(self): return {'ready':not self.stop_event.is_set(),'files_available':self.files_available,'scheduler':self.continuous.status() if self.continuous else {'enabled':False}}
 
     def stop(self):
         self.stop_event.set()
@@ -115,11 +129,17 @@ class EngineApplication:
             return self.queue.remove_job(job.id)
 
     def customer_stop(self,payload):
-        with self.orchestrator.lock:
-            changed=self.queue.request_customer_stop(payload['job_id'],payload['actor'],payload['reference'])
-            if changed: self.orchestrator.apply_customer_stop(payload['job_id'])
-            if self.continuous: self.continuous.wake()
-            return changed
+        # Queue's owner lock is sufficient for recording consent. Never wait
+        # behind initialization/export while the customer confirms a stop.
+        changed=self.queue.request_customer_stop(payload['job_id'],payload['actor'],payload['reference'])
+        if changed and self.continuous:self.continuous.wake()
+        return changed
+
+    def apply_stop(self,payload):
+        job=self.queue.get_job(payload['job_id'])
+        requested=bool(job and job.column_mapping.get('customer_stop'))
+        if requested and self.continuous:self.continuous.wake()
+        return requested
 
     def action(self,payload):
         name=payload['action']
@@ -167,12 +187,21 @@ class EngineApplication:
         rows=list(completed_job_evidence(self.root,self.queue,known_orders=known,on_error=errors.append))
         return {'payloads':rows,'errors':errors}
 
+    def get_job(self,payload):
+        with self.orchestrator.lock:
+            job=self.queue.get_job(payload['job_id'])
+            return job.to_dict() if job else None
+
+    def get_records(self,payload):
+        with self.orchestrator.lock:return copy.deepcopy(self.orchestrator.all_completed_records)
+
     def handlers(self):
-        return {'engine.snapshot':self.get_snapshot,'engine.records':lambda _:copy.deepcopy(self.orchestrator.all_completed_records),
+        return {'engine.snapshot':self.get_snapshot,'engine.records':self.get_records,
             'queue.get_jobs':lambda _:self.queue.get_jobs(),
-            'queue.get_job':lambda p:self.queue.get_job(p['job_id']).to_dict() if self.queue.get_job(p['job_id']) else None,
+            'queue.get_job':self.get_job,
             'queue.add_job':self.add_job,'queue.update_pending_mapping':self.update_mapping,'queue.remove_job':self.remove_job,
             'queue.request_customer_stop':self.customer_stop,'engine.action':self.action,
+            'engine.apply_stop':self.apply_stop,
             'engine.wake':lambda _:self.continuous.wake() if self.continuous else None,
             'queue.review_start':self.review_start,'engine.start_reviewed':self.start_reviewed,'engine.session_action':self.session_action,
             'engine.completed_evidence':self.completed_evidence,

@@ -57,6 +57,9 @@ _REASONS={
     'Reviewed fully funded cash code required':'cash_invalid',
     'Conflicting cash receipt or code replay':'cash_conflict',
     'Receipt or code already assigned, or new code expired':'cash_conflict',
+    'Code is assigned elsewhere':'code_assigned_elsewhere',
+    'Invalid referral code':'invalid_referral_code',
+    'Partner already has another referral code':'code_assigned_elsewhere',
 }
 
 

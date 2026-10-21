@@ -104,13 +104,20 @@ class FinanceService:
             'p_purpose':'direct_order' if order_id else 'topup',
             'p_order_id':str(UUID(order_id)) if order_id else None,'p_fx_snapshot':fx_snapshot or {}})
 
-    def reserve(self,order_id,user_id,consent_reference,*,payment_id=None):
+    def reserve(self,order_id,user_id,consent_reference,*,payment_id=None,rows=None):
         positive_minor(user_id)
         if not isinstance(consent_reference,str) or not consent_reference.strip() or len(consent_reference)>1000:
             raise ValueError('Explicit refund-policy consent receipt required')
-        return self.client.rpc('reserve_order',{'p_order_id':str(UUID(order_id)),
+        arguments={'p_order_id':str(UUID(order_id)),
             'p_telegram_user_id':user_id,'p_consent_reference':consent_reference,
-            'p_payment_id':str(UUID(payment_id)) if payment_id else None})
+            'p_payment_id':str(UUID(payment_id)) if payment_id else None}
+        method='reserve_order'
+        if rows is not None:
+            from .order_input import summarize_quote_rows
+            summarize_quote_rows(rows)
+            arguments['p_rows']=rows
+            method='reserve_order_with_rows'
+        return self.client.rpc(method,arguments)
 
     def terminal(self,order_id,job_id,records,result_sha256):
         if not isinstance(result_sha256,str) or len(result_sha256)!=64 or any(c not in '0123456789abcdef' for c in result_sha256):

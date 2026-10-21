@@ -350,11 +350,45 @@ class SheetWorkflowMixin:
                         and not self._commerce_legacy_payment(token)):
                     self._commerce_start_checkout(token,chat_id,message_id)
                     return
-                from .crypto_pay import CRYPTO_PAY, calculate_egp_to_usdt,ExchangeRateUnavailable
+                from .config import show_crypto_payments
                 from .payment_manager import PAYMENT_MGR
                 if draft.get("job_id") or not draft["validation"]["ok"]:
                     raise ValueError("Review the sheet before payment")
                 rows_count = draft["validation"].get("rows", 0)
+                op_id = draft.get("operation_id")
+                if not op_id:
+                    op_id = PAYMENT_MGR.generate_operation_id()
+                    draft["operation_id"] = op_id
+
+                if not show_crypto_payments():
+                    egp_val = float(draft.get("egp_amount", PAYMENT_MGR.get_config().get("sheet_price_egp", 30.0)))
+                    draft["egp_amount"] = egp_val
+                    draft["usdt_amount"] = 0.0
+                    draft["live_rate"] = 0.0
+                    draft["invoice_id"] = 0
+                    draft["chat_id"] = chat_id
+                    draft["expires"] = max(draft.get("expires", 0), time.monotonic() + 86400)
+                    self._persist_sheet_drafts()
+                    wallet_bal = PAYMENT_MGR.get_wallet_balance(chat_id)
+                    account_id = PAYMENT_MGR.get_user_account_id(chat_id)
+                    panel = views.payment_invoice_panel(
+                        sheet_name=draft["sheet_name"],
+                        rows_count=rows_count,
+                        amount_usdt=0.0,
+                        pay_url="",
+                        invoice_id=0,
+                        token=token,
+                        live_rate=0.0,
+                        wallet_balance=wallet_bal,
+                        account_id=account_id,
+                        operation_id=op_id,
+                        amount_egp=egp_val,
+                        show_crypto=False,
+                    )
+                    self._show_panel(chat_id, panel, message_id)
+                    return
+
+                from .crypto_pay import CRYPTO_PAY, calculate_egp_to_usdt, ExchangeRateUnavailable
                 inv = draft.get("invoice")
                 invoice_created = not bool(inv)
                 if inv:
@@ -373,10 +407,7 @@ class SheetWorkflowMixin:
                                  [views.button('المحفظة','wallet')]]),message_id)
                             self._persist_sheet_drafts()
                             return
-                op_id = draft.get("operation_id")
-                if not op_id:
-                    op_id = PAYMENT_MGR.generate_operation_id()
-                    draft["operation_id"] = op_id
+
                 if not inv:
                     inv = CRYPTO_PAY.create_invoice(
                         amount=usdt_val,

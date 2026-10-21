@@ -80,21 +80,27 @@ class QueueService:
                 raise
 
     def _existing_payment_job(self, candidate: QueueJob) -> Optional[QueueJob]:
-        """An invoice token identifies one job; ordinary file rechecks stay distinct."""
+        """An invoice token or commerce order identifies one job; ordinary file rechecks stay distinct."""
         token = candidate.column_mapping.get('payment_token')
-        if token is None or token == '':
-            return None
-        if not isinstance(token, str):
-            raise ValueError('payment_token must be a non-empty string')
-        for existing in self._jobs:
-            if existing.column_mapping.get('payment_token') != token:
-                continue
-            identity = ('filename', 'sheet_index', 'sheet_name', 'mode', 'amount_target', 'target_url')
-            if (any(getattr(existing, field) != getattr(candidate, field) for field in identity)
-                    or existing.column_mapping != candidate.column_mapping
-                    or existing.total_records != candidate.total_records):
-                raise ValueError('Payment token is already assigned to a different queue job')
-            return existing
+        if token is not None and token != '':
+            if not isinstance(token, str):
+                raise ValueError('payment_token must be a non-empty string')
+            for existing in self._jobs:
+                if existing.column_mapping.get('payment_token') != token:
+                    continue
+                identity = ('filename', 'sheet_index', 'sheet_name', 'mode', 'amount_target', 'target_url')
+                if (any(getattr(existing, field) != getattr(candidate, field) for field in identity)
+                        or existing.column_mapping != candidate.column_mapping
+                        or existing.total_records != candidate.total_records):
+                    raise ValueError('Payment token is already assigned to a different queue job')
+                return existing
+
+        order_id = candidate.column_mapping.get('commerce_order_id')
+        if order_id is not None and order_id != '':
+            for existing in self._jobs:
+                if existing.column_mapping.get('commerce_order_id') == order_id:
+                    return existing
+
         return None
 
     def add_job(
@@ -257,14 +263,30 @@ class QueueService:
         self._save_to_disk()
         EVENT_BUS.publish("queue_job_failed", {"job_id": job_id, "reason": reason})
 
+    def defer_job(self,job_id: str) -> bool:
+        """A transient dependency outage retains all counters and durable input."""
+        with self._lock:
+            job=self.get_job(job_id)
+            if job is None or job.status in {'completed','archived'}:return False
+            previous=job.status;job.status='pending'
+            try:self._save_to_disk()
+            except Exception:job.status=previous;raise
+        EVENT_BUS.publish('queue_job_waiting',{'job_id':job_id})
+        return True
+
     def remove_job(self, job_id: str) -> bool:
         removed = False
         with self._lock:
-            if any(j.id==job_id and j.column_mapping.get('commerce_order_id') for j in self._jobs):
-                # Keep the payment-to-job identity recoverable. Financial
-                # cancellation/archiving must use an order-aware operation.
+            target = next((j for j in self._jobs if j.id == job_id), None)
+            if not target:
                 return False
-            if any(j.id == job_id and j.status == "active" for j in self._jobs):
+            order_id = target.column_mapping.get('commerce_order_id')
+            if order_id:
+                # Prevent deleting a paid commerce job unless it is a redundant duplicate
+                duplicates = [j for j in self._jobs if j.column_mapping.get('commerce_order_id') == order_id and j.id != job_id]
+                if not duplicates:
+                    return False
+            if target.status == "active":
                 return False
             orig_len = len(self._jobs)
             self._jobs = [j for j in self._jobs if j.id != job_id]

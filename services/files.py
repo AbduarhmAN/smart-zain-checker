@@ -208,7 +208,13 @@ class FileApplication:
             return {'rows': writer.total_saved}
 
     def start(self):
-        pass
+        import os
+        import openpyxl
+        if tuple(int(part) for part in openpyxl.__version__.split('.')[:3])<(3,1,5):
+            raise RuntimeError('The existing openpyxl dependency must be at least 3.1.5 for bounded large-report serialization')
+        if os.environ.get('ZAIN_TEST_FILE_PUBLISH_GATE')=='1':
+            from services.testing_files import install_publish_gate
+            install_publish_gate(self.root)
 
     def stop(self):
         with self.lock:

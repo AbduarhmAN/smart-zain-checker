@@ -9,9 +9,19 @@ from telegram_bot import views
 from .support import SupportService,reply_text
 from .client import CommerceUnavailable
 from .bot_workflow import _serial_user
+from ..official_support import CHANNEL_ONLY,support_button,support_text
 
 
 class SupportUiMixin:
+    def _official_support(self,actor,message_id=None,order=None):
+        with self._ui_lock:
+            waiting=self._waiting_user_inputs.get(actor,{})
+            if waiting.get('action','').startswith(('commerce_support_','commerce_vodafone_complaint','commerce_vodafone_reply')):
+                self._waiting_user_inputs.pop(actor,None)
+        service=getattr(self,'_support_service',None)
+        if service is not None:service.store.end_context(actor)
+        return self._show_panel(actor,views.Panel(support_text(order),[[support_button()],[views.button('الرئيسية','home')]]),message_id)
+
     def _support(self):
         if not hasattr(self,'_support_service'):
             self._support_service=SupportService(self.project_root,client=self._commerce(),bot_fingerprint=self._bot_fingerprint)
@@ -19,12 +29,14 @@ class SupportUiMixin:
         return self._support_service
 
     def _existing_support(self):
+        if CHANNEL_ONLY:return None
         if hasattr(self,'_support_service'):return self._support_service
         root=getattr(self,'project_root',None)
         if isinstance(root,Path) and (root/'.commerce'/'support.sqlite').is_file():return self._support()
         return None
 
     def _capture_support_arrival(self,update):
+        if CHANNEL_ONLY:return
         service=self._existing_support()
         if service is None:return
         message=update.get('message') or update.get('edited_message') or {}
@@ -36,6 +48,13 @@ class SupportUiMixin:
         if key:update['_support_event']=key
 
     def _support_handle_message(self,update):
+        if CHANNEL_ONLY:
+            if update.get('_support_event') or update.get('_support_error'):
+                message=update.get('message') or update.get('edited_message') or {}
+                actor=(message.get('from') or {}).get('id')
+                if type(actor) is int and actor>0 and (message.get('chat') or {}).get('id')==actor:
+                    self._official_support(actor);return True
+            return False
         if not update.get('message') and not update.get('edited_message'):return False
         service=self._existing_support()
         if service is None:return False
@@ -68,6 +87,7 @@ class SupportUiMixin:
         return True
 
     def _support_begin(self,actor,order,role,message_id=None):
+        if CHANNEL_ONLY:return self._official_support(actor,message_id,order)
         if role=='admin' and actor not in self.current_authorized_ids:raise ValueError('Only support administrators may compose a reply')
         me=(self._api_call('getMe',{}) or {}).get('result') or {}
         if me.get('is_bot') is not True or type(me.get('id')) is not int:raise ValueError('Verified support bot identity unavailable')
@@ -84,6 +104,8 @@ class SupportUiMixin:
         parts=text.split();command=parts[0].split('@')[0].lower() if parts else ''
         if command not in {'/support','/support_inbox','/support_reply'}:
             return super()._commerce_command(text,actor,is_admin,username,message_id=message_id)
+        if CHANNEL_ONLY and command!='/support_inbox':
+            self._official_support(actor,message_id,parts[1] if len(parts)==2 else None);return True
         try:
             if command=='/support_inbox':self._support_inbox(actor,0,message_id)
             elif len(parts)==2:self._support_begin(actor,str(UUID(parts[1])),'admin' if command=='/support_reply' else 'customer',message_id)
@@ -95,6 +117,7 @@ class SupportUiMixin:
 
     def _commerce_text_input(self,actor,text,waiting):
         if waiting.get('action')!='commerce_support_order':return super()._commerce_text_input(actor,text,waiting)
+        if CHANNEL_ONLY:self._official_support(actor,waiting.get('message_id'));return True
         try:
             if waiting.get('expires',0)<=time.monotonic():raise ValueError('Expired support selection')
             self._support_begin(actor,str(UUID(text.strip())),'customer',waiting.get('message_id'))
@@ -107,7 +130,7 @@ class SupportUiMixin:
     def _support_inbox(self,actor,offset,message_id=None):
         if actor not in self.current_authorized_ids:raise ValueError('Support inbox is administrative')
         threads=self._commerce().rpc('support_inbox',{'p_actor_telegram_id':actor,'p_offset':offset})
-        lines=['<b>طلبات الدعم</b>'];rows=[]
+        lines=['<b>سجل الدعم السابق · للقراءة فقط</b>' if CHANNEL_ONLY else '<b>طلبات الدعم</b>'];rows=[]
         for item in threads:
             order=str(UUID(item['order_id']));label=('مفتوح' if item['state']=='open' else 'مغلق')
             lines.append(f"\n<code>{order}</code>\n{label} · Telegram {item['owner_telegram_id']} · "+('يحتاج ردًا' if item['needs_reply'] else 'يوجد رد محفوظ'))
@@ -127,19 +150,20 @@ class SupportUiMixin:
             lines.append('\n'+labels[item['kind']]+' · '+views.safe(item['delivery_state'])+'\n'+views.safe(preview,700))
             if item['attachments']:lines.append(f"مرفقات محفوظة: {len(item['attachments'])}")
             for attachment in item['attachments'][:2]:lines.append('مرفق: '+views.safe(attachment.get('file_name') or attachment['kind'],60))
-            if role=='admin' and item['kind']=='staff_reply' and item['delivery_state']!='confirmed':
+            if not CHANNEL_ONLY and role=='admin' and item['kind']=='staff_reply' and item['delivery_state']!='confirmed':
                 rows.append([views.button('مراجعة الرد وحالته',f'sp:review:{item["event_key"]}')])
         if not history['messages']:lines.append('لا توجد رسائل محفوظة في هذه الصفحة بعد.')
         if offset:rows.append([views.button('رسائل أحدث',f'sp:history:{order}:{max(0,offset-3)}')])
         if len(history['messages'])==3:rows.append([views.button('رسائل أقدم',f'sp:history:{order}:{offset+3}')])
-        rows.append([views.button('كتابة رد' if role=='admin' else 'إرسال رسالة',f'sp:compose:{order}')])
+        rows.append([support_button()] if CHANNEL_ONLY else [views.button('كتابة رد' if role=='admin' else 'إرسال رسالة',f'sp:compose:{order}')])
         if role=='admin':
             state='open' if history.get('thread_state')=='closed' else 'closed'
-            rows.append([views.button('إعادة فتح الدعم' if state=='open' else 'إغلاق طلب الدعم',f'sp:{state}:{order}')])
+            if not CHANNEL_ONLY:rows.append([views.button('إعادة فتح الدعم' if state=='open' else 'إغلاق طلب الدعم',f'sp:{state}:{order}')])
             rows.append([views.button('طلبات الدعم','sp:inbox:0')])
         rows.append([views.button('الرئيسية','home')]);self._show_panel(actor,views.Panel('\n'.join(lines),rows),message_id)
 
     def _support_reply_review(self,key,actor,message_id=None):
+        if CHANNEL_ONLY:return self._official_support(actor,message_id)
         if actor not in self.current_authorized_ids:raise ValueError('Support reply review is administrative')
         service=self._support();event=service.store.event(key)
         if not event or event['p_actor_telegram_id']!=actor or event['p_record']['kind']!='staff_reply':raise ValueError('Owned support reply required')
@@ -157,6 +181,7 @@ class SupportUiMixin:
 
     @_serial_user
     def _support_send(self,key,actor,message_id=None):
+        if CHANNEL_ONLY:return self._official_support(actor,message_id)
         if actor not in self.current_authorized_ids:raise ValueError('Explicit staff authority required')
         service=self._support();event=service.store.event(key)
         if not event or event['p_actor_telegram_id']!=actor or event['p_record']['kind']!='staff_reply':raise ValueError('Owned proposed reply required')
@@ -183,6 +208,8 @@ class SupportUiMixin:
     def _support_callback(self,command,actor,message_id=None,callback=None):
         try:
             parts=command.split(':');action=parts[1]
+            if CHANNEL_ONLY and action not in {'inbox','history'}:
+                self._official_support(actor,message_id,parts[2] if action=='compose' and len(parts)>2 else None);return
             if action=='inbox':self._support_inbox(actor,int(parts[2]),message_id)
             elif action=='history':self._support_history(actor,str(UUID(parts[2])),int(parts[3]),message_id)
             elif action=='compose':self._support_begin(actor,str(UUID(parts[2])),'admin' if actor in self.current_authorized_ids else 'customer',message_id)

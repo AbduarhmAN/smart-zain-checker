@@ -133,7 +133,7 @@ class BrowserApplication:
                 if isinstance(exc, RetryLater):
                     self.store.defer(task_id)
                     return
-                result = ('network_error', None, 'Browser task failed (' + type(exc).__name__ + ')')
+                result = ('network_error', None, 'تعذر تنفيذ مهمة المتصفح (' + type(exc).__name__ + ')')
             if self.stopping:
                 self.store.defer(task_id)
             else:
@@ -283,8 +283,8 @@ _application = None
 def build(root):
     transport = None
     if os.getenv('ZAIN_SERVICE_TESTING') == '1':
-        from services.testing_browser import TestBrowserTransport
-        transport = TestBrowserTransport(root)
+        from services.testing_browser import TestBrowserTransport,OfflineChromiumTransport
+        transport = (OfflineChromiumTransport if os.getenv('ZAIN_TEST_REAL_CHROMIUM')=='1' else TestBrowserTransport)(root)
     return BrowserApplication(root, transport=transport)
 
 

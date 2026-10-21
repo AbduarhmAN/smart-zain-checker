@@ -8,6 +8,22 @@ def active_partner(profile):
     return state in (None,'active')
 
 class PartnerRoleMixin:
+    def _remember_partner_sheet_access(self,user,enabled):
+        with self._ui_lock:
+            if not hasattr(self,'_partner_sheet_access_flags'):self._partner_sheet_access_flags={}
+            self._partner_sheet_access_flags[user]=enabled is not False
+
+    def _partner_sheet_access_allowed(self,user):
+        try:
+            profile=self._commerce().rpc('partner_sheet_context',{'p_telegram_user_id':user})
+            self._remember_partner_sheet_access(user,profile.get('partner_sheet_enabled',True))
+            return active_partner(profile) and profile.get('partner_sheet_enabled',True) is not False
+        except Exception:return False
+
+    def _grant_partner_role(self,user):
+        with self._ui_lock:
+            getattr(self,'_known_partner_ids',set()).add(user)
+
     def _revoke_partner_role(self,user):
         with self._ui_lock:
             for name in ('_known_partner_ids','_partner_menu_ready'):
@@ -37,6 +53,7 @@ class PartnerRoleMixin:
     def _has_active_partner_role(self,user):
         try:
             profile=self._commerce().rpc('partner_sheet_context',{'p_telegram_user_id':user})
+            self._remember_partner_sheet_access(user,profile.get('partner_sheet_enabled',True))
         except Exception:return False
         enabled=active_partner(profile)
         if not enabled:self._revoke_partner_role(user)

@@ -47,6 +47,19 @@ class CentralizedCooldownScheduler:
             self.ready_at[key]=deadline;heapq.heappush(self.heap,(deadline,key))
             if blocked:self.blocked.add(key)
 
+    def acquire_wait(self, key, timeout=65, *, wait=time.sleep):
+        """Wait for pacing without counting a scheduling delay as a failed check."""
+        deadline = self.clock() + timeout
+        while True:
+            try:
+                self.acquire(key)
+                return
+            except RouteNotReady as exc:
+                remaining = deadline - self.clock()
+                if exc.blocked or remaining <= 0:
+                    raise
+                wait(min(exc.seconds, .2, remaining))
+
     def unblock(self,key):
         with self.lock:self.blocked.discard(key)
 

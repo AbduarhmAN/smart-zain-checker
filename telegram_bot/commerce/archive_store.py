@@ -1,6 +1,6 @@
 """Durable archive acknowledgements, with no blind resend after a lost response."""
 from __future__ import annotations
-import json
+from domain import decimal_json as json
 import sqlite3
 import time
 from contextlib import contextmanager

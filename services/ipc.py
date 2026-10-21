@@ -20,6 +20,41 @@ from .codec import dumps, loads
 
 PORTS={'engine':18701,'files':18702,'browser':18703,'telegram':18704}
 MAX_BODY=64*1024*1024
+MAX_CONTROL_BODY=256*1024
+
+
+def control_operation(operation,payload):
+    return (operation in {'queue.request_customer_stop','engine.apply_stop','query_cancel',
+        'verification_cancel','verification_submit','worker_stop'} or
+        operation in {'engine.action','engine.session_action'} and isinstance(payload,dict)
+        and payload.get('action') in {'pause','resume','pause_session','resume_session','apply_customer_stop'})
+
+
+class BoundedHTTPServer(ThreadingHTTPServer):
+    """Bound connections before creating threads, including header/body readers."""
+    daemon_threads=True
+
+    def __init__(self,*args,**kwargs):
+        self.connections=threading.BoundedSemaphore(64)
+        super().__init__(*args,**kwargs)
+
+    def process_request(self,request,address):
+        if not self.connections.acquire(False):
+            try:
+                body=b'{"error":"connection_capacity"}'
+                request.settimeout(.1)
+                request.sendall(b'HTTP/1.0 503 Service Unavailable\r\nConnection: close\r\nContent-Type: application/json\r\nContent-Length: '+str(len(body)).encode()+b'\r\n\r\n'+body)
+            except OSError:pass
+            finally:self.shutdown_request(request)
+            return
+        try:super().process_request(request,address)
+        except BaseException:
+            self.connections.release()
+            raise
+
+    def process_request_thread(self,request,address):
+        try:super().process_request_thread(request,address)
+        finally:self.connections.release()
 
 
 class ServiceUnavailable(RuntimeError): pass
@@ -32,7 +67,7 @@ class RetryLater(RuntimeError):
 
 def token():
     value=os.environ.get('ZAIN_IPC_TOKEN','')
-    if len(value)<32: raise ValueError('ZAIN_IPC_TOKEN must contain at least 32 characters')
+    if len(value)<32 or not value.isascii() or any(character.isspace() for character in value): raise ValueError('ZAIN_IPC_TOKEN must contain at least 32 non-whitespace ASCII characters')
     return value
 
 
@@ -64,11 +99,16 @@ class RpcClient:
                     raise RequestPending('Request '+identifier+' is still pending; observe the same request ID')
                 connection=http.client.HTTPConnection('127.0.0.1',port(self.service),timeout=min(remaining,125))
                 try:
-                    connection.request('POST','/rpc',body,{'Authorization':'Bearer '+token(),'Content-Type':'application/json','X-Zain-Root':hashlib.sha256(str(self.root).encode()).hexdigest()})
+                    headers={'Authorization':'Bearer '+token(),'Content-Type':'application/json','X-Zain-Root':hashlib.sha256(str(self.root).encode()).hexdigest()}
+                    if control_operation(operation,payload):headers['X-Zain-Control']='1'
+                    connection.request('POST','/rpc',body,headers)
                     response=connection.getresponse(); raw=response.read(MAX_BODY+1)
                     if len(raw)>MAX_BODY: raise RemoteError('Oversized service response')
                     data=loads(raw)
                     if response.status==409: raise RequestConflict('Request ID reused with different arguments')
+                    if response.status in (400,401,403,404,413):
+                        circuit.success()
+                        raise RemoteError(data.get('error','request_rejected'))
                     if response.status!=200: raise ServiceUnavailable('Service temporarily unavailable; request '+identifier)
                     state=data.get('state')
                     if state=='succeeded':circuit.success();return data.get('result')
@@ -137,7 +177,7 @@ class CommandStore:
         return self.get(identifier)
 
     def get(self,identifier):
-        with self.connect() as db: row=db.execute(f'select * from {self.table} where id=?',(identifier,)).fetchone()
+        with self.connect() as db: row=db.execute(f'select id,state,result,error from {self.table} where id=?',(identifier,)).fetchone()
         if row is None: return None
         return {'id':row['id'],'state':row['state'],'result':loads(row['result']) if row['result'] is not None else None,'error':row['error']}
 
@@ -175,8 +215,13 @@ class RpcServer:
         self.read_only=frozenset(read_only)
         self.admission=threading.BoundedSemaphore(32)
         self.control_admission=threading.BoundedSemaphore(8)
+        self.storage_unavailable=False
+        self.started=False
         owner=self
         class Handler(BaseHTTPRequestHandler):
+            def setup(self):
+                self.request.settimeout(10)
+                super().setup()
             def log_message(self,*_): pass
             def reply(self,status,data):
                 encoded=dumps(data).encode('utf-8')
@@ -189,7 +234,7 @@ class RpcServer:
                 if self.path!='/health': self.reply(404,{}); return
                 try: detail=owner.health_callback()
                 except Exception: detail={'ready':False,'error':'health_dependency_unavailable'}
-                self.reply(200,{'service':service,'pid':os.getpid(),'workers':owner.worker_count,**detail})
+                self.reply(200,{'service':service,'pid':os.getpid(),'workers':owner.worker_count,'storage_unavailable':owner.storage_unavailable,**detail})
             def do_POST(self):
                 if not self.authorized(): self.reply(401,{'error':'unauthorized'}); return
                 expected=hashlib.sha256(str(owner.root).encode()).hexdigest()
@@ -199,14 +244,16 @@ class RpcServer:
                 try:
                     length=int(self.headers.get('Content-Length','0'))
                     if not 0<length<=MAX_BODY: raise ValueError('Invalid request size')
-                    self.connection.settimeout(10)
+                    control_requested=self.headers.get('X-Zain-Control')=='1'
+                    if control_requested and length>MAX_CONTROL_BODY:raise ValueError('Oversized control request')
+                    admission=owner.control_admission if control_requested else owner.admission
+                    if not admission.acquire(False):admission=None;self.reply(503,{'error':'busy'});return
                     data=loads(self.rfile.read(length))
                     if not isinstance(data,dict) or set(data)!={'id','operation','payload'}: raise ValueError('Invalid envelope')
                     operation=data['operation']
                     if not isinstance(operation,str) or operation not in owner.handlers or not isinstance(data['payload'],dict): raise ValueError('Unknown operation')
-                    priority=operation in {'queue.request_customer_stop','query_cancel','verification_cancel','verification_submit','worker_stop'} or operation in {'engine.action','engine.session_action'} and data['payload'].get('action') in {'pause','resume','pause_session','resume_session','apply_customer_stop'}
-                    admission=owner.control_admission if priority else owner.admission
-                    if not admission.acquire(False): admission=None;self.reply(503,{'error':'busy'});return
+                    priority=control_operation(operation,data['payload'])
+                    if control_requested and not priority:raise ValueError('Control lane requires control operation')
                     if operation in owner.read_only:
                         self.reply(200,{'id':data['id'],'state':'succeeded','result':owner.handlers[operation](data['payload'])}); return
                     state=owner.store.accept(data['id'],operation,data['payload'],priority=priority); owner.wake.set()
@@ -220,27 +267,38 @@ class RpcServer:
                 except Exception: self.reply(500,{'error':'operation_unavailable'})
                 finally:
                     if admission is not None: admission.release()
-        self.http=ThreadingHTTPServer(('127.0.0.1',port(service)),Handler)
-        self.http.daemon_threads=True
+        self.http=BoundedHTTPServer(('127.0.0.1',port(service)),Handler)
 
     def _work(self,control_only=False):
         while not self.stop_event.is_set():
             try: task=self.store.claim(control_only=control_only)
-            except sqlite3.Error: self.stop_event.wait(.25); continue
+            except (OSError,sqlite3.Error): self.storage_unavailable=True;self.stop_event.wait(.25);continue
             if task is None: self.wake.wait(.1); self.wake.clear(); continue
             identifier,operation,payload=task
-            try: result=self.handlers[operation](payload); self.store.finish(identifier,result)
-            except RetryLater as exc: self.store.defer(identifier,exc.delay)
+            try: result=self.handlers[operation](payload)
+            except RetryLater as exc:
+                delay=exc.delay
+                persist=lambda:self.store.defer(identifier,delay)
             except Exception as exc:
                 # No exception messages: they can contain tokens, records or proxies.
-                self.store.finish(identifier,error=type(exc).__name__)
+                error=type(exc).__name__
+                persist=lambda:self.store.finish(identifier,error=error)
+            else:persist=lambda:self.store.finish(identifier,result)
+            # A failed acknowledgement write must not re-execute the handler or
+            # kill its worker. Keep the known outcome until persistence returns.
+            while not self.stop_event.is_set():
+                try:persist();self.storage_unavailable=False;break
+                except (OSError,sqlite3.Error):self.storage_unavailable=True;self.stop_event.wait(.25)
 
     def start(self):
+        self.started=True
         for index in range(self.worker_count):
             thread=threading.Thread(target=self._work,name=f'{self.service}-rpc-{index}',daemon=True); thread.start(); self.threads.append(thread)
         thread=threading.Thread(target=self._work,args=(True,),name=f'{self.service}-control',daemon=True);thread.start();self.threads.append(thread)
         thread=threading.Thread(target=self.http.serve_forever,name=f'{self.service}-http',daemon=True); thread.start(); self.threads.append(thread)
 
     def stop(self):
-        self.stop_event.set(); self.wake.set(); self.http.shutdown(); self.http.server_close()
+        self.stop_event.set(); self.wake.set()
+        if self.started:self.http.shutdown()
+        self.http.server_close()
         for thread in self.threads: thread.join(timeout=2)

@@ -17,10 +17,14 @@ class ManualPaymentsMixin:
     def _transfer_routes(self): return ProviderRoutes(self.project_root)
 
     def _commerce_transfer_buttons(self,token):
+        from telegram_bot.config import show_crypto_payments
+        if not show_crypto_payments():
+            return []
         labels={'binance':'أوافق · تحويل Binance Pay','bscusdt':'أوافق · USDT على BSC','bscusdc':'أوافق · USDC على BSC'}
         saved=self._sheet_drafts.get(token,{}).get('commerce_transfer_route')
         routes=[TransferRoute(**saved)] if saved else self._transfer_routes().all()
         return [[views.button(labels[route.name],f'co:{route.name}:{token}')] for route in routes]
+
 
     def _commerce_checkout_callback(self,command,user_id,message_id,callback):
         parts=command.split(':')
@@ -113,7 +117,8 @@ class ManualPaymentsMixin:
         if command=='cm:list:0':
             self._show_panel(actor_id,views.Panel('<b>المدفوعات والطلبات</b>\n\nخصم المحفظة المؤكد يظهر في سجل الطلبات. التحويلات التي تحتاج اعتمادًا تظهر في قائمة المراجعة.',
                 [[views.button('طلبات العملاء ومدفوعاتهم','oh:admin:0')],
-                 [views.button('تحويلات تحتاج اعتمادًا','cm:claims:0')],[views.button('الرئيسية','home')]]),message_id)
+                 [views.button('تحويلات تحتاج اعتمادًا','cm:claims:0')],
+                 [views.button('مراجعة فودافون كاش','vc:inbox:0')],[views.button('الرئيسية','home')]]),message_id)
             return
         try:
             parts=command.split(':');action=parts[1]
@@ -179,8 +184,7 @@ class ManualPaymentsMixin:
                 self._checkout_draft(token,quote.user_id)
                 state=self._checkout_state(draft,quote.user_id)
                 if state['payment_state']=='unpaid':
-                    FinanceService(self._commerce()).reserve(quote.order_id,quote.user_id,
-                        state['refund_consent_reference'],payment_id=payment_id)
+                    self._checkout_reserve(draft,quote.user_id,state,payment_id=payment_id)
                     state=self._checkout_state(draft,quote.user_id)
                 self._checkout_enqueue(token,draft,quote.user_id,state)
                 return True

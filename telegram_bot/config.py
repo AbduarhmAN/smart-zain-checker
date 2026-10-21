@@ -210,3 +210,21 @@ def set_button_icon(button_key: str, custom_emoji_id: str | int) -> bool:
     except Exception as e:
         logger.error("Failed to set button icon %s: %s", button_key, e)
         return False
+
+
+def show_crypto_payments() -> bool:
+    """Return whether cryptocurrency payment options are visible to users.
+    Defaults to False (hidden) unless explicitly enabled via environment or configuration.
+    """
+    env_val = os.environ.get("ENABLE_CRYPTO_PAYMENTS")
+    if env_val is not None:
+        return env_val.strip().lower() in ("1", "true", "yes", "on")
+    try:
+        if LOCAL_SETTINGS.exists():
+            data = json.loads(LOCAL_SETTINGS.read_text(encoding="utf-8"))
+            if isinstance(data, dict) and "enable_crypto_payments" in data:
+                return bool(data["enable_crypto_payments"])
+    except Exception:
+        pass
+    return False
+

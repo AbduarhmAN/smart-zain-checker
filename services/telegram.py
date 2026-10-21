@@ -105,6 +105,7 @@ class TelegramApplication:
                 if self.test_transport is None:raise ValueError('Fixture transport inactive')
                 return self.test_transport.handle(self.integration.runner, payload)
             result['telegram.test_update'] = test_update
+            result['telegram.test_batch'] = lambda payload:self.test_transport.batch(self.integration.runner,payload)
         return result
 
 

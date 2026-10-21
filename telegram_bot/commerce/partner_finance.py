@@ -29,6 +29,7 @@ class PartnerFinanceMixin(AdminPartnerPayoutMixin,PayoutNotificationMixin,Withdr
                 user=record['telegram_user_id'];positive_minor(user)
                 if record.get('state')!='active' or record.get('ended_at'):continue
                 known.add(user)
+                self._remember_partner_sheet_access(user,record.get('partner_sheet_enabled',True))
                 if user not in self.current_authorized_ids:self._set_partner_menu(user)
             if len(records)<10:break
         with self._ui_lock:
@@ -54,25 +55,30 @@ class PartnerFinanceMixin(AdminPartnerPayoutMixin,PayoutNotificationMixin,Withdr
                 logger.warning('Retired partner command menus await reconciliation; server role checks remain active.')
 
     def _set_partner_menu(self,user,*,chat_known=False):
+        sheet_enabled=getattr(self,'_partner_sheet_access_flags',{}).get(user,True)
         with self._ui_lock:
             ready=getattr(self,'_partner_menu_ready',set())
-            if user in ready:return
+            if user in ready and getattr(self,'_partner_menu_sheet_access',{}).get(user,True)==sheet_enabled:return
         if not chat_known:
             response=self._api_call('getChat',{'chat_id':user})
             if not isinstance(response,dict) or response.get('ok') is not True:return
-        response=self._api_call('setMyCommands',{'scope':{'type':'chat','chat_id':user},'commands':[
+        commands=[
                         {'command':'start','description':'الرئيسية'},
+                        {'command':'status','description':'حالة فحوصاتي وطلباتي'},
                         {'command':'earnings','description':'أرباح الشريك وكود الإحالة'},
                         {'command':'partner_checks','description':'فحص الشركاء والسعر الأساسي للشيت'},
                         {'command':'partner_campaigns','description':'حملاتي وخصوماتي من حصتي'},
                         {'command':'wallet','description':'رصيد محفظتي'},
                         {'command':'upload','description':'إرسال ملف XLSX'},
-                        {'command':'archive','description':'استرجاع نتيجة سابقة'},
-                        {'command':'support','description':'دعم طلب ومتابعة الردود'}]})
+                        {'command':'archive','description':'استرجاع نتيجة سابقة'}]
+        if not sheet_enabled:commands=[item for item in commands if item['command']!='partner_checks']
+        response=self._api_call('setMyCommands',{'scope':{'type':'chat','chat_id':user},'commands':commands})
         if isinstance(response,dict) and response.get('ok') is True:
             with self._ui_lock:
                 if not hasattr(self,'_partner_menu_ready'):self._partner_menu_ready=set()
                 self._partner_menu_ready.add(user)
+                if not hasattr(self,'_partner_menu_sheet_access'):self._partner_menu_sheet_access={}
+                self._partner_menu_sheet_access[user]=sheet_enabled
 
     def _refresh_partner_menu_for_chat(self,user):
         if user in getattr(self,'_customer_menu_pending',set()):
@@ -179,7 +185,7 @@ class PartnerFinanceMixin(AdminPartnerPayoutMixin,PayoutNotificationMixin,Withdr
                 text+='\nالحساب الآن بصلاحيات زبون. سجل المستحقات محفوظ؛ راجع الإدارة بشأن التسوية.'
                 if profile.get('partnership_end_event_id'):rows.append([views.button('عرض إشعار انتهاء الشراكة','pl:view:'+profile['partnership_end_event_id'])])
             else:rows.append([views.button('📄 فحص الشركاء','pc:home:0'),views.button('🎁 حملاتي','po:list:0')])
-            rows.append([views.button('🧾 سحوباتي','pf:list:0'),views.button('👛 المحفظة','wallet'),views.button('‹ الرئيسية','home')])
+            rows.append([views.button('🧾 سحوباتي','pf:list:0'),views.button('💼 المحفظة','wallet'),views.button('‹ الرئيسية','home')])
             self._show_panel(user_id,views.Panel(text,rows),message_id)
         except (CommerceUnavailable,OSError,ValueError,KeyError,TypeError) as exc:
             self._earnings_failure_log(exc)
@@ -203,8 +209,10 @@ class PartnerFinanceMixin(AdminPartnerPayoutMixin,PayoutNotificationMixin,Withdr
             'المحجوز: '+egp(profile['reserved_minor'])+' جنيه\n'
             'المسحوب: '+egp(profile['withdrawn_minor'])+' جنيه\n'
             'العمولات المعلقة: '+egp(profile['pending_commission_minor'])+' جنيه')
-        self._show_panel(actor,views.Panel(text,[[views.button('صرف الأرباح','wa:paypartner:'+str(partner),'primary')],
-            [views.button('أرباحي وأرباح الشركاء','pf:admin:0')],[views.button('الشركاء','cp:list:0')]]),message_id)
+        rows=[[views.button('صرف الأرباح','wa:paypartner:'+str(partner),'primary')]]
+        if self._role_owner(actor):rows[0].append(views.button('موافقة الأكواد','pa:settings:'+str(partner)))
+        rows.extend([[views.button('أرباحي وأرباح الشركاء','pf:admin:0')],[views.button('الشركاء','cp:list:0')]])
+        self._show_panel(actor,views.Panel(text,rows),message_id)
 
     def _admin_earnings(self,user_id,offset=0,message_id=None):
         if user_id not in admin_ids(self):
