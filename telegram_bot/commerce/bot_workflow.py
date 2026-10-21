@@ -14,6 +14,7 @@ from uuid import UUID
 from telegram_bot import views
 from .client import CommerceClient,CommerceUnavailable
 from .referrals import referral_arguments,referral_link
+from .partner_views import partners_panel, partner_details
 
 logger = logging.getLogger('CommerceWorkflow')
 
@@ -140,7 +141,7 @@ class CommerceBotMixin:
                 pid = str(UUID(rec['id']))
                 self._partner_lifecycle_callback(f'pl:reopen:{pid}', chat_id, message_id)
             elif len(parts) != 3 or not parts[1].isdigit() or int(parts[1]) <= 0:
-                self._commerce_notice(chat_id,'إضافة شريك','اكتب /partner_add ثم رقم مستخدم Telegram ثم الكود، مثال: /partner_add 123456 PARTNER1',message_id)
+                self._commerce_notice(chat_id,'إضافة شريك','اكتب /partner_add ثم رقم حساب تيليجرام ثم الكود، مثال: /partner_add 123456 PARTNER1',message_id)
             else:
                 from .referrals import normalize_referral_code
                 from ..payment_manager import PAYMENT_MGR
@@ -185,7 +186,7 @@ class CommerceBotMixin:
                 notice='\nحُفظ إشعار الإضافة للشريك وقناة التوثيق؛ راجع حالته للتأكد من الوصول.' if result.get('notice_event_id') else ''
                 self._show_panel(chat_id,views.Panel(f"<b>تم حفظ الشريك</b>\nالكود: <code>{views.safe(result['code'])}</code>\n\nحدد النسبة والاستحقاق لتفعيل الكود."+notice,rows), message_id)
         except (ValueError,KeyError,TypeError):
-            self._commerce_notice(chat_id,'راجع البيانات','تأكد من رقم Telegram والكود.',message_id)
+            self._commerce_notice(chat_id,'راجع البيانات','تأكد من رقم حساب تيليجرام والرمز.',message_id)
         except CommerceUnavailable as exc:
             if exc.reason == 'code_assigned_elsewhere':
                 self._commerce_notice(chat_id,'الكود مستخدم','هذا الكود مستخدم لشريك آخر. اختر كوداً مختلفاً.',message_id)
@@ -236,35 +237,22 @@ class CommerceBotMixin:
                     bot_name = (bot_result.get('result') or {}).get('username','')
                     if bot_name:
                         self._commerce_bot_name = bot_name
-                lines = ['<b>الشركاء والإحالات</b>','لإضافة شريك: /partner_add رقم_المستخدم الكود']
-                rows = []
-                for partner in partners:
-                    pid = str(UUID(partner['id']))
-                    code = views.safe(partner['code'])
-                    state = 'مفعّل' if partner['state'] == 'active' else 'غير مفعّل'
-                    lines.append(f"\n<code>{code}</code> · {state} · Telegram <code>{views.safe(partner['telegram_user_id'])}</code>")
-                    if bot_name:
-                        url = referral_link(bot_name,partner['code'])
-                        lines.append(f'<a href="{url}">رابط إحالة {code}</a>')
-                    rate = partner.get('commission_basis_points')
-                    if rate is not None:
-                        mode = partner.get('entitlement_mode')
-                        limit = partner.get('entitlement_checks') if mode == 'checks' else partner.get('entitlement_duration_seconds')
-                        label = 'دائمًا' if mode == 'forever' else f'{limit} تشييك' if mode == 'checks' else f'{int(limit or 0)//86400} يوم'
-                        lines.append(f'النسبة: {rate/100:g}% · الاستحقاق: {label}')
-                    rows.append([views.button(str(partner['code']),'pf:partner:'+str(partner['telegram_user_id'])),
-                        views.button('صرف الأرباح','wa:paypartner:'+str(partner['telegram_user_id']),'primary')])
-                    rows.append([views.button('⚙️ شروط الشريك',f'cp:terms:{pid}'),
-                        views.button('إنهاء الشراكة','pl:remove:'+pid)])
-                    access='مسموح' if partner.get('partner_sheet_enabled',True) else 'متوقف'
-                    rows.append([views.button('📄 فحص بسعر الشريك: '+access,'ps:access:'+pid)])
-                if offset:
-                    rows.append([views.button('‹ السابق',f'cp:list:{max(0,offset-10)}')])
-                if len(partners) == 10:
-                    rows.append([views.button('التالي ›',f'cp:list:{offset+10}')])
-                rows.append([views.button('📊 الأرباح','pf:admin:0'),views.button('🕘 الشركاء السابقون','pl:ended:0')])
-                rows.append([views.button('‹ قسم الشركاء','menu:partners'),views.button('🏠 الرئيسية','home')])
-                self._show_panel(chat_id,views.Panel('\n'.join(lines),rows),message_id)
+                self._partner_view_records = {str(item['id']): dict(item) for item in partners}
+                self._show_panel(chat_id, partners_panel(partners, self._telegram_person_name, bot_name, offset), message_id)
+            elif action == 'profile':
+                partner_id = str(UUID(parts[2]))
+                record = self._commerce().rpc('partner_sheet_access', {'p_actor_telegram_id':chat_id,'p_partner_id':partner_id})
+                if str(record.get('partner_id')) != partner_id:
+                    raise ValueError('Partner identity changed')
+                cached = getattr(self,'_partner_view_records',{}).get(partner_id,{})
+                record = {**cached, **record, 'id':partner_id}
+                self._show_panel(chat_id, partner_details(record, self._telegram_person_name(record['telegram_user_id']),
+                    getattr(self,'_commerce_bot_name','')), message_id)
+            elif action == 'add':
+                self._show_panel(chat_id, views.Panel('<b>إضافة شريك</b>\n\nأرسل أمر الإضافة متبوعًا برقم الحساب ورمز الشريك.\n'
+                    'صيغة الأمر:\n<code>/partner_add رقم_الحساب رمز_الشريك</code>\n\n'
+                    'بعد الإضافة، راجع النسبة وشروط الاستحقاق قبل تفعيل الشراكة.',
+                    [[views.button('الشركاء الحاليون','cp:list:0'),views.button('إلغاء','menu:partners')]]), message_id)
             elif action == 'terms':
                 self._commerce_cancel_pending(chat_id)
                 partner_id = str(UUID(parts[2]))
@@ -286,7 +274,7 @@ class CommerceBotMixin:
                 else:
                     with self._ui_lock:
                         self._waiting_user_inputs[chat_id] = {'action':'commerce_partner_limit','token':token,'message_id':message_id,'expires':draft['expires']}
-                    self._commerce_notice(chat_id,'حد الاستحقاق','أرسل عدد التشييكات المستحقة.' if mode == 'checks' else 'أرسل مدة الاستحقاق بالأيام، كعدد صحيح.',message_id)
+                    self._commerce_notice(chat_id,'حد الاستحقاق','أرسل عدد الفحوص المستحقة.' if mode == 'checks' else 'أرسل مدة الاستحقاق بالأيام، كعدد صحيح.',message_id)
             elif action == 'save':
                 token = parts[2]
                 draft = self._partner_draft(token,chat_id)
@@ -321,7 +309,7 @@ class CommerceBotMixin:
     def _partner_confirmation(self,token,chat_id,message_id):
         draft = self._partner_draft(token,chat_id)
         mode = draft['mode']
-        label = 'دائمًا' if mode == 'forever' else f"{draft['limit']} تشييك" if mode == 'checks' else f"{draft['limit']//86400} يوم"
+        label = 'دائمًا' if mode == 'forever' else f"{draft['limit']} فحص" if mode == 'checks' else f"{draft['limit']//86400} يوم"
         with self._ui_lock:
             draft['confirmed'] = True
         text = f"<b>مراجعة شروط الشريك</b>\n\nالنسبة: {draft['basis_points']/100:g}%\nالاستحقاق: {label}\n\nالحفظ يفعّل كود الإحالة. تُحفظ نسخة الشروط ولا تُغيّر أسعار الطلبات القديمة."
@@ -355,7 +343,7 @@ class CommerceBotMixin:
                         raise ValueError('Too many open reviews')
                     self._commerce_partner_drafts[token] = {'chat':chat_id,'partner_id':waiting['partner_id'],
                         'basis_points':int(rate*100),'expires':time.monotonic()+1800}
-                rows = [[views.button('بعدد التشييكات',f'cp:mode:{token}:checks')],
+                rows = [[views.button('بعدد الفحوص',f'cp:mode:{token}:checks')],
                         [views.button('لمدة محددة',f'cp:mode:{token}:duration'),views.button('دائمًا',f'cp:mode:{token}:forever')],
                         [views.button('إلغاء','cp:list:0')]]
                 self._show_panel(chat_id,views.Panel('<b>كيف تحدد استحقاق الشريك؟</b>\nاختر العدد أو المدة أو دائمًا.',rows),message_id)

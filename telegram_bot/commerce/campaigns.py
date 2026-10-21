@@ -14,7 +14,7 @@ from .referrals import normalize_referral_code
 
 POLICY_FIELDS=[
     ('max_percent_basis_points','أقصى نسبة خصم مسموحة (%)','percent'),
-    ('max_checks_per_user','أقصى عدد تشييكات مجانية/مخصومة لكل عميل','int'),
+    ('max_checks_per_user','أقصى عدد فحوص مجانية/مخصومة لكل عميل','int'),
     ('max_discount_minor_per_user','أقصى مبلغ خصم للعميل الواحد (بالجنيه)','money'),
     ('max_total_discount_minor','أقصى ميزانية إجمالية للعرض لجميع العملاء (بالجنيه)','money'),
     ('max_duration_seconds','أقصى مدة لصلاحية العرض لكل عميل (بالأيام)','days'),
@@ -26,7 +26,7 @@ OFFER_FIELDS=[
     ('benefit_value','قيمة الخصم أو المنفعة','value'),
     ('eligibility','العملاء المؤهلون للاستفادة','eligibility'),
     ('check_types','أنواع الأرقام المشمولة بالعرض','types'),
-    ('max_checks','عدد التشييكات المجانية الممنوحة لكل عميل','int'),
+    ('max_checks','عدد الفحوص المجانية الممنوحة لكل عميل','int'),
     ('max_discount_minor','أقصى خصم يستفيده العميل الواحد (بالجنيه)','money'),
     ('max_total_discount_minor','الميزانية الإجمالية لكود العرض (بالجنيه)','money'),
     ('duration_seconds','مدة صلاحية العرض للعميل بعد التفعيل (بالأيام)','days'),
@@ -34,7 +34,7 @@ OFFER_FIELDS=[
     ('code','اسم كود العرض (الرمز الترويجي)','code')
 ]
 KINDS={
-    'free_checks':'🎁 تشييكات مجانية (فحص عدد محدد من الأرقام مجاناً)',
+    'free_checks':'🎁 فحوص مجانية (فحص عدد محدد من الأرقام مجاناً)',
     'percent':'🏷 نسبة خصم مئوية (مثلاً 50% أو 100%)',
     'fixed':'💵 خصم مبلغ ثابت من كل رقم',
     'wallet_credit':'💼 رصيد هدية في المحفظة'
@@ -59,9 +59,9 @@ FIELD_EXPLANATIONS = {
         '💡 مثال: اكتب 100 للسماح بعروض مجانية بالكامل (خصم 100%)، أو 50 لخصم نصف السعر فقط.'
     ),
     'max_checks_per_user': (
-        'أقصى عدد تشييكات (مرات فحص) مشمولة بالعرض للعميل الواحد.\n\n'
+        'أقصى عدد فحوص (مرات فحص) مشمولة بالعرض للعميل الواحد.\n\n'
         '🎯 الهدف: تحديد عدد مرات الاستفادة المسموحة لكل عميل.\n'
-        '📌 في عروض الفحص المجاني: تشييكة واحدة (1) تعني فحص ملف كامل مجاناً حتى 3400 عميل (يشمل أول 500 رقم خدمة مجاناً وسقف 1500 رقم خدمة للملف).\n'
+        '📌 في عروض الفحص المجاني: فحصة واحدة (1) تعني فحص ملف كامل مجاناً حتى 3400 عميل (يشمل أول 500 رقم خدمة مجاناً وسقف 1500 رقم خدمة للملف).\n'
         '📝 المطلوب: أرسل رقماً صحيحاً يمثل عدد مرات الفحص للعميل.\n'
         '💡 مثال: اكتب 1 إذا أردت السماح للعميل بفحص ملف مجاني واحد فقط، أو 3 لثلاثة ملفات.'
     ),
@@ -102,10 +102,10 @@ FIELD_EXPLANATIONS = {
         '💡 مثال: اكتب 100 لخصم كامل 100%، أو 10 لخصم 10 جنيهات.'
     ),
     'max_checks': (
-        'عدد مرات الفحص (التشييكات) الممنوحة للعميل في هذا العرض.\n\n'
-        '🎯 الهدف: تحديد عدد الملفات/التشييكات التي يمكن للعميل فحصها والاستفادة من العرض عليها.\n'
+        'عدد مرات الفحص (الفحوص) الممنوحة للعميل في هذا العرض.\n\n'
+        '🎯 الهدف: تحديد عدد الملفات/الفحوص التي يمكن للعميل فحصها والاستفادة من العرض عليها.\n'
         '📌 في عروض الفحص المجاني: الرقم (1) يعني فحص ملف كامل مجاناً حتى 3400 عميل (يشمل أول 500 رقم خدمة مجاناً وسقف 1500 رقم خدمة للملف).\n'
-        '📝 المطلوب: أرسل رقماً صحيحاً يمثل عدد التشييكات.\n'
+        '📝 المطلوب: أرسل رقماً صحيحاً يمثل عدد الفحوص.\n'
         '💡 مثال: اكتب 1 ليكون لكل عميل فحص ملف واحد مجاناً.'
     ),
     'max_discount_minor': (
@@ -128,7 +128,7 @@ logger=logging.getLogger('CommerceCampaigns')
 
 def campaign_limit_issues(values,policy):
     limits=policy.get('rules',{}) if isinstance(policy,dict) else {}
-    pairs=[('max_checks','max_checks_per_user','تشييكات العميل (أقصى عدد تشييكات)','count'),
+    pairs=[('max_checks','max_checks_per_user','فحوص العميل (أقصى عدد فحوص)','count'),
         ('max_discount_minor','max_discount_minor_per_user','أقصى خصم للعميل الواحد','money'),
         ('max_total_discount_minor','max_total_discount_minor','ميزانية الحملة الكلية للعرض','money'),
         ('duration_seconds','max_duration_seconds','مدة صلاحية العرض','days'),
@@ -234,12 +234,12 @@ class CampaignsMixin:
             text='<b>🎁 عروضك وحدودها المتاحة</b>\n\n'
             for record in records:
                 kind=record['benefit_kind'];value=record['benefit_value']
-                benefit=(str(Decimal(value)/100)+'%' if kind=='percent' else egp(value)+' جنيه لكل تشييك' if kind=='fixed'
-                    else 'تشييكات مجانية ضمن الحدود أدناه' if kind=='free_checks' else egp(value)+' جنيه رصيد ترويجي')
+                benefit=(str(Decimal(value)/100)+'%' if kind=='percent' else egp(value)+' جنيه لكل فحص' if kind=='fixed'
+                    else 'فحوص مجانية ضمن الحدود أدناه' if kind=='free_checks' else egp(value)+' جنيه رصيد ترويجي')
                 text+=f"📌 كود: <code>{views.safe(record.get('code') or record['name'])}</code> · {KINDS[kind]}\n• الميزة: {benefit}\n"
                 if kind!='wallet_credit':
                     text+=f"• الأنواع المشمولة: {', '.join(TYPE_LABELS[t] for t in record['check_types'])}\n"
-                    text+=f"• حد التشييكات: {record['max_checks']} · المستخدم: {record['consumed_checks']} · المحجوز لطلبات: {record['reserved_checks']}\n"
+                    text+=f"• حد الفحوص: {record['max_checks']} · المستخدم: {record['consumed_checks']} · المحجوز لطلبات: {record['reserved_checks']}\n"
                 else:text+='• الرصيد يُضاف مرة واحدة؛ المتبقي غير المستخدم ينتهي بانتهاء مدة العرض.\n'
                 text+=f"• سقف التوفير للطلب: {egp(record['max_discount_minor'])} جنيه · المستهلك: {egp(record['discount_minor'])} جنيه · المحجوز: {egp(record['reserved_discount_minor'])} جنيه\n"
                 text+='• المتاح من ميزانية العرض: '+egp(record.get('global_available_discount_minor',0))+' جنيه\n'
@@ -315,7 +315,7 @@ class CampaignsMixin:
             elif key=='check_types':
                 val_str = '، '.join(TYPE_LABELS[t] for t in value)
             elif key in {'max_checks_per_user', 'max_checks'}:
-                val_str = f'{value} تشييك'
+                val_str = f'{value} فحص'
             elif key=='max_redemptions':
                 val_str = f'{value} عميل'
             else:
@@ -370,7 +370,7 @@ class CampaignsMixin:
                 context=self._commerce().rpc('partner_campaign_context',{'p_telegram_user_id':actor_id})
                 if not context.get('is_partner') or context.get('state')!='active' or context.get('partnership_ended_at'):
                     self._revoke_partner_role(actor_id)
-                    self._commerce_notice(actor_id,'الحساب بصلاحيات زبون','الحملات متاحة للشركاء النشطين فقط. مستحقاتك السابقة محفوظة.',message_id);return
+                    self._commerce_notice(actor_id,'الحساب بصلاحيات عميل','الحملات متاحة للشركاء النشطين فقط. مستحقاتك السابقة محفوظة.',message_id);return
                 if action=='limits':raise ValueError('Administration sets campaign policy')
             if action in {'edit','generate','set','save'}:
                 review=self._campaign_review(parts[2],actor_id)
@@ -415,7 +415,7 @@ class CampaignsMixin:
                     policy=context.get('policy') or {};limits=policy.get('rules',{})
                     if limits:
                         text+='⚖️ حدود الإدارة: نسبة حتى '+str(Decimal(min(context['basis_points'],limits['max_percent_basis_points']))/100)+'%'
-                        text+=f" · {limits['max_checks_per_user']} تشييك لكل عميل · {limits['max_redemptions']} عميل · {limits['max_duration_seconds']//86400} يوم\n"
+                        text+=f" · {limits['max_checks_per_user']} فحص لكل عميل · {limits['max_redemptions']} عميل · {limits['max_duration_seconds']//86400} يوم\n"
                         text+='حد الخصم للعميل: '+egp(limits['max_discount_minor_per_user'])+' جنيه · ميزانية الحملة: '+egp(limits['max_total_discount_minor'])+' جنيه\n'
                     if context.get('state')=='active':rows.append([views.button('➕ إنشاء كود خصم جديد','po:new:0')])
                     else:text+='⚠️ الشراكة غير نشطة حالياً؛ يرجى مراجعة الإدارة.\n'
@@ -572,7 +572,7 @@ class CampaignsMixin:
                     context=self._commerce().rpc('partner_campaign_context',{'p_telegram_user_id':user_id})
                     if not context.get('is_partner') or context.get('state')!='active' or context.get('partnership_ended_at'):
                         self._revoke_partner_role(user_id)
-                        self._commerce_notice(user_id,'الحساب بصلاحيات زبون','الشراكة غير نشطة؛ لم تُنشأ حملة من هذه المسودة.',waiting.get('message_id'))
+                        self._commerce_notice(user_id,'الحساب بصلاحيات عميل','الشراكة غير نشطة؛ لم تُنشأ حملة من هذه المسودة.',waiting.get('message_id'))
                         return True
                 key,_,kind=fields[review['step']]
                 if kind=='value':kind='percent' if review['values']['benefit_kind']=='percent' else 'money'

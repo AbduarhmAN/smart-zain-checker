@@ -1,5 +1,6 @@
 """Offline Telegram cash-code reviews, retained fixtures, no workbook cleanup."""
 import os
+import re
 import json
 from pathlib import Path
 import tempfile
@@ -22,6 +23,7 @@ class CashCodeTests(unittest.TestCase):
         self.bot._waiting_user_inputs={};self.bot._sheet_drafts={};self.bot._confirmations={}
         self.bot.authorized_id=9;self.bot.authorized_ids={9};self.bot._authorized_override=True
         self.bot._show_panel=Mock();self.bot._api_call=Mock();self.bot._commerce_client=Mock()
+        self.bot._subscription_status=Mock(return_value='member')
         self.client=self.bot._commerce_client;self.client.rpc.side_effect=self.rpc
         self.calls=[]
         self.env=patch.dict(os.environ,{'ZAIN_COMMERCE_CHECKOUT':'1'})
@@ -80,7 +82,7 @@ class CashCodeTests(unittest.TestCase):
         self.client.rpc.side_effect=CommerceUnavailable('Commerce RPC HTTP 400',reason='cash_conflict',database_code='22023',http_status=400)
         self.callback('cg:save:'+token)
         panel=self.bot._show_panel.call_args.args[1]
-        self.assertIn('الإيصال مستخدم',panel.text)
+        self.assertIn('الإيصال مستخدم',re.sub(r'<[^>]+>','',panel.text))
         self.assertEqual(self.bot._cash_code_reviews[token]['arguments']['p_receipt_reference'],'CASH-RECEIPT-001')
         self.assertNotIn('تعذر التأكد من حالة المحفظة',panel.text)
 

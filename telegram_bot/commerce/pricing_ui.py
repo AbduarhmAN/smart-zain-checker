@@ -17,14 +17,16 @@ class PricingUiMixin:
 
     def _pricing_show(self,actor,target,message_id=None):
         cfg=self._commerce().rpc('customer_pricing',{'p_telegram_user_id':target})
-        text=('<b>أسعار العملاء</b>\n\n'+('الإعداد العام' if target==0 else 'إعداد العميل: <code>'+str(target)+'</code>')+
-              '\nسعر العميل: '+egp(cfg['base_minor'])+' جنيه\nأول '+str(cfg['service_threshold'])+' رقم خدمة بهذا السعر.'+
-              '\nكل رقم خدمة إضافي: '+egp(cfg['service_excess_minor'])+' جنيه\nأرقام الحسابات تُحسب بالسعر الأساسي مهما كان عددها.'+
-              '\nالحد الأقصى لشيت العميل: 4000.\nتسري التغييرات على الأسعار الجديدة؛ الطلبات التي عُرض سعرها تبقى بسعرها المحفوظ.')
-        rows=[[views.button('تعديل الأسعار',f'pr:edit:{target}')],
-              [views.button('سعر شيت الشريك وموافقات الفحص','ps:settings:0')]]
-        if target:rows.append([views.button('إعادة العميل للسعر العام',f'pr:reset:{target}')])
-        rows.extend([[views.button('سعر خاص لعميل','pr:customer:0')],[views.button('السعر العام','pr:home:0')],[views.button('الرئيسية','home')]])
+        scope='الأسعار العامة' if target==0 else 'أسعار خاصة بالعميل: <code>'+str(target)+'</code>'
+        text=('<b>أسعار الفحوص</b>\n\n'+scope+
+              '\n\n<b>أرقام الحسابات</b>\nالسعر لكل رقم: '+egp(cfg['base_minor'])+' جنيه'+
+              '\n\n<b>أرقام الخدمات والمحافظ</b>\nأول '+str(cfg['service_threshold'])+' رقم خدمة: '+egp(cfg['base_minor'])+' جنيه لكل رقم'+
+              '\nكل رقم خدمة إضافي: '+egp(cfg['service_excess_minor'])+' جنيه'+
+              '\n\nالحد الأقصى لورقة العمل: 4,000 سجل.\nتسري التعديلات على التسعيرات الجديدة. تحتفظ الطلبات السابقة بالسعر المحفوظ لها.')
+        rows=[[views.button('تعديل السعر الحالي',f'pr:edit:{target}'),views.button('سعر خاص لعميل','pr:customer:0')],
+              [views.button('الأسعار العامة','pr:home:0'),views.button('تسعير الشركاء','ps:settings:0')]]
+        if target:rows.append([views.button('استعادة السعر العام لهذا العميل',f'pr:reset:{target}')])
+        rows.append([views.button('الرئيسية','home')])
         self._show_panel(actor,views.Panel(text,rows),message_id)
 
     def _price_review_start(self,actor,target,message_id,*,reset=False):
@@ -63,7 +65,7 @@ class PricingUiMixin:
                 self._pricing_show(actor,0,message_id)
             elif action=='customer':
                 with self._ui_lock:self._waiting_user_inputs[actor]={'action':'customer_price_target','expires':time.monotonic()+600,'message_id':message_id}
-                self._commerce_notice(actor,'رقم حساب العميل','أرسل رقم Telegram أو رقم الحساب الظاهر في محفظته.',message_id)
+                self._commerce_notice(actor,'رقم حساب العميل','أرسل رقم حساب تيليجرام أو رقم الحساب الظاهر في محفظته.',message_id)
             elif action in {'edit','reset'}:
                 target=int(value)
                 if target<0 or target and user_id(target) is None:raise ValueError('Valid price target required')
@@ -100,7 +102,7 @@ class PricingUiMixin:
             review['step']+=1
             if review['step']==1:
                 with self._ui_lock:self._waiting_user_inputs[actor]=waiting
-                self._commerce_notice(actor,'سعر الخدمة بعد أول 500','أرسل سعر كل رقم خدمة يبدأ من رقم الخدمة 501 في الشيت، بالجنيه. أرقام الحسابات تبقى بالسعر الأساسي.',waiting.get('message_id'))
+                self._commerce_notice(actor,'سعر الخدمة بعد أول 500','أرسل سعر كل رقم خدمة يبدأ من رقم الخدمة 501 في الملف، بالجنيه. أرقام الحسابات تبقى بالسعر الأساسي.',waiting.get('message_id'))
             else:
                 review['values']['service_threshold']=500
                 self._price_review_panel(actor,waiting['token'],waiting.get('message_id'))

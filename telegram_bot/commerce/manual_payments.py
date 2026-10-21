@@ -124,7 +124,7 @@ class ManualPaymentsMixin:
             parts=command.split(':');action=parts[1]
             if action in {'list','claims'}:
                 offset=int(parts[2]);claims=self._commerce().rpc('list_payment_claims',{'p_limit':10,'p_offset':offset})
-                rows=[[views.button(f"{claim['telegram_user_id']} · {egp(claim['quote']['amount_minor'])} جنيه",
+                rows=[[views.button(f"{self._telegram_person_name(claim['telegram_user_id'])[:45]} · {egp(claim['quote']['amount_minor'])} جنيه",
                     f"cm:review:{claim['claim_id']}")] for claim in claims]
                 if offset:rows.append([views.button('السابق',f'cm:list:{max(0,offset-10)}')])
                 if len(claims)==10:rows.append([views.button('التالي',f'cm:list:{offset+10}')])
@@ -147,7 +147,7 @@ class ManualPaymentsMixin:
                     if len(self._commerce_payment_reviews)>=128:raise ValueError('Review limit reached')
                     self._commerce_payment_reviews[(actor_id,claim_id)]={'prepared':prepared,'expires':time.monotonic()+180}
                 evidence=prepared['evidence']
-                text=(f"<b>مراجعة ربط التحويل</b>\n\nالعميل: <code>{claim['telegram_user_id']}</code>\n"
+                text=(f"<b>مراجعة ربط التحويل</b>\n\nالاسم: <b>{views.safe(self._telegram_person_name(claim['telegram_user_id']))}</b>\nرقم حساب تيليجرام: <code>{claim['telegram_user_id']}</code>\n"
                     f"المرجع المؤكد: <code>{views.safe(evidence.reference,256)}</code>\n"
                     f"المبلغ: {evidence.amount} {evidence.asset}\nالمستلم: <code>{views.safe(evidence.receiver,256)}</code>\n"
                     f"قيمة الطلب: {egp(prepared['quote'].amount_minor)} جنيه\n\n"
@@ -165,8 +165,8 @@ class ManualPaymentsMixin:
                     return
                 queued=self._finish_assigned_payment(prepared['quote'],result['payment_id'])
                 self._commerce_notice(actor_id,'تم اعتماد الدفعة',
-                    'حُفظت الدفعة وأُضيف الطلب إلى الطابور.' if queued else
-                    'حُفظت الدفعة مرة واحدة. إذا لم يظهر الطلب في الطابور، افتحه لاستعادة إضافته.',message_id)
+                    'حُفظت الدفعة وأُضيف الطلب إلى قائمة الفحوص.' if queued else
+                    'حُفظت الدفعة مرة واحدة. إذا لم يظهر الطلب في قائمة الفحوص، افتحه لاستعادة إضافته.',message_id)
             elif action=='reject':
                 if not isinstance(callback.get('id'),str) or not callback['id'].strip():
                     raise ValueError('Authenticated rejection callback required')

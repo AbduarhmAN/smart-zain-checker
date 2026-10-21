@@ -97,7 +97,7 @@ class PartnerSheetTests(unittest.TestCase):
                 self.bot._partner_sheet_delivery_once()
                 self.assertEqual(self.client.rpc.call_args.args[1]['p_state'],expected)
                 payload=self.bot._api_call.call_args.args[1]
-                self.assertIn('23.00 جنيه للشيت كاملاً',payload['text']);self.assertEqual(payload['chat_id'],31)
+                self.assertIn('23.00 جنيه للملف كاملاً',payload['text']);self.assertEqual(payload['chat_id'],31)
 
     def test_partner_navigation_kept_and_admin_controls_filtered(self):
         rows=[[views.button('السعر','pc:home:0'),views.button('فتح','pc:open:'+ORDER),views.button('إدارة','ps:settings:0')]]

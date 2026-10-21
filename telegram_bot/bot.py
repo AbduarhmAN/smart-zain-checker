@@ -255,6 +255,9 @@ class TelegramBotRunner(MaintenanceAccessMixin, SubscriptionMixin, VodafoneCashM
                 'inbox': self._update_inbox.counts()}
 
     def _api_call(self, method: str, data: Optional[dict[str, Any]] = None, timeout: int = 25) -> Optional[dict[str, Any]]:
+        if data and data.get('parse_mode') == 'HTML' and isinstance(data.get('text'), str):
+            from .presentation import rtl_html
+            data = {**data, 'text': rtl_html(data['text'])}
         if data and 'reply_markup' in data:
             from .button_layout import normalize_markup
             data = {**data, 'reply_markup': normalize_markup(data['reply_markup'])}
@@ -340,12 +343,12 @@ class TelegramBotRunner(MaintenanceAccessMixin, SubscriptionMixin, VodafoneCashM
                             {"command":"status", "description":"متابعة تقدم الفحص"},
                             {"command":"control", "description":"إدارة تشغيل الفحص"},
                             {"command":"wallet", "description":"عرض رصيد المحفظة"},
-                            {"command":"queue", "description":"عرض طابور الملفات"},
+                            {"command":"queue", "description":"قائمة الفحوص"},
                             {"command":"results", "description":"استلام نتائج الجلسة"},
                             {"command":"upload", "description":"إضافة ملف العملاء"},
-                            {"command":"partners", "description":"الشركاء والإحالات"},
-                            {"command":"partner_price", "description":"سعر شيت الشريك وإشعار الشركاء"},
-                            {"command":"partner_checks", "description":"شيتات الشركاء بانتظار موافقتي"},
+                            {"command":"partners", "description":"الشركاء"},
+                            {"command":"partner_price", "description":"سعر ملف الشريك وإشعار الشركاء"},
+                            {"command":"partner_checks", "description":"ملفات الشركاء بانتظار موافقتي"},
                             {"command":"earnings", "description":"أرباحي وأرباح الشركاء"},
                             {"command":"partner_add", "description":"إضافة شريك بكود إحالة"},
                             {"command":"partner_reactivate", "description":"إعادة تفعيل شراكة سابقة"},
@@ -441,6 +444,7 @@ class TelegramBotRunner(MaintenanceAccessMixin, SubscriptionMixin, VodafoneCashM
             return False
 
     def _handle_update(self, update: dict[str, Any]) -> None:
+        self._remember_update_identity(update)
         if self._maintenance_gate(update):return
         if self._support_handle_message(update):return
         if update.get('edited_message'):return
@@ -530,6 +534,7 @@ class TelegramBotRunner(MaintenanceAccessMixin, SubscriptionMixin, VodafoneCashM
             return
 
         text_map = {
+            "💎 فحص ملف جديد": "/upload",
             "💎 إضافة ملف فحص": "/upload",
             "💎 فحص ملف جديد (رفع شيت)": "/upload",
             "💎 إضافة ملف للفحص (رفع شيت)": "/upload",
@@ -604,7 +609,7 @@ class TelegramBotRunner(MaintenanceAccessMixin, SubscriptionMixin, VodafoneCashM
         if is_admin and command in {"/admin", "/customer"}:
             target_mode = "admin" if command == "/admin" else "customer"
             self._set_user_mode(chat_id, target_mode)
-            mode_name_ar = "المدير (Admin)" if target_mode == "admin" else "الزبون (Customer)"
+            mode_name_ar = "المدير (Admin)" if target_mode == "admin" else "العميل (Customer)"
             self._reply(chat_id, f"🔄 <b>تم التبديل بنجاح إلى وضع {mode_name_ar}.</b>\nتم تحديث لوحة التحكم وقائمة الأزرار السريعة.")
             self._dispatch_ui("home", chat_id)
             return
@@ -850,7 +855,7 @@ class TelegramBotRunner(MaintenanceAccessMixin, SubscriptionMixin, VodafoneCashM
                         f"🔍 <b>تفاصيل العملية #{views.safe(op_id)}</b>\n\n"
                         f"📌 الحالة: <b>{views.safe(status_text)}</b>\n"
                         f"🕒 التوقيت: <code>{views.safe(ts)}</code>\n"
-                        f"🆔 رقم المستخدم (User ID): <code>{views.safe(acc_id)}</code> (Telegram: <code>{views.safe(uid)}</code>)\n"
+                        f"🆔 رقم الحساب: <code>{views.safe(acc_id)}</code> (Telegram: <code>{views.safe(uid)}</code>)\n"
                         f"{extra}"
                     )
                     self._reply(chat_id, msg_text)
@@ -861,10 +866,6 @@ class TelegramBotRunner(MaintenanceAccessMixin, SubscriptionMixin, VodafoneCashM
             return
 
         if route:
-            if route == "home":
-                from .payment_manager import PAYMENT_MGR
-                acc_id = PAYMENT_MGR.get_user_account_id(chat_id)
-                self._reply(chat_id, f"أهلًا بك في تشيك (رقم المستخدم: <code>{acc_id}</code>). افتح لوحتك من الأزرار أدناه.")
             self._dispatch_ui(route, chat_id)
 
             return
@@ -977,7 +978,7 @@ class TelegramBotRunner(MaintenanceAccessMixin, SubscriptionMixin, VodafoneCashM
                                     "chat_id": aid,
                                     "text": (
                                         f"⚡ <b>تم شحن محفظة عميل تلقائياً عبر Binance Pay!</b>\n\n"
-                                        f"👤 العميل: <b>@{views.safe(username or 'Unknown')}</b> (ID: <code>{acc_id}</code>)\n"
+                                        f"العميل: <b>{views.safe(self._telegram_person_name(chat_id))}</b> (ID: <code>{acc_id}</code>)\n"
                                         f"🪙 المبلغ: <b>{actual_amt:.2f} USDT</b> (+{amount_egp:.2f} ج.م)\n"
                                         f"💼 الرصيد الجديد: <b>{new_bal:.2f} ج.م</b>\n"
                                         f"🔗 رقم العملية: <code>{views.safe(text.strip())}</code>"
@@ -1042,7 +1043,7 @@ class TelegramBotRunner(MaintenanceAccessMixin, SubscriptionMixin, VodafoneCashM
                                     "chat_id": aid,
                                     "text": (
                                         f"⚡ <b>تم شحن محفظة عميل تلقائياً عبر البلوكشين (BEP20)!</b>\n\n"
-                                        f"👤 العميل: <b>@{views.safe(username or 'Unknown')}</b> (ID: <code>{acc_id}</code>)\n"
+                                        f"العميل: <b>{views.safe(self._telegram_person_name(chat_id))}</b> (ID: <code>{acc_id}</code>)\n"
                                         f"🪙 المبلغ: <b>{actual_amt:.2f} USDT/USDC</b> (+{amount_egp:.2f} ج.م)\n"
                                         f"💼 الرصيد الجديد: <b>{new_bal:.2f} ج.م</b>\n"
                                         f"🔗 هاش المعاملة: <code>{views.safe(text.strip())}</code>"
@@ -1126,6 +1127,7 @@ class TelegramBotRunner(MaintenanceAccessMixin, SubscriptionMixin, VodafoneCashM
                 for aid in self.current_authorized_ids:
                     try:
                         admin_panel = views.admin_topup_approval_panel(
+                            display_name=self._telegram_person_name(chat_id),
                             user_id=str(chat_id),
                             username=username or "",
                             method=method_name,
@@ -1198,7 +1200,7 @@ class TelegramBotRunner(MaintenanceAccessMixin, SubscriptionMixin, VodafoneCashM
                         if hasattr(self, "_persist_sheet_drafts"):
                             self._persist_sheet_drafts()
                         self._show_panel(chat_id, views.Panel(
-                            f"<b>🎉 تم تطبيق الكود {views.safe(code)}.</b>\nالفحص مجاني، وأُضيف الشيت إلى الطابور. ستصلك النتيجة بعد اكتمال الفحص.",
+                            f"<b>🎉 تم تطبيق الكود {views.safe(code)}.</b>\nالفحص مجاني، وأُضيف الملف إلى قائمة الفحوص. ستصلك النتيجة بعد اكتمال الفحص.",
                             self._payment_success_rows(chat_id)), message_id)
                         return
                     from .config import show_crypto_payments
@@ -1265,13 +1267,13 @@ class TelegramBotRunner(MaintenanceAccessMixin, SubscriptionMixin, VodafoneCashM
 
                     success_panel = views.Panel(
                         f"<b>⚡ تم التحقق التلقائي من دفعتك عبر Binance Pay بنجاح!</b>\n\n"
-                        f"🆔 رقم المستخدم (User ID): <code>{acc_id}</code>\n"
+                        f"🆔 رقم الحساب: <code>{acc_id}</code>\n"
                         f"{op_line}"
                         f"📁 الملف: <b>{views.safe(draft['sheet_name'])}</b>\n"
                         f"💵 الرسوم الأساسية: <b>{amount_egp:.2f} جنيه مصري</b>\n"
                         f"🪙 المبلغ المستلم في Binance: <b>{actual_amt} USDT</b>\n"
                         f"🔗 رقم العملية: <code>{views.safe(text.strip())}</code>\n\n"
-                        f"✅ تمت إضافة الشيت إلى الطابور وجارٍ فحصه بالـ 9 عمال فوراً 🚀",
+                        f"✅ تمت إضافة الملف إلى قائمة الفحوص وجارٍ فحصه بالـ 9 عمال فوراً 🚀",
                         self._payment_success_rows(chat_id)
                     )
                     self._show_panel(chat_id, success_panel, message_id)
@@ -1283,11 +1285,11 @@ class TelegramBotRunner(MaintenanceAccessMixin, SubscriptionMixin, VodafoneCashM
                                     "chat_id": aid,
                                     "text": (
                                         f"⚡ <b>تم التحقق التلقائي من دفعة Binance Pay!</b>\n\n"
-                                        f"👤 العميل: <b>@{views.safe(username or 'Unknown')}</b> (ID: <code>{acc_id}</code>)\n"
+                                        f"العميل: <b>{views.safe(self._telegram_person_name(chat_id))}</b> (ID: <code>{acc_id}</code>)\n"
                                         f"📁 الملف: <b>{views.safe(draft['sheet_name'])}</b>\n"
                                         f"🪙 المبلغ: <b>{actual_amt} USDT</b> ({amount_egp:.2f} ج.م)\n"
                                         f"🔗 رقم العملية: <code>{views.safe(text.strip())}</code>\n"
-                                        f"🚀 تمت إضافة الشيت للطابور تلقائياً بدون تدخل بشري."
+                                        f"🚀 تمت إضافة الملف إلى قائمة الفحوص تلقائياً بدون تدخل بشري."
                                     ),
                                     "parse_mode": "HTML"
                                 })
@@ -1339,13 +1341,13 @@ class TelegramBotRunner(MaintenanceAccessMixin, SubscriptionMixin, VodafoneCashM
 
                     success_panel = views.Panel(
                         f"<b>⚡ تم التحقق التلقائي من دفعتك عبر البلوكشين (BEP20) بنجاح!</b>\n\n"
-                        f"🆔 رقم المستخدم (User ID): <code>{acc_id}</code>\n"
+                        f"🆔 رقم الحساب: <code>{acc_id}</code>\n"
                         f"{op_line}"
                         f"📁 الملف: <b>{views.safe(draft['sheet_name'])}</b>\n"
                         f"💵 الرسوم الأساسية: <b>{amount_egp:.2f} جنيه مصري</b>\n"
                         f"🪙 المبلغ المؤكد على BSC: <b>{actual_amt:.2f} USDC/USDT</b>\n"
                         f"🔗 هاش المعاملة: <code>{views.safe(text.strip())}</code>\n\n"
-                        f"✅ تمت إضافة الشيت إلى الطابور وجارٍ فحصه بالـ 9 عمال فوراً 🚀",
+                        f"✅ تمت إضافة الملف إلى قائمة الفحوص وجارٍ فحصه بالـ 9 عمال فوراً 🚀",
                         self._payment_success_rows(chat_id)
                     )
                     self._show_panel(chat_id, success_panel, message_id)
@@ -1357,11 +1359,11 @@ class TelegramBotRunner(MaintenanceAccessMixin, SubscriptionMixin, VodafoneCashM
                                     "chat_id": aid,
                                     "text": (
                                         f"⚡ <b>تم التحقق التلقائي من دفعة BEP20 على البلوكشين!</b>\n\n"
-                                        f"👤 العميل: <b>@{views.safe(username or 'Unknown')}</b> (ID: <code>{acc_id}</code>)\n"
+                                        f"العميل: <b>{views.safe(self._telegram_person_name(chat_id))}</b> (ID: <code>{acc_id}</code>)\n"
                                         f"📁 الملف: <b>{views.safe(draft['sheet_name'])}</b>\n"
                                         f"🪙 المبلغ: <b>{actual_amt:.2f} USDC/USDT</b> ({amount_egp:.2f} ج.م)\n"
                                         f"🔗 TxHash: <code>{views.safe(text.strip())}</code>\n"
-                                        f"🚀 تمت إضافة الشيت للطابور تلقائياً بدون تدخل بشري."
+                                        f"🚀 تمت إضافة الملف إلى قائمة الفحوص تلقائياً بدون تدخل بشري."
                                     ),
                                     "parse_mode": "HTML"
                                 })
@@ -1415,7 +1417,7 @@ class TelegramBotRunner(MaintenanceAccessMixin, SubscriptionMixin, VodafoneCashM
             elif "bep20" in method_name.lower() or "bsc" in method_name.lower():
                 auto_note = "\n<i>(لم يتم تأكيد الهاش آلياً على شبكة BSC بعد؛ تم تحويل الطلب للمشرف للاعتماد الفوري)</i>"
             else:
-                auto_note = "\n<i>(تم إرسال إثبات التحويل للمشرف للاعتماد الفوري وتأكيد الشيت)</i>"
+                auto_note = "\n<i>(تم إرسال إثبات التحويل للمشرف للاعتماد الفوري وتأكيد الملف)</i>"
 
             confirm_panel = views.Panel(
                 f"<b>⏳ تم استلام إثبات التحويل بنجاح!</b>\n\n"
@@ -1426,13 +1428,14 @@ class TelegramBotRunner(MaintenanceAccessMixin, SubscriptionMixin, VodafoneCashM
                 f"🪙 المعادل المحوّل: <b>{amount_usdt:.2f} USDT/USDC</b>\n"
                 f"🔗 رقم العملية (TxID): <code>{views.safe(text)}</code>\n"
                 f"{auto_note}\n\n"
-                f"يجري التحقق الآن وسيبدأ فحص الشيت فوراً بمجرد التأكيد 🚀",
+                f"يجري التحقق الآن وسيبدأ فحص الملف فوراً بمجرد التأكيد 🚀",
                 [views.nav()]
             )
             self._show_panel(chat_id, confirm_panel, message_id)
 
             acc_id = PAYMENT_MGR.get_user_account_id(chat_id)
             admin_panel = views.admin_approval_panel(
+                display_name=self._telegram_person_name(chat_id),
                 user_id=str(chat_id),
                 username=username,
                 sheet_name=draft["sheet_name"],
@@ -1506,7 +1509,7 @@ class TelegramBotRunner(MaintenanceAccessMixin, SubscriptionMixin, VodafoneCashM
             self._open_sheet_review(target_path, chat_id, telegram_document=doc)
         except Exception as exc:
             logger.warning('Telegram document processing failed (%s).', type(exc).__name__)
-            self._reply(chat_id, "⚠ تعذر قراءة الملف أو إضافته إلى الطابور. تأكد من صيغة XLSX وراجع لوحة التحكم.")
+            self._reply(chat_id, "⚠ تعذر قراءة الملف أو إضافته إلى قائمة الفحوص. تأكد من صيغة XLSX وراجع لوحة التحكم.")
 
     def _download_file(self, url: str, max_bytes: int) -> Optional[bytes]:
         for attempt in range(3):

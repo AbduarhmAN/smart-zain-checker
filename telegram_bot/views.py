@@ -8,6 +8,7 @@ import re
 from datetime import datetime, timedelta, timezone
 from .official_support import support_button
 from .button_layout import inline_rows
+from .presentation import DIVIDER
 
 
 @dataclass(frozen=True)
@@ -116,7 +117,7 @@ def payment_invoice_panel(
         except Exception:
             show_crypto = False
 
-    id_info = f"\n🆔 رقم المستخدم (User ID): <code>{account_id}</code>" if account_id else ""
+    id_info = f"\nرقم الحساب: <code>{account_id}</code>" if account_id else ""
     op_info = f"\n🧾 رقم العملية: <code>#{operation_id}</code>" if operation_id else ""
 
     if show_crypto:
@@ -129,7 +130,7 @@ def payment_invoice_panel(
         crypto_equiv_line = ""
 
     text = (
-        f"<b>💳 اختر طريقة الدفع لبدء فحص الشيت</b>\n\n"
+        f"<b>💳 اختر طريقة الدفع لبدء فحص الملف</b>\n\n"
         f"📁 الملف: <b>{safe(sheet_name)}</b>\n"
         f"🔢 عدد السجلات: <b>{count(rows_count)}</b>{id_info}{op_info}\n"
         f"💵 الرسوم الأساسية: <b>{amount_egp:.2f} جنيه مصري</b>\n"
@@ -138,7 +139,7 @@ def payment_invoice_panel(
         f"<i>اختر إحدى طرق الدفع التالية:</i>"
     )
     rows = [
-        [button("🎫 Promo Code", f"pay:promo:{token}")],
+        [button("🎫 إدخال رمز عرض", f"pay:promo:{token}")],
         [button(f"💰 الدفع من المحفظة ({wallet_balance:.2f} ج.م)", f"pay:wallet:{token}")],
     ]
     if show_crypto:
@@ -149,18 +150,18 @@ def payment_invoice_panel(
         ])
         if pay_url:
             rows.append([url_button(f"💎 ادفع المعادل ({amount_usdt:.2f} USDT) في @CryptoBot", pay_url)])
-            rows.append([button("🔄 تحقق من دفع CryptoBot وابدأ الفحص 🚀", f"paycheck:{invoice_id}:{token}", "success")])
-    rows.append([button("‹ مراجعة الشيت", f"map:{token}:review"), button("‹ الرئيسية", "home")])
+            rows.append([button("تحقق من دفع CryptoBot وابدأ الفحص", f"paycheck:{invoice_id}:{token}", "success")])
+    rows.append([button("‹ مراجعة الملف", f"map:{token}:review"), button("‹ الرئيسية", "home")])
     return Panel(text, rows)
 
 
 
 def promo_input_panel(sheet_name: str, token: str):
     text = (
-        f"<b>🎫 إدخال كود الخصم (Promo Code)</b>\n\n"
+        f"<b>🎫 إدخال كود الخصم (إدخال رمز عرض)</b>\n\n"
         f"📁 الملف: <b>{safe(sheet_name)}</b>\n\n"
         f"أرسل كود الخصم أو الكوبون الترويجي في رسالة نصية الآن.\n"
-        f"<i>إذا كان الكود مجانياً سيتم فحص الشيت فوراً، أو سيتم تطبيق نسبة الخصم على الرسوم بالجنيه المصري.</i>\n\n"
+        f"<i>إذا كان الكود مجانياً سيتم فحص الملف فوراً، أو سيتم تطبيق نسبة الخصم على الرسوم بالجنيه المصري.</i>\n\n"
         f"💡 <i>الأكواد المتاحة: WELCOME, VIP2026, FREECHECK</i>"
     )
     return Panel(text, [[button("‹ إلغاء ورجوع لطرق الدفع", f"map:{token}:pay")]])
@@ -200,7 +201,7 @@ def bep20_pay_panel(sheet_name: str, amount_usdt: float, bep20_address: str, tok
         f"<code>{safe(bep20_address)}</code>\n"
         f"<i>(اضغط على العنوان لنسخه مباشرة)</i>\n\n"
         f"⚠️ <b>مهم جداً:</b> عند التحويل لهذا العنوان استخدم شبكة <b>BEP20 (BSC)</b> فقط حتى لا تضيع الأموال.\n\n"
-        f"بعد إتمام التحويل، اضغط الزر أدناه لإرسال هاش المعاملة (TxID) ليتم <b>التحقق التلقائي والفوري ⚡</b> وبدء فحص الشيت مباشرة."
+        f"بعد إتمام التحويل، اضغط الزر أدناه لإرسال هاش المعاملة (TxID) ليتم <b>التحقق التلقائي والفوري ⚡</b> وبدء فحص الملف مباشرة."
     )
     return Panel(text, [
         [button("📝 إدخال هاش المعاملة (تحقق فوري ⚡)", f"pay:tx_bep20:{token}", "success")],
@@ -255,7 +256,7 @@ def crypto_network_detail_panel(
     auto_note = (
         "⚡ <b>ميزة التحقق التلقائي:</b> عند إرسال هاش العملية (TxID) سيتم <b>التحقق التلقائي والفوري في ثوانٍ</b> وبدء الفحص مباشرة دون انتظار المشرف!\n\n"
         if auto_verify else
-        "⏳ سيتم استلام إثبات المعاملة ومراجعته وتأكيد الشيت فوراً.\n\n"
+        "⏳ سيتم استلام إثبات المعاملة ومراجعته وتأكيد الملف فوراً.\n\n"
     )
 
     badge = "💎" if "ton" in net_key else ("🟣" if "sol" in net_key else ("🔷" if "erc20" in net_key else "🟢"))
@@ -288,7 +289,7 @@ def tx_prompt_panel(sheet_name: str, method_name: str, token: str):
         f"<b>📝 إرسال رقم العملية ({safe(method_name)})</b>\n\n"
         f"📁 الملف: <b>{safe(sheet_name)}</b>\n\n"
         f"أرسل الآن رقم العملية (TxID أو Order ID) في رسالة نصية هنا في الشات.\n"
-        f"ستبقى الدفعة بانتظار مراجعة المشرف. تُضاف الورقة إلى الطابور بعد تأكيد الاستلام."
+        f"ستبقى الدفعة بانتظار مراجعة المشرف. تُضاف الورقة إلى قائمة الفحوص بعد تأكيد الاستلام."
     )
     return Panel(text, [[button("‹ إلغاء ورجوع", f"map:{token}:pay")]])
 
@@ -313,23 +314,23 @@ def wallet_panel(user_id: int | str, balance: float, account_id: int | str = 0, 
 
     text = (
         f"<b>💼 محفظتي</b>\n\n"
-        f"🆔 رقم المستخدم: <code>{safe(id_val)}</code>\n"
+        f"رقم الحساب: <code>{safe(id_val)}</code>\n"
         f"<i>(اضغط على الرقم لنسخه مباشرة)</i>\n\n"
         f"💰 رصيدك الحالي: <b>{balance:.2f} جنيه مصري</b>{usdt_equiv}{rate_info}\n\n"
-        f"يمكنك استخدام رصيد محفظتك لفحص أي شيت بضغطة زر واحدة دون الحاجة للدفع في كل مرة.\n"
+        f"يمكنك استخدام رصيد محفظتك لفحص أي ملف بضغطة زر واحدة دون الحاجة للدفع في كل مرة.\n"
         f"رسوم فحص الورقة الحالية: <b>{sheet_price_egp:.2f} جنيه مصري</b>{sheet_usdt}."
     )
     if show_crypto:
         rows = [
-            [button("شحن المحفظة", "wallet:topup_menu", "success"), button("كود رصيد أو عرض", "wallet:redeem")],
+            [button("شحن المحفظة", "wallet:topup_menu", "primary"), button("كود رصيد أو عرض", "wallet:redeem")],
             [button('سجل المحفظة','oh:ledger:0'),button('طلباتي ومدفوعاتي','oh:list:0')],
-            [button("🏠 الرئيسية (Home)", "home")]
+            [button("🏠 الرئيسية", "home")]
         ]
     else:
         rows = [
-            [button("🎁 إدخال كود رصيد أو شحن", "wallet:redeem", "success")],
+            [button("إدخال كود رصيد أو عرض", "wallet:redeem", "primary")],
             [button('سجل المحفظة','oh:ledger:0'),button('طلباتي ومدفوعاتي','oh:list:0')],
-            [button("🏠 الرئيسية (Home)", "home")]
+            [button("🏠 الرئيسية", "home")]
         ]
     return Panel(text, rows)
 
@@ -345,7 +346,7 @@ def wallet_topup_menu_panel(balance: float, account_id: int | str = 0, live_rate
     if not show_crypto:
         text = (
             f"<b>💳 شحن رصيد المحفظة</b>\n\n"
-            f"🆔 رقم المستخدم: <code>{safe(account_id)}</code>\n"
+            f"رقم الحساب: <code>{safe(account_id)}</code>\n"
             f"💰 رصيدك الحالي: <b>{balance:.2f} جنيه مصري</b>\n\n"
             f"لشحن رصيد محفظتك، يرجى إدخال <b>كود رصيد (Redeem Code)</b> أو التواصل مع الإدارة للشحن المباشر.\n"
         )
@@ -358,11 +359,11 @@ def wallet_topup_menu_panel(balance: float, account_id: int | str = 0, live_rate
     rate_str = f"\n📈 سعر الصرف الحي: <b>{live_rate:.2f} جنيه / دولار</b>" if live_rate > 0 else ""
     text = (
         f"<b>⚡ شحن رصيد المحفظة بالعملات الرقمية</b>\n\n"
-        f"🆔 رقم المستخدم: <code>{safe(account_id)}</code>\n"
+        f"رقم الحساب: <code>{safe(account_id)}</code>\n"
         f"💰 رصيدك الحالي: <b>{balance:.2f} جنيه مصري</b>{rate_str}\n\n"
 
         f"<i>يمكنك شحن المحفظة بأي مبلغ ترغب به (مثلاً 5$ أو 10$ أو 20$ أو أكثر).</i>\n"
-        f"<i>يتم تحويل المبلغ تلقائياً بسعر الصرف وإضافته فوراً إلى رصيد محفظتك 🚀</i>\n\n"
+        f"<i>يُحوّل المبلغ بسعر الصرف المعتمد ويُضاف إلى رصيد محفظتك بعد تأكيد الدفع.</i>\n\n"
         f"اختر وسيلة الدفع المناسبة لك:"
     )
     rows = [
@@ -485,10 +486,10 @@ def wallet_topup_success_panel(
         f"💵 الرصيد المضاف: <b>+{amount_egp:.2f} جنيه مصري</b>\n"
         f"💼 رصيدك الإجمالي الجديد: <b>{new_balance:.2f} جنيه مصري</b>\n"
         f"🔗 رقم العملية: <code>{safe(tx_id)}</code>\n\n"
-        f"✅ يمكنك الآن فحص الشيتات بضغطة زر واحدة من رصيد المحفظة 🚀"
+        f"يمكنك الآن دفع رسوم الفحص من رصيد المحفظة."
     )
     return Panel(text, [
-        [button("📎 فحص شيت جديد", "upload", "primary")],
+        [button("📎 فحص ملف جديد", "upload", "primary")],
         [button("💼 عرض المحفظة", "wallet")],
         [button("‹ الرئيسية", "home")],
     ])
@@ -503,13 +504,14 @@ def admin_topup_approval_panel(
     amount_egp: float,
     topup_id: str,
     account_id: int | str = 0,
+    display_name: str = '',
 ):
-    user_str = f"ID: <code>{user_id}</code>"
+    user_str = f"رقم حساب تيليجرام: <code>{safe(user_id)}</code>"
     if account_id:
-        user_str = f"Account ID: <code>{account_id}</code> (Telegram: <code>{user_id}</code>)"
+        user_str = f"رقم الحساب: <code>{safe(account_id)}</code>\nرقم حساب تيليجرام: <code>{safe(user_id)}</code>"
     text = (
         f"<b>🔔 طلب شحن محفظة جديد بانتظار التأكيد!</b>\n\n"
-        f"👤 العميل: {user_str} (@{safe(username)})\n"
+        f"الاسم: <b>{safe(display_name or 'الاسم غير متاح')}</b>\n{user_str}\n"
         f"💳 وسيلة الشحن: <b>{safe(method)}</b>\n"
         f"🪙 المبلغ المحول: <b>{amount_usdt:.2f} USDT/USDC</b> (~{amount_egp:.2f} ج.م)\n"
         f"🧾 رقم المعاملة (TxID): <code>{safe(tx_id, 256)}</code>\n\n"
@@ -533,15 +535,15 @@ def redeem_input_panel():
 
 
 def redeem_success_panel(added_amount: float, new_balance: float, account_id: int | str = 0, live_rate: float = 0.0):
-    id_info = f"🆔 رقم المستخدم (User ID): <code>{account_id}</code>\n" if account_id else ""
+    id_info = f"رقم الحساب: <code>{account_id}</code>\n" if account_id else ""
     added_usdt = f" (~{added_amount / live_rate:.2f} USDT)" if (live_rate > 0 and added_amount > 0) else ""
     new_usdt = f" (~{new_balance / live_rate:.2f} USDT)" if (live_rate > 0 and new_balance > 0) else ""
     text = (
-        f"<b>🎉 تم شحن المحفظة بنجاح!</b>\n\n"
+        f"<b>تم شحن المحفظة</b>\n\n"
         f"{id_info}"
         f"➕ المبلغ المضاف: <b>+{added_amount:.2f} جنيه مصري</b>{added_usdt}\n"
         f"💼 رصيدك الإجمالي الآن: <b>{new_balance:.2f} جنيه مصري</b>{new_usdt}\n\n"
-        f"يمكنك الآن استخدام رصيدك لفحص أي ملف بضغطة زر 🚀"
+        f"يمكنك الآن دفع رسوم الفحص من رصيد المحفظة."
     )
     return Panel(text, [
         [button("📎 رفع ملف جديد", "upload"), button("💼 محفظتي", "wallet")],
@@ -549,24 +551,24 @@ def redeem_success_panel(added_amount: float, new_balance: float, account_id: in
     ])
 
 
-def admin_approval_panel(user_id: str, username: str, sheet_name: str, rows_count: int, method: str, tx_id: str, amount_usdt: float, token: str, account_id: int | str = 0, operation_id: str = "", amount_egp: float = 30.0):
-    user_str = f"<code>{safe(user_id)}</code>"
+def admin_approval_panel(user_id: str, username: str, sheet_name: str, rows_count: int, method: str, tx_id: str, amount_usdt: float, token: str, account_id: int | str = 0, operation_id: str = "", amount_egp: float = 30.0, display_name: str = ''):
+    user_str = f"رقم حساب تيليجرام: <code>{safe(user_id)}</code>"
     if account_id:
-        user_str += f" (رقم المستخدم: <code>{safe(account_id)}</code>)"
+        user_str += f"\nرقم الحساب: <code>{safe(account_id)}</code>"
     op_line = f"🧾 رقم العملية: <code>#{safe(operation_id)}</code>\n" if operation_id else ""
     text = (
         f"<b>🔔 إشعار دفعة جديدة بانتظار التأكيد!</b>\n\n"
         f"{op_line}"
-        f"👤 العميل: {user_str} (@{safe(username)})\n"
+        f"الاسم: <b>{safe(display_name or 'الاسم غير متاح')}</b>\n{user_str}\n"
         f"📁 الملف: <b>{safe(sheet_name)}</b> ({count(rows_count)} سجل)\n"
         f"💳 طريقة الدفع: <b>{safe(method)}</b>\n"
         f"💵 الرسوم الأساسية: <b>{amount_egp:.2f} جنيه مصري</b>\n"
         f"🪙 المعادل المحوّل: <b>{amount_usdt:.2f} USDT/USDC</b>\n"
         f"🧾 رقم المعاملة (TxID): <code>{safe(tx_id, 256)}</code>\n\n"
-        f"تحقق من استلام المبلغ ورقم المعاملة، ثم أكد الدفعة لإضافة الورقة إلى الطابور. بدء الجولة إجراء مستقل."
+        f"تحقق من استلام المبلغ ورقم المعاملة، ثم أكد الدفعة لإضافة الورقة إلى قائمة الفحوص. بدء الجولة إجراء مستقل."
     )
     return Panel(text, [
-        [button("✓ تأكيد الدفعة وإضافة للطابور", f"admpay:approve:{token}", "success"),
+        [button("✓ تأكيد الدفعة وإضافة إلى قائمة الفحوص", f"admpay:approve:{token}", "success"),
          button("❌ رفض الدفعة", f"admpay:reject:{token}", "danger")]
     ])
 
@@ -625,12 +627,12 @@ def admin_menu(section):
             [button('‹ الطلبات والمال','menu:money')]]),
         'partners':('🤝 الشركاء','الشراكات الحالية والسابقة ومراجعة ملفات الشركاء.',[
             [button('🤝 الشركاء الحاليون','cp:list:0'),button('🕘 الشركاء السابقون','pl:ended:0')],
-            [button('📋 موافقات الشيت','ps:list:0')]]),
+            [button('📋 ملفات الشركاء للموافقة','ps:list:0')]]),
         'offers':('🎁 العروض والأكواد','إدارة العروض وحدودها وأكواد الرصيد المدفوع.',[
             [button('🎁 العروض','campaigns'),button('🎟 أكواد الرصيد','cash_codes')],
             [button('⚖️ حدود العروض','oa:limits:0')]]),
         'settings':('⚙️ الإعدادات','الأسعار وصلاحيات الإدارة.',[
-            [button('💰 أسعار العملاء','prices'),button('📄 سعر شيت الشريك','partner_sheet_settings')],
+            [button('💰 أسعار العملاء','prices'),button('📄 تسعير ملفات الشركاء','partner_sheet_settings')],
             [button('🛡 المديرون والصلاحيات','admin_roles')]])}
     title,description,rows=sections[section]
     return Panel('<b>'+title+'</b>\n\n'+description,rows+[[button('‹ الرئيسية','home')]])
@@ -639,17 +641,17 @@ def admin_menu(section):
 def operations(state, jobs):
     state = dict(state)
     state['round_pending'] = any(job.get('status') in {'pending','active'} for job in jobs)
-    rows = [[button('📊 الحالة','status'),button('📁 إدارة الطابور','queue:0')]]
+    rows = [[button('📊 الحالة','status'),button('📁 قائمة الفحوص','queue:0')]]
     rows.extend(controls(state))
     if (state.get('engine_online') is not False and not state.get('stale') and not state.get('running')
             and not state.get('finalizing') and not any(job.get('status') == 'active' for job in jobs)
             and any(job.get('status') == 'pending' for job in jobs)):
         rows.append([button('▶ بدء الملفات المنتظرة','start_queue','success')])
-    rows.extend([[button('📋 ملفات المراجعة','drafts:0'),button('📎 رفع شيت','upload')],
+    rows.extend([[button('📋 ملفات المراجعة','drafts:0'),button('📎 رفع الشيتات','upload')],
                  [button('🗂 الأرشيف','archive'),button('❔ المساعدة','help')],
                  [button('↻ تحديث','menu:operations'),button('‹ الرئيسية','home')]])
     return Panel('<b>⚙️ إدارة التشغيل</b>\n\n'+state_label(state)+
-                 '\nاختر الحالة أو ملفًا من الطابور لمراجعته. إجراءات التشغيل تعرض تأكيدًا قبل التنفيذ.',rows)
+                 '\nاختر المتابعة أو ملفًا من قائمة الفحوص. تتطلب إجراءات التشغيل تأكيدًا قبل التنفيذ.',rows)
 
 
 def partner_home_rows():
@@ -657,7 +659,7 @@ def partner_home_rows():
 
 
 def home(state, jobs, account_id: int | str = 0, is_admin: bool = False, mode: str = "customer", wallet_balance: float = 0.0):
-    id_line = f"🆔 رقم المستخدم: <code>{account_id}</code>\n" if account_id else ""
+    id_line = f"رقم الحساب: <code>{account_id}</code>\n" if account_id else ""
     bal_line = f"💼 رصيدك في المحفظة: <b>{wallet_balance:.2f} جنيه مصري</b>\n\n" if wallet_balance >= 0 else "\n"
 
 
@@ -675,24 +677,25 @@ def home(state, jobs, account_id: int | str = 0, is_admin: bool = False, mode: s
         labels={'results':'📥 نتائج الجولة','repair':'🛠 إعادة الفحص'}
         quick=[{**item,'text':labels.get(item['callback_data'][3:],item['text'])} for item in quick]
         return Panel(text, [
-            [button('📎 رفع شيت','upload','success'),button('📊 المتابعة','status'),button('📁 الطابور','queue:0')],
+            [button('📎 رفع الشيتات','upload','primary'),button('📊 المتابعة','status')],
+            [button('📁 قائمة الفحوص','queue:0'),button('📋 ملفات المراجعة','drafts:0')],
             *[quick[i:i+2] for i in range(0,len(quick),2)],
             [button('💳 الطلبات والمال','menu:money'),button('🤝 الشركاء','menu:partners')],
             [button('🎁 العروض والأكواد','menu:offers'),button('⚙️ الإعدادات','menu:settings')],
             [button('⚙️ إدارة التشغيل','menu:operations'),button('🗂 الأرشيف','archive')],
-            [button('💼 محفظتي','wallet'),button('👤 وضع الزبون','switch_mode:customer')],
+            [button('💼 محفظتي','wallet'),button('👤 واجهة العميل','switch_mode:customer')],
             [support_button()],
         ])
 
     # Default / Customer Mode:
     text = (
-        f"<b>تشيك.</b>\n<i>فحص وتدقيق شيتات زين بدقة وسرعة فائقة 🚀</i>\n\n"
+        f"<b>تشيك · فحص ملفات زين</b>\n\n"
         f"{id_line}"
         f"{bal_line}"
-        'ارفع ملفك، راجع الرسوم، وتابع النتيجة من طلباتك.'
+        'أرسل ملفك، وراجع البيانات والرسوم، ثم تابع النتائج من طلباتك.'
     )
     rows = [
-        [button('📎 رفع ملف للفحص','upload','success')],
+        [button('📄 فحص ملف جديد','upload','primary')],
         [button('📋 ملفاتي للمراجعة','drafts:0'),button('🧾 طلباتي ومدفوعاتي','oh:list:0')],
         [button('💼 محفظتي','wallet'),button('📦 نتائجي السابقة','archive')],
         [button('📊 حالة فحوصاتي','status'),button('❔ المساعدة','help')],
@@ -741,37 +744,37 @@ def status(state):
     if state.get("verifications"):
         text += "\n\nأكمل تحقق زين في Chrome أو لوحة التحكم، ثم حدّث الحالة."
     return Panel(text, [[button("↻ تحديث الحالة", "status", "primary")], *controls(state),
-                        [button("📁 الطابور", "queue:0"), button("‹ الرئيسية", "home")]])
+                        [button("📁 قائمة الفحوص", "queue:0"), button("‹ الرئيسية", "home")]])
 
 
-def queue(jobs, page=0):
+def queue(jobs, page=0, *, person_name=None):
     size = 5
     pages = max(1, math.ceil(len(jobs) / size))
     page = min(max(0, page), pages - 1)
-    labels = {"pending":"◷ في الانتظار", "active":"🟢 قيد المعالجة", "completed":"✓ انتهت المعالجة",
-              "failed":"⚠ يحتاج متابعة", "interrupted":"⏸ متوقف"}
-    text = f"<b>📁 طابور الملفات</b>\n{count(len(jobs))} ملف · صفحة {page+1} من {pages}\n"
+    labels = {'pending':'بانتظار التنفيذ', 'active':'قيد التنفيذ', 'completed':'مكتمل',
+              'failed':'يتطلب مراجعة', 'interrupted':'متوقف', 'cancelled':'ملغى', 'archived':'مؤرشف'}
+    lines = ['<b>قائمة الفحوص</b>', f'الملفات: {count(len(jobs))} · الصفحة {page+1} من {pages}']
+    visible = jobs[page*size:(page+1)*size]
     if not jobs:
-        text += "\nالطابور فارغ. أرسل ملف XLSX لإضافته."
-    for index, job in enumerate(jobs[page*size:(page+1)*size], page*size+1):
-        text += (f"\n<b>{index}. {safe(job.get('filename'))}</b>\n"
-                 f"{safe(job.get('sheet_name'), 65)} · {labels.get(job.get('status'), 'حالة غير معروفة')}\n"
-                 f"معالجة: {count(job.get('completed'))} / {count(job.get('total_records'))}\n")
+        lines.append('لا توجد ملفات مضافة. أرسل ملفًا بصيغة XLSX لبدء المراجعة.')
     rows = []
-    for index, job in enumerate(jobs[page*size:(page+1)*size], page*size+1):
-        if job.get("id"):
-            rows.append([button(f"إدارة الشيت {index}", f"job:{job['id']}")])
+    for index, job in enumerate(visible, page*size+1):
+        mapping = job.get('column_mapping') or {}
+        owner = mapping.get('telegram_chat_id')
+        name = person_name(owner) if person_name and owner else 'إدارة المنصة' if not owner else 'الاسم غير متاح'
+        lines.extend(['', DIVIDER, f'<b>الفحص {index}</b>', 'صاحب الملف: <b>'+safe(name, 80)+'</b>'])
+        if owner:lines.append('رقم حساب تيليجرام: <code>'+safe(owner)+'</code>')
+        lines.extend(['الملف: <code>'+safe(job.get('filename'), 80)+'</code>', 'ورقة العمل: '+safe(job.get('sheet_name'), 45),
+            'مرحلة التنفيذ: '+labels.get(job.get('status'), 'غير محددة'),
+            'السجلات المنجزة: '+count(job.get('completed'))+' من '+count(job.get('total_records'))])
+        if job.get('id'):rows.append([button(f'تفاصيل الفحص {index}', f"job:{job['id']}")])
     pagination = []
-    if page > 0:
-        pagination.append(button("‹ السابق", f"queue:{page-1}"))
-    if page+1 < pages:
-        pagination.append(button("التالي ›", f"queue:{page+1}"))
-    if pagination:
-        rows.append(pagination)
-    if any(job.get("status") == "pending" for job in jobs):
-        rows.append([button("▶ بدء الجولة", "start_queue", "success")])
-    rows += [[button("↻ تحديث الطابور", f"queue:{page}"), button("📎 إضافة ملف", "upload")], nav()]
-    return Panel(text, rows)
+    if page > 0:pagination.append(button('السابق', f'queue:{page-1}'))
+    if page+1 < pages:pagination.append(button('التالي', f'queue:{page+1}'))
+    if pagination:rows.append(pagination)
+    if any(job.get('status') == 'pending' for job in jobs):rows.append([button('بدء تنفيذ الملفات', 'start_queue', 'primary')])
+    rows += [[button('تحديث القائمة', f'queue:{page}'), button('إضافة ملف', 'upload')], nav()]
+    return Panel('\n'.join(lines), rows)
 
 
 def customer_home(account_id=0):
@@ -816,8 +819,8 @@ def upload(admin=True):
     return Panel("<b>📎 أضف ملف العملاء</b>\n\n"
                  "<b>① أرسل الملف</b>\nاضغط المرفق واختر ملف الإكسل بصيغة XLSX.\n\n"
                  "<b>② نقرأ الأعمدة</b>\nنتحقق من رقم الحساب أو الخدمة والمبلغ المطلوب مراجعته. اسم العميل اختياري.\n\n"
-                 "<b>③ تحقق ثم ابدأ</b>\nإذا لم نعرف البيانات، اختر عمود الرقم وعمود المبلغ. أضف الشيت إلى الطابور، وكرر ذلك للملفات الأخرى، ثم اضغط بدء الجولة. النتائج بعد اكتمال الفحص.",
-                 [[button("ملفات تحتاج مراجعة", "drafts:0"), button("📁 عرض الطابور", "queue:0")], nav()])
+                 "<b>③ تحقق ثم ابدأ</b>\nإذا لم نعرف البيانات، اختر عمود الرقم وعمود المبلغ. أضف الملف إلى قائمة الفحوص، وكرر ذلك للملفات الأخرى، ثم اضغط بدء الجولة. النتائج بعد اكتمال الفحص.",
+                 [[button("ملفات تحتاج مراجعة", "drafts:0"), button("📁 عرض قائمة الفحوص", "queue:0")], nav()])
 
 
 def help_panel(admin=True):
@@ -851,7 +854,7 @@ def confirmation(action, workbook, token):
         "resume": ("▶ استئناف الفحص", "سنكمل المهام المتبقية مع الاحتفاظ بالتقدم السابق.", "استئناف"),
         "results": ("📥 استلام نتائج الجولة", "سنرسل نتائج الجولة المكتملة إلى هذه المحادثة الخاصة. تتضمن الأرقام والأرصدة التي فُحصت.", "إرسال النتائج"),
         "repair": ("🛠 إعادة فحص الأخطاء", "سنُعيد فحص الأخطاء والحالات التي تحتاج مراجعة في هذه الجلسة. قد يستأنف ذلك الفحص المتوقف ويتصل بزين؛ لا يغيّر الخلايا الناقصة في ملفك.", "إعادة فحص الأخطاء"),
-        "remove": ("إخراج الشيت من الطابور", "سيُزال إدخال الشيت من الطابور. ملف الإكسل ونتائجه يبقيان محفوظين.", "إخراج من الطابور"),
+        "remove": ("إخراج الملف من قائمة الفحوص", "سيُزال إدخال الملف من قائمة الفحوص. ملف الإكسل ونتائجه يبقيان محفوظين.", "إخراج من قائمة الفحوص"),
         "start_queue": ("▶ بدء الجولة", "سنفحص الملفات المنتظرة بالتتابع. يمكنك إيقاف الفحص مؤقتًا واستئنافه من الحالة؛ النتائج بعد اكتمال الجولة.", "بدء الفحص"),
     }[action]
     return Panel(f"<b>{title}</b>\n\nالملف: <b>{safe(workbook)}</b>\n\n{body}",

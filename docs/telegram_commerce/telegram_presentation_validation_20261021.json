@@ -1,0 +1,117 @@
+{
+  "date": "2026-10-21",
+  "local_tests_passed": 342,
+  "production_interpreter_tests_passed": 342,
+  "source_only_release": true,
+  "runtime_changes": [
+    {
+      "path": "telegram_bot/bot.py",
+      "before_sha256": "ab5108aa98f3712302613b8a01522c33e31db07861da20e90a29b2837445ae92",
+      "after_sha256": "8070cd7576997515c9843a16a5c34c216b98083d0254aca367b6ccd7a32052ef"
+    },
+    {
+      "path": "telegram_bot/button_layout.py",
+      "before_sha256": "f8083c8d06e65e55618aea0960381ba5a2218da95220e2abf57099b7a037384b",
+      "after_sha256": "44d761b7f5401b5175dbcdaedea80e89530d3f80bd4cc48f58f5def37ae039fd"
+    },
+    {
+      "path": "telegram_bot/commerce/admin_roles.py",
+      "before_sha256": "ee412a9a9f2af23da9d7c9a8b6775d350cf04808c43b526ba270c23e71dc7286",
+      "after_sha256": "9345aa7296019239579fb67bc9f4f4ce0125f0ff2c7a3961de26fab27cec2f19"
+    },
+    {
+      "path": "telegram_bot/commerce/bot_workflow.py",
+      "before_sha256": "07d43ac70ecc78e31ea85b426921a531308cc484728ed65f58f09527af1e8686",
+      "after_sha256": "e8af96cd629fae9585964cf579e06c31f515bcd8828f9c987ac0e1d271b93dcc"
+    },
+    {
+      "path": "telegram_bot/commerce/campaigns.py",
+      "before_sha256": "d0627e6442297debe655a583c0240d25115ce77833c77d919f7c3f1d8c9b2964",
+      "after_sha256": "e84fdd1b815859e72f1b9abb706bc50aee1a5491098fdd1e27c6a49ea54f8160"
+    },
+    {
+      "path": "telegram_bot/commerce/cash_codes.py",
+      "before_sha256": "d44c6e8a9ceea491a4edb1c9fc35de4d4a271bc2fda46084bec602f312cc8454",
+      "after_sha256": "d7e9caa044eb1ebfa00fbc5689620ea7c7ae827f75b848f16e9ed1d83c82f319"
+    },
+    {
+      "path": "telegram_bot/commerce/customer_activity.py",
+      "before_sha256": "9a87b695e5ef3982fb110076da5591f560bd0cc1fd21df13c99aaf231cc8de6b",
+      "after_sha256": "02bdd05f328b2d5989b3fa335e628d0286f29265842c9c0d079543c101d48c2e"
+    },
+    {
+      "path": "telegram_bot/commerce/manual_payments.py",
+      "before_sha256": "59a1dc2721e77c4667369960908b9b869ca45debaff702e962ceb9ab7893281c",
+      "after_sha256": "ebdafce1c5efce51ed8c63e022db5324a476007ee23c2efb490ee823a99570c5"
+    },
+    {
+      "path": "telegram_bot/commerce/partner_finance.py",
+      "before_sha256": "46e7f49a391f491abb22fec3404602be46664c595d6bff0b6ec332bc41da642e",
+      "after_sha256": "46093d9f1245ab1a54180c7f35794ad38344ebe1ae0273d95ec3f4fb8ccf30fa"
+    },
+    {
+      "path": "telegram_bot/commerce/partner_lifecycle.py",
+      "before_sha256": "eb58ec5375d92df8136d4c90c25c889e5725085cd095d570c69a3b0c099c65b5",
+      "after_sha256": "8a33bf28a1b83c0fc7421a84d970ab31ffa43373aba5bd2a88450321495da886"
+    },
+    {
+      "path": "telegram_bot/commerce/partner_roles.py",
+      "before_sha256": "a85d0f944f54ce916a30a0ea9aefcf5b51a0dc0be5fa674eba1e7b0272c2e5f8",
+      "after_sha256": "1e1dda605e41a1949ef36a3abb67cd26b12675f63fa1b21b0ba04b438bd5b06c"
+    },
+    {
+      "path": "telegram_bot/commerce/partner_sheets.py",
+      "before_sha256": "9f3f1844ba3f78cc2f0b3e7a152e1edf763ec9c2f108b2a351a3d73301a9b7d4",
+      "after_sha256": "7a6c7dd70d6d25842f570340cb93375dec57e55ef7cf87f53fa2cabc1d741690"
+    },
+    {
+      "path": "telegram_bot/commerce/partner_views.py",
+      "before_sha256": null,
+      "after_sha256": "51005017d3dbd8b9044fe692f125ade095523a7ce1c59d3b114bbe2e992e8a7d"
+    },
+    {
+      "path": "telegram_bot/commerce/pricing_ui.py",
+      "before_sha256": "d9cf0f23dfeb297ee3e87dcaf30f4c64a0f02c0406b5ed29dbb111f5b756eef9",
+      "after_sha256": "f8278b806086eee176bda6c2cdb11f27f2fa2921b826c82ccb6c21b3f923f436"
+    },
+    {
+      "path": "telegram_bot/commerce/wallets.py",
+      "before_sha256": "25ab4d187aabc669615650ff7ac81b1d18bc9f65e7959e83d2619846aefe03e1",
+      "after_sha256": "a37aa2a81f7bea4f4a32f3c35ebaaeb840743d9dc49fe9d3c87ac487a22c513c"
+    },
+    {
+      "path": "telegram_bot/identity.py",
+      "before_sha256": null,
+      "after_sha256": "692f654c31e7f2dff9d213961257476685a06bacbd7adc365d6f465b7ef526bc"
+    },
+    {
+      "path": "telegram_bot/order_history.py",
+      "before_sha256": "e7c669fb9149135135d16476552ee7df391bbe689aea3107e3777031a0af9f64",
+      "after_sha256": "aab53ebff8ef78c3582755fd6f46138fde3650f37559f27557e6aa12ce59c4d8"
+    },
+    {
+      "path": "telegram_bot/presentation.py",
+      "before_sha256": null,
+      "after_sha256": "420325ff6653962178191d74f3e50454f3e407b8fa6bd3d3cfd729f48b37196f"
+    },
+    {
+      "path": "telegram_bot/sheet_workflow.py",
+      "before_sha256": "c34f970e805c382721994b04bfc7b61fe3d2a471e4492cb8a4525af6824a9f56",
+      "after_sha256": "1e92f13636cbb2a91dfc9d48d4dffc34721fe86b6691769769f2959ccefce025"
+    },
+    {
+      "path": "telegram_bot/ui.py",
+      "before_sha256": "35e47523ec234888b3410d918e75ac27001a15bbd25da5d14c31c292c4d03e30",
+      "after_sha256": "13f1b3278598b5ba5d308c376dd4ac17ac4680341dc78c4e4e07e80414f23bfd"
+    },
+    {
+      "path": "telegram_bot/views.py",
+      "before_sha256": "9b7a5edd76cdb56f379f76bf97c99e29ed3be81bd0518609e9ee63e3dacabbc7",
+      "after_sha256": "ac56d481811fa59bb540c82ee3eea40a1723a989e5d7058e7f502de78dcd8ac1"
+    }
+  ],
+  "migration": "202610210051_commerce_telegram_presentation.sql",
+  "builds_run": false,
+  "files_deleted": false,
+  "customer_messages_sent": false
+}

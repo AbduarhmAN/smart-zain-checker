@@ -1,5 +1,6 @@
 """A retained partner ledger is not an active operational role."""
 from telegram_bot.authorization import admin_ids
+from telegram_bot.identity import TelegramIdentityMixin
 
 def active_partner(profile):
     if profile.get('is_partner') is not True or profile.get('partnership_ended_at'):return False
@@ -7,7 +8,7 @@ def active_partner(profile):
     state=profile.get('partnership_state',profile.get('state'))
     return state in (None,'active')
 
-class PartnerRoleMixin:
+class PartnerRoleMixin(TelegramIdentityMixin):
     def _remember_partner_sheet_access(self,user,enabled):
         with self._ui_lock:
             if not hasattr(self,'_partner_sheet_access_flags'):self._partner_sheet_access_flags={}

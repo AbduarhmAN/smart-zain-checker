@@ -63,7 +63,7 @@ class CustomerActivityMixin:
                 if target is None or target in admin_ids(self) or customer is not None and target != customer:
                     raise ValueError('Unexpected report customer')
                 if customer is None:
-                    name = views.safe(item.get('telegram_username') or 'عميل', 35)
+                    name = views.safe(self._telegram_person_name(target), 60)
                     lines.append('\n' + name + ' · <code>' + str(target) + '</code>')
                     if kind == 'codes':
                         lines.append('نقدي: ' + egp(item['cash_credit_minor']) + ' · ترويجي: ' + egp(item['promotional_credit_minor']) + ' جنيه')

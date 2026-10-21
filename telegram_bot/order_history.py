@@ -11,10 +11,11 @@ from decimal import Decimal
 from uuid import UUID
 from telegram_bot import views
 from telegram_bot.authorization import user_id,admin_ids
+from telegram_bot.presentation import DIVIDER
 
 
 PAYMENT_LABELS = {'ready':'بانتظار الدفع', 'pending':'بانتظار مراجعة التحويل',
-                  'approved':'الدفع معتمد', 'fulfilled':'الدفع محفوظ والطلب أُضيف للطابور',
+                  'approved':'الدفع معتمد', 'fulfilled':'الدفع محفوظ والطلب أُضيف إلى قائمة الفحوص',
                   'rejected':'مرجع الدفع مرفوض'}
 JOB_LABELS = {'pending':'بانتظار بدء الفحص', 'active':'جارٍ الفحص',
               'completed':'اكتمل الفحص', 'archived':'اكتمل الفحص',
@@ -43,7 +44,7 @@ class OrderHistoryMixin:
         if free:text+=' الطلب مجاني؛ لا يوجد مبلغ نقدي لاسترداده.'
         else:text+=' دفعتك القديمة محفوظة؛ تسوية أي مبلغ مسترد لهذا المسار تحتاج مراجعة الإدارة.'
         if draft.get('promo_applied') or draft.get('promo_code') or payment.get('kind')=='promo':
-            text+=' عرض المرة الواحدة أو الشيت يبقى مستهلكًا بعد الإيقاف؛ لا يُعاد استخدام الكود لنفس المنفعة.'
+            text+=' عرض المرة الواحدة أو الملف يبقى مستهلكًا بعد الإيقاف؛ لا يُعاد استخدام الكود لنفس المنفعة.'
         return text
 
     def _history_input_signature(self, draft, *, live=False):
@@ -185,7 +186,7 @@ class OrderHistoryMixin:
         if record is None:raise ValueError('Unknown or unowned order')
         draft = record['draft'];payment = record['payment'];job = record['job'] or {}
         order = draft.get('commerce_order_id');lines=['<b>متابعة الطلب</b>',views.safe(self._history_title(record))]
-        if admin:lines.append('العميل: <code>'+record['owner']+'</code>')
+        if admin:lines.extend(['الاسم: <b>'+views.safe(self._telegram_person_name(int(record['owner'])))+'</b>','رقم حساب تيليجرام: <code>'+record['owner']+'</code>'])
         if order:
             state = self._checkout_state(draft,int(record['owner']))
             lines += ['رقم الطلب: <code>'+views.safe(order)+'</code>', 'المبلغ المحفوظ: '+egp_from_minor(state['quoted_minor'])+' جنيه',
@@ -218,7 +219,7 @@ class OrderHistoryMixin:
                         lines.append('ترتيب الإضافة: '+str(position+1))
                         lines.append('قد يبدأ فحص الأرقام المتاحة قبل اكتمال الملفات السابقة.')
                     else:
-                        lines.append('ملفات أمامك في الطابور: '+str(position))
+                        lines.append('ملفات أمامك في قائمة الفحوص: '+str(position))
         if job.get('status') not in {'completed','archived'}:lines.append('ستظهر النتيجة بعد اكتمال الفحص؛ لا توجد نتيجة مؤرشفة لهذا الطلب حتى الآن.')
         rows=[]
         if order:
@@ -248,7 +249,7 @@ class OrderHistoryMixin:
         lines=['<b>سجل محفظتي</b>'];rows=[]
         for entry in entries[offset:offset+8]:
             label='إضافة' if entry.get('type')=='credit' else 'خصم'
-            lines.append(f"{label}: {views.safe(entry.get('amount'))} جنيه\n{views.safe(entry.get('reason'),120)}\n{views.safe(entry.get('timestamp'))}")
+            lines.append(DIVIDER+f"\n{label}: {views.safe(entry.get('amount'))} جنيه\nالبيان: {views.safe(entry.get('reason'),120)}\nالتاريخ: {views.safe(entry.get('timestamp'))}")
         if not entries:lines.append('لا توجد حركات محفوظة في هذه المحفظة.')
         if offset:rows.append([views.button('الأحدث',f'oh:ledger:{max(0,offset-8)}')])
         if offset+8<len(entries):rows.append([views.button('الأقدم',f'oh:ledger:{offset+8}')])
@@ -266,7 +267,9 @@ class OrderHistoryMixin:
         rows=[]
         for item in page['items']:
             order=str(UUID(item['order_id']))
-            label=views.count(item['requested_checks'])+' صف · '+str(item['payment_state'])+' · '+order[:8]
+            payment_label={'unpaid':'بانتظار الدفع','reserved':'الدفع محجوز','settled':'مسوّى','refunded':'مسترد','partial_refund':'استرداد جزئي'}.get(item['payment_state'],'يتطلب مراجعة')
+            label=views.count(item['requested_checks'])+' سجل · '+payment_label+' · '+order[:8]
+            if admin:label=self._telegram_person_name(item.get('owner_telegram_id'))[:35]+' · '+label
             rows.append([views.button(label,'oh:'+('cinspect' if admin else 'copen')+':'+order)])
         action='cadmin' if admin else 'clist'
         if offset:rows.append([views.button('الأحدث',f'oh:{action}:{max(0,offset-8)}')])
@@ -297,7 +300,7 @@ class OrderHistoryMixin:
                 raise ValueError('Order check counts do not match its manifest')
             lines[3:3]=['عدد أرقام الحسابات: '+views.count(accounts),
                         'عدد أرقام الخدمة/المحافظ: '+views.count(services)]
-        if admin:lines.append('العميل: <code>'+str(item['owner_telegram_id'])+'</code>')
+        if admin:lines.extend(['الاسم: <b>'+views.safe(self._telegram_person_name(item['owner_telegram_id']))+'</b>','رقم حساب تيليجرام: <code>'+str(item['owner_telegram_id'])+'</code>'])
         if item.get('charged_minor') is not None:
             lines.extend(['الرسوم النهائية: '+egp_from_minor(item['charged_minor'])+' جنيه',
                 'المُعاد للمحفظة: '+egp_from_minor(item['refunded_minor'])+' جنيه'])
@@ -338,8 +341,8 @@ class OrderHistoryMixin:
             buckets=entry.get('bucket_deltas',{})
             labels={'available':'المتاح','reserved':'المحجوز'}
             parts.extend(views.safe(labels.get(bucket,bucket))+': '+signed(value) for bucket,value in buckets.items())
-            parts.append(views.safe(entry['created_at']))
-            lines.append('\n'.join(parts))
+            parts.append('تاريخ الحركة: '+views.safe(entry['created_at']))
+            lines.append(DIVIDER+'\n'+'\n'.join(parts))
         if not page['items']:lines.append('لا توجد حركات محفوظة.')
         rows=[]
         if offset:rows.append([views.button('الأحدث',f'oh:ledger:{max(0,offset-8)}')])

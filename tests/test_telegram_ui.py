@@ -26,6 +26,7 @@ class TelegramUiTests(unittest.TestCase):
         self.bot = TelegramBotRunner(self.orchestrator, self.queue, Path.cwd(),
                                       bot_token='test-token', authorized_id=123)
         self.bot._api_call = Mock(return_value={'ok':True})
+        self.bot._subscription_status = Mock(return_value='member')
         self.bot._commerce_client = Mock()
         self.bot._commerce_client.rpc.side_effect = lambda name,args: (
             {'is_partner':False} if name=='partner_sheet_context' else self.fail('Unexpected commerce RPC'))

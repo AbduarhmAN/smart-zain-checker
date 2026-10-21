@@ -75,6 +75,7 @@ class OrderHistoryTests(unittest.TestCase):
         self.root=Path(tempfile.mkdtemp(prefix='order-history-retained-'))
         source=self.root/'old.xlsx';book=Workbook();book.active.append(['number','amount']);book.active.append(['1000000001',0]);book.save(source);book.close()
         self.bot=TelegramBotRunner.__new__(TelegramBotRunner)
+        self.bot._subscription_status=Mock(return_value='member')
         self.bot.project_root=self.root;self.bot._ui_lock=threading.RLock();self.bot._sheet_drafts={}
         self.bot.authorized_id=9;self.bot.authorized_ids={9};self.bot._authorized_override=True
         self.bot._show_panel=Mock();self.bot._api_call=Mock();self.bot._waiting_user_inputs={}
@@ -194,6 +195,13 @@ class OrderHistoryTests(unittest.TestCase):
         self.assertIn('0.03 جنيه',self.panel().text)
         self.bot._commerce_client.rpc.assert_called_once_with('customer_order_detail',
             {'p_actor_telegram_id':31,'p_order_id':item['order_id'],'p_admin':False})
+
+    def test_authoritative_order_shows_account_and_service_counts(self):
+        item=self.server_order();item.update(account_count=1,service_count=2)
+        self.bot._commerce_client=Mock();self.bot._commerce_client.rpc.return_value=item
+        self.bot._history_callback('oh:copen:'+item['order_id'],31)
+        self.assertIn('عدد أرقام الحسابات: 1',self.panel().text)
+        self.assertIn('عدد أرقام الخدمة/المحافظ: 2',self.panel().text)
 
     def test_stopped_queued_order_is_shown_as_cancellation_not_waiting_for_checking(self):
         item=self.server_order();item['customer_stop_reference']='native-stop'

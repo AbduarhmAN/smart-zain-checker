@@ -40,6 +40,7 @@ class TransportReliabilityTests(unittest.TestCase):
         self.queue = Mock()
         self.bot = TelegramBotRunner(self.orchestrator, self.queue, self.root,
                                      bot_token='test-token', authorized_id=123)
+        self.bot._subscription_status = Mock(return_value='member')
         self.bot._commerce_client = Mock()
         self.bot._commerce_client.rpc.side_effect = lambda name,args: (
             {'is_partner':False} if name=='partner_sheet_context' else self.fail('Unexpected commerce RPC'))
@@ -121,12 +122,13 @@ class TransportReliabilityTests(unittest.TestCase):
         self.bot._dispatch_ui.assert_not_called()
         self.orchestrator.pause_session.assert_not_called()
 
-    def test_non_admin_controls_remain_restricted(self):
+    def test_non_admin_status_uses_own_status_route_without_global_controls(self):
         self.bot._reply = Mock()
         self.bot._dispatch_ui = Mock()
         self.bot._handle_update(self.message('/status', sender=456, chat=456))
-        self.bot._dispatch_ui.assert_not_called()
-        self.bot._reply.assert_called_once()
+        self.bot._dispatch_ui.assert_called_once_with('status',456)
+        self.bot._reply.assert_not_called()
+        self.orchestrator.pause_session.assert_not_called()
 
     def test_document_caption_does_not_become_payment_input(self):
         self.bot._waiting_user_inputs[123] = {'action': 'tx_id', 'token': 'draft'}

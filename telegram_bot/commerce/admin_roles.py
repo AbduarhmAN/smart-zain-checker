@@ -108,8 +108,8 @@ class AdminRolesMixin:
                 cfg=settings();rows=[];lines=['<b>المديرون والصلاحيات</b>','المدير الأساسي وحده يدير هذه القائمة.']
                 for target in sorted(cfg['authorized_ids']):
                     primary=target==cfg['authorized_id']
-                    lines.append('<code>'+str(target)+'</code>'+(' · المدير الأساسي' if primary else ' · مدير'))
-                    if not primary:rows.append([views.button('سحب الإدارة من '+str(target),'am:remove:'+str(target),'danger')])
+                    lines.append('<b>'+views.safe(self._telegram_person_name(target))+'</b>\nرقم حساب تيليجرام: <code>'+str(target)+'</code>\nالصلاحية: '+('المدير الأساسي' if primary else 'مدير'))
+                    if not primary:rows.append([views.button('سحب الصلاحية من '+self._telegram_person_name(target)[:35],'am:remove:'+str(target),'danger')])
                 if pending and pending['state']=='pending':
                     rows.insert(0,[views.button('استكمال التغيير السابق','am:retry:'+pending['token'])])
                     rows.insert(1,[views.button('إلغاء التغيير المعلّق','am:cancel:'+pending['token'])])
@@ -145,7 +145,7 @@ class AdminRolesMixin:
             if pending and pending['state']=='pending':raise ValueError('Finish approved pending change first')
             if action=='add':
                 with self._ui_lock:self._waiting_user_inputs[actor]={'action':'commerce_admin_role_target','message_id':message_id,'expires':time.monotonic()+1800}
-                self._commerce_notice(actor,'إضافة مدير','أرسل رقم مستخدم Telegram للحساب الذي تريد إعطاءه الإدارة. ستراجع التغيير قبل تأكيده.',message_id);return
+                self._commerce_notice(actor,'إضافة مدير','أرسل رقم حساب تيليجرام للحساب الذي تريد إعطاءه الإدارة. ستراجع التغيير قبل تأكيده.',message_id);return
             if action=='remove':self._role_review(actor,user_id(value),False,message_id);return
             raise ValueError('Unknown administrator action')
         except (CommerceUnavailable,OSError,ValueError,KeyError,TypeError):
@@ -166,5 +166,5 @@ class AdminRolesMixin:
         except (ValueError,TypeError,KeyError):
             if self._role_owner(actor) and waiting.get('expires',0)>time.monotonic():
                 with self._ui_lock:self._waiting_user_inputs[actor]=waiting
-            self._commerce_notice(actor,'راجع رقم الحساب','أرسل رقم مستخدم Telegram صحيحًا، أو ألغِ العملية من الرئيسية.',waiting.get('message_id'))
+            self._commerce_notice(actor,'راجع رقم الحساب','أرسل رقم حساب تيليجرام صحيحًا، أو ألغِ العملية من الرئيسية.',waiting.get('message_id'))
         return True

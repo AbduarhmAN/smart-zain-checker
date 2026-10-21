@@ -15,6 +15,8 @@ from .admin_payouts import AdminPartnerPayoutMixin,ADMIN_PAYOUT_INPUTS
 from .payout_notifications import PayoutNotificationMixin
 from .partner_balances import partner_balance_text
 from .partner_roles import PartnerRoleMixin,active_partner
+from .partner_views import current_partner
+from telegram_bot.presentation import DIVIDER
 
 logger=logging.getLogger('PartnerFinance')
 
@@ -66,7 +68,7 @@ class PartnerFinanceMixin(AdminPartnerPayoutMixin,PayoutNotificationMixin,Withdr
                         {'command':'start','description':'الرئيسية'},
                         {'command':'status','description':'حالة فحوصاتي وطلباتي'},
                         {'command':'earnings','description':'أرباح الشريك وكود الإحالة'},
-                        {'command':'partner_checks','description':'فحص الشركاء والسعر الأساسي للشيت'},
+                        {'command':'partner_checks','description':'فحص الشركاء والسعر الأساسي للملف'},
                         {'command':'partner_campaigns','description':'حملاتي وخصوماتي من حصتي'},
                         {'command':'wallet','description':'رصيد محفظتي'},
                         {'command':'upload','description':'إرسال ملف XLSX'},
@@ -125,7 +127,7 @@ class PartnerFinanceMixin(AdminPartnerPayoutMixin,PayoutNotificationMixin,Withdr
                 try:self._reset_customer_menu(user_id)
                 except Exception:logger.warning('Customer menu refresh deferred; partner privileges denied.')
                 if parts[1] in {'withdraw','confirm'}:
-                    self._commerce_notice(user_id,'الحساب بصلاحيات زبون','الشراكة غير نشطة. راجع الإدارة بخصوص مستحقاتك السابقة.',message_id);return
+                    self._commerce_notice(user_id,'الحساب بصلاحيات عميل','الشراكة غير نشطة. راجع الإدارة بخصوص مستحقاتك السابقة.',message_id);return
             with self._ui_lock:
                 if not hasattr(self,'_known_partner_ids'):self._known_partner_ids=set()
                 if not enabled:self._known_partner_ids.discard(user_id)
@@ -168,12 +170,12 @@ class PartnerFinanceMixin(AdminPartnerPayoutMixin,PayoutNotificationMixin,Withdr
                 else:self._commerce_notice(user_id,'حُفظ طلب السحب','رقم الطلب: '+result['withdrawal_id']+'. المبلغ محجوز في محفظة أرباحك حتى الدفع أو الرفض.',message_id)
                 return
             if parts[1]!='home':raise ValueError('Unknown partner action')
-            text=(f"<b>أرباح الشريك</b>\n\nكود الإحالة: <code>{views.safe(profile.get('referral_code'))}</code>\n"
+            text=(f"<b>أرباح الشريك</b>\n\nالاسم: <b>{views.safe(self._telegram_person_name(user_id))}</b>\nرقم حساب تيليجرام: <code>{user_id}</code>\nرمز الشريك: <code>{views.safe(profile.get('referral_code'))}</code>\n"
                 f"أرباح اليوم: {egp(profile['today_earned_minor'])} جنيه\n"
                 +partner_balance_text(profile)+'\n'+
                 f"محجوز للسحب: {egp(profile['reserved_minor'])} جنيه\nالمسحوب: {egp(profile['withdrawn_minor'])} جنيه\n"
                 f"عمولات معلقة: {egp(profile['pending_commission_minor'])} جنيه\n\n"
-                f"العملاء المحالون: {profile['clients']}\nالتشييكات المدفوعة الصحيحة: {profile['paid_checks']}\n"
+                f"العملاء المحالون: {profile['clients']}\nالفحوص المدفوعة الصحيحة: {profile['paid_checks']}\n"
                 f"المحصّل بعد الخصم والاسترداد: {egp(profile['collected_minor'])} جنيه\n"
                 f"طلبات تنتظر التسوية: {profile['awaiting_settlement_orders']}\n\n"
                 'العمولة تصبح متاحة بعد اكتمال الفحص وتأكيد تسليم النتيجة. السعر والنسبة وشروط الاستحقاق محفوظة لكل طلب.')
@@ -182,7 +184,7 @@ class PartnerFinanceMixin(AdminPartnerPayoutMixin,PayoutNotificationMixin,Withdr
                 text=text.replace('<b>أرباح الشريك</b>','<b>سجل المستحقات السابقة</b>')
                 if profile.get('partnership_ended_at'):
                     text+='\n\nانتهت الشراكة في: '+_utc_stamp(profile['partnership_ended_at'])
-                text+='\nالحساب الآن بصلاحيات زبون. سجل المستحقات محفوظ؛ راجع الإدارة بشأن التسوية.'
+                text+='\nالحساب الآن بصلاحيات عميل. سجل المستحقات محفوظ؛ راجع الإدارة بشأن التسوية.'
                 if profile.get('partnership_end_event_id'):rows.append([views.button('عرض إشعار انتهاء الشراكة','pl:view:'+profile['partnership_end_event_id'])])
             else:rows.append([views.button('📄 فحص الشركاء','pc:home:0'),views.button('🎁 حملاتي','po:list:0')])
             rows.append([views.button('🧾 سحوباتي','pf:list:0'),views.button('💼 المحفظة','wallet'),views.button('‹ الرئيسية','home')])
@@ -203,7 +205,7 @@ class PartnerFinanceMixin(AdminPartnerPayoutMixin,PayoutNotificationMixin,Withdr
         profile=self._commerce().rpc('partner_finance',{'p_telegram_user_id':partner})
         if not profile.get('is_partner'):
             self._commerce_notice(actor,'الحساب ليس شريكًا','اختر شريكًا من قائمة الشركاء.',message_id);return
-        text=('<b>أرباح الشريك</b>\n\nالشريك: <code>'+str(partner)+'</code>\n'
+        text=('<b>أرباح الشريك</b>\n\nالاسم: <b>'+views.safe(self._telegram_person_name(partner))+'</b>\nرقم حساب تيليجرام: <code>'+str(partner)+'</code>\n'
             'كود الإحالة: <code>'+views.safe(profile.get('referral_code'))+'</code>\n'
             +partner_balance_text(profile)+'\n'
             'المحجوز: '+egp(profile['reserved_minor'])+' جنيه\n'
@@ -220,18 +222,21 @@ class PartnerFinanceMixin(AdminPartnerPayoutMixin,PayoutNotificationMixin,Withdr
         self._cancel_admin_partner_payout(user_id)
         try:
             offset=max(0,offset)
-            data=self._commerce().rpc('admin_earnings_summary',{'p_actor_telegram_id':user_id,'p_offset':offset,'p_limit':8})
-            lines=['<b>أرباحي وأرباح الشركاء</b>',
-                'إيراد الفحص المسوّى: '+egp(data['gross_service_minor'])+' جنيه',
-                'عمولات الشركاء: '+egp(data['partner_commission_minor'])+' جنيه',
-                '<b>حصتك بعد العمولات: '+egp(data['platform_revenue_minor'])+' جنيه</b>',
+            data=self._commerce().rpc('admin_earnings_summary',{'p_actor_telegram_id':user_id,'p_offset':offset,'p_limit':4})
+            lines=['<b>ملخص الإيرادات والأرباح</b>',
+                '<b>إيراد الفحوص المسوّاة</b>\n'+egp(data['gross_service_minor'])+' جنيه',
+                '<b>يُخصم: عمولات الشركاء</b>\n'+egp(data['partner_commission_minor'])+' جنيه',
+                DIVIDER,
+                '<b>حصتك بعد العمولات</b>\n'+egp(data['platform_revenue_minor'])+' جنيه',
                 'حصتك اليوم بتوقيت بغداد: '+egp(data['today_platform_revenue_minor'])+' جنيه',
                 'طلبات تنتظر التسوية: '+str(data['awaiting_settlement_orders']),
-                'الإيراد لا يشمل أرصدة شحن العملاء أو المبالغ المحجوزة، ولا يطرح تكاليف التشغيل.']
+                'هذا الملخص يخص إيرادات الخدمة المسوّاة. أرصدة العملاء والمبالغ المحجوزة وتكاليف التشغيل غير مشمولة.',
+                '<b>الشركاء الحاليون</b>']
             payout_rows=[]
             for partner in data['partners']:
-                label=partner.get('telegram_username') or partner.get('referral_code') or str(partner['telegram_user_id'])
-                lines.append('<b>'+views.safe(label)+'</b>\nإجمالي العمولات: '+egp(partner['earned_minor'])+' جنيه\n'
+                if not current_partner(partner):continue
+                label=self._telegram_person_name(partner['telegram_user_id'])
+                lines.append(DIVIDER+'\n<b>'+views.safe(label)+'</b>\nرقم حساب تيليجرام: <code>'+str(partner['telegram_user_id'])+'</code>\nإجمالي العمولات: '+egp(partner['earned_minor'])+' جنيه\n'
                     'رصيد الحساب: <b>'+egp(partner.get('account_balance_minor',partner['available_minor']))+' جنيه</b>\n'
                     'المتاح: '+egp(partner.get('withdrawable_minor',max(0,partner['available_minor'])))+' جنيه · المحجوز: '+egp(partner['reserved_minor'])+' جنيه\n'
                     'المسحوب: '+egp(partner['withdrawn_minor'])+' جنيه · المعلق: '+egp(partner['pending_minor'])+' جنيه')
@@ -239,11 +244,12 @@ class PartnerFinanceMixin(AdminPartnerPayoutMixin,PayoutNotificationMixin,Withdr
                     lines.append('سبب السالب أو المبلغ المستحق: دفعات مقدمة غير مغطاة '+egp(partner['advance_outstanding_minor'])+' جنيه. افتح حساب الشريك لعرض تفاصيلها.')
                 payout_rows.append([views.button(str(label),'pf:partner:'+str(positive_minor(partner['telegram_user_id']))),
                     views.button('صرف الأرباح','wa:paypartner:'+str(positive_minor(partner['telegram_user_id'])),'primary')])
-            if not data['partners']:lines.append('لا يوجد شركاء في هذه الصفحة.')
+            if not payout_rows:lines.append('لا توجد شراكات حالية في هذه الصفحة.')
             rows=payout_rows
-            if offset:rows.append([views.button('الأحدث',f'pf:admin:{max(0,offset-8)}')])
-            if offset+8<data['partners_total']:rows.append([views.button('الأقدم',f'pf:admin:{offset+8}')])
+            if offset:rows.append([views.button('الأحدث',f'pf:admin:{max(0,offset-4)}')])
+            if offset+4<data['partners_total']:rows.append([views.button('الأقدم',f'pf:admin:{offset+4}')])
             rows.extend([[views.button('↻ تحديث',f'pf:admin:{offset}'),views.button('🧾 توثيق الصرف','wa:receipts:0')],
+                [views.button('سجلات الشركاء السابقين','pl:ended:0')],
                 [views.button('🤝 الشركاء','cp:list:0'),views.button('‹ المال','menu:money'),views.button('🏠 الرئيسية','home')]])
             self._show_panel(user_id,views.Panel('\n\n'.join(lines),rows),message_id)
         except (CommerceUnavailable,OSError,ValueError,KeyError,TypeError) as exc:
@@ -265,7 +271,7 @@ class PartnerFinanceMixin(AdminPartnerPayoutMixin,PayoutNotificationMixin,Withdr
             if action in {'commerce_withdraw_amount','commerce_withdraw_destination'} and not active_partner(
                     self._commerce().rpc('partner_finance',{'p_telegram_user_id':user_id})):
                 self._revoke_partner_role(user_id)
-                self._commerce_notice(user_id,'الحساب بصلاحيات زبون','الشراكة غير نشطة؛ لم يُنشأ طلب سحب جديد. راجع الإدارة لمستحقاتك السابقة.',message_id)
+                self._commerce_notice(user_id,'الحساب بصلاحيات عميل','الشراكة غير نشطة؛ لم يُنشأ طلب سحب جديد. راجع الإدارة لمستحقاتك السابقة.',message_id)
                 return True
             if action=='commerce_withdraw_amount':
                 amount=money_minor_input(text)

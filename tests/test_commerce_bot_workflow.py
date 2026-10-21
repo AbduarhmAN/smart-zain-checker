@@ -19,6 +19,7 @@ class BotWorkflowTests(unittest.TestCase):
         self.bot._show_panel = Mock()
         self.bot._reply = Mock()
         self.bot._api_call = Mock(return_value={'ok':True,'result':{'username':'ZainDemoBot'}})
+        self.bot._subscription_status = Mock(return_value='member')
         self.bot._commerce_client = Mock()
         self.bot._commerce_client.rpc.return_value = {'status':'attributed'}
         self.bot._dispatch_ui = Mock()
@@ -76,8 +77,8 @@ class BotWorkflowTests(unittest.TestCase):
     def test_admin_adds_pending_partner(self):
         self.bot._commerce_client.rpc.return_value = {'partner_id':PARTNER,'code':'ABC','state':'pending'}
         self.message('/partner_add 999 ABC',123)
-        self.assertEqual(self.bot._commerce_client.rpc.call_args.args,
-                     ('add_partner_with_notice',{'p_actor_telegram_id':123,'p_telegram_user_id':999,'p_code':'ABC'}))
+        writes=[call.args for call in self.bot._commerce_client.rpc.call_args_list if call.args[0]=='add_partner_with_notice']
+        self.assertEqual(writes,[('add_partner_with_notice',{'p_actor_telegram_id':123,'p_telegram_user_id':999,'p_code':'ABC'})])
 
     def test_each_entitlement_mode_needs_review_before_saving(self):
         for mode,value,limit in [('checks','100',100),('duration','14',14*86400),('forever',None,None)]:
@@ -144,8 +145,8 @@ class BotWorkflowTests(unittest.TestCase):
         }
         with patch('telegram_bot.payment_manager.PAYMENT_MGR.find_user_by_account_id', return_value=(999888, {})):
             self.message('/partner_add 351234839 NEWPARTNER', user=123)
-            self.assertEqual(self.bot._commerce_client.rpc.call_args.args,
-                             ('add_partner_with_notice', {'p_actor_telegram_id': 123, 'p_telegram_user_id': 999888, 'p_code': 'NEWPARTNER'}))
+            writes=[call.args for call in self.bot._commerce_client.rpc.call_args_list if call.args[0]=='add_partner_with_notice']
+            self.assertEqual(writes,[('add_partner_with_notice', {'p_actor_telegram_id': 123, 'p_telegram_user_id': 999888, 'p_code': 'NEWPARTNER'})])
 
 
 if __name__ == '__main__': unittest.main()

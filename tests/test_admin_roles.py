@@ -11,8 +11,10 @@ from telegram_bot.config import settings,save_admin_membership
 from telegram_bot.commerce.admin_roles import AdminRolesMixin
 from telegram_bot.commerce.client import CommerceUnavailable
 from telegram_bot.ui import TelegramUiMixin
+from telegram_bot.maintenance_access import MaintenanceAccessMixin
+from telegram_bot.subscription import SubscriptionMixin
 
-class RoleBot(AdminRolesMixin,TelegramUiMixin):
+class RoleBot(AdminRolesMixin,MaintenanceAccessMixin,SubscriptionMixin,TelegramUiMixin):
     @property
     def current_authorized_ids(self):return set(settings()['authorized_ids'])
 
@@ -26,6 +28,7 @@ class AdminRoleTests(unittest.TestCase):
         essential={k:v for k,v in os.environ.items() if k.upper() in {'SYSTEMROOT','WINDIR','PATH','TEMP','TMP','APPDATA','LOCALAPPDATA','USERPROFILE'}}
         p=patch.dict(os.environ,essential,clear=True);p.start();self.addCleanup(p.stop)
         self.bot=RoleBot();self.bot.project_root=self.root;self.bot._ui_lock=threading.RLock()
+        self.bot._subscription_status=Mock(return_value='member')
         self.bot._waiting_user_inputs={};self.bot._show_panel=Mock();self.bot._commerce_notice=Mock()
         self.bot._confirmations={}
         self.bot._api_call=Mock(return_value={'ok':True});self.bot._commerce=Mock()

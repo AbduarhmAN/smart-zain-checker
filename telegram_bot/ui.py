@@ -12,6 +12,8 @@ from .subscription_policy import CHECK_CALLBACK, support_route
 from .photo_panels import show_photo_panel,remember_media,is_media_message,retire_keyboard,show_photo_page
 from .order_history import OrderHistoryMixin
 from .commerce.customer_activity import CustomerActivityMixin
+from .identity import TelegramIdentityMixin
+from .presentation import rtl_html
 
 
 def _serialized_payment(method):
@@ -28,7 +30,7 @@ def _serialized_payment(method):
     return wrapped
 
 
-class TelegramUiMixin(CustomerActivityMixin, OrderHistoryMixin):
+class TelegramUiMixin(TelegramIdentityMixin, CustomerActivityMixin, OrderHistoryMixin):
     def _get_user_mode(self, chat_id: int) -> str:
         with self._ui_lock:
             if not hasattr(self, "_user_modes"):
@@ -56,6 +58,7 @@ class TelegramUiMixin(CustomerActivityMixin, OrderHistoryMixin):
                 pass
 
     def _show_panel(self, chat_id, panel, message_id=None):
+        rendered_text = rtl_html(views.copyable_message(panel.text))
         auth_set = admin_ids(self)
         is_admin_mode = (chat_id in auth_set and self._get_user_mode(chat_id) == "admin")
         rows = panel.rows if is_admin_mode else views.customer_rows(panel.rows)
@@ -69,9 +72,9 @@ class TelegramUiMixin(CustomerActivityMixin, OrderHistoryMixin):
             rows=[row for row in rows if row]
         rows = views.inline_rows(rows)
         if getattr(panel,'photo',None):
-            handled,response=show_photo_panel(self,chat_id,views.copyable_message(panel.text),rows,panel.photo,message_id)
+            handled,response=show_photo_panel(self,chat_id,rendered_text,rows,panel.photo,message_id)
             if handled:return response
-        payload = {"chat_id":chat_id, "text":views.copyable_message(panel.text), "parse_mode":"HTML",
+        payload = {"chat_id":chat_id, "text":rendered_text, "parse_mode":"HTML",
                    "reply_markup":{"inline_keyboard":rows}}
         if message_id and is_media_message(self,chat_id,message_id):
             response=self._api_call('sendMessage',payload)
@@ -166,7 +169,7 @@ class TelegramUiMixin(CustomerActivityMixin, OrderHistoryMixin):
             # Wallet details remain available through the explicit wallet action.
             state = self.orchestrator.get_live_status()
             self._show_panel(chat_id, views.home(state, self.queue_service.cached_jobs(),
-                is_admin=True, mode='admin'), message_id)
+                account_id=chat_id, is_admin=True, mode='admin'), message_id)
             return True
 
         if command.startswith("switch_mode:"):
@@ -239,7 +242,7 @@ class TelegramUiMixin(CustomerActivityMixin, OrderHistoryMixin):
                 page = int(command.partition(":")[2])
             except ValueError:
                 return False
-            panel = views.queue(self.queue_service.get_jobs(), page)
+            panel = views.queue(self.queue_service.get_jobs(), page, person_name=self._telegram_person_name)
         elif command == "upload":
             panel = views.upload()
         elif command == "help":

@@ -2,18 +2,20 @@
 import json
 import re
 
-LAYOUT_VERSION = 1
+LAYOUT_VERSION = 2
 
 # Exact labels are also navigation aliases, including when an input is waiting.
 ADMIN_SHORTCUTS = (
-    (('💎 فحص ملف جديد', '/upload', 'upload'), ('📊 حالة الفحص', '/status', 'status')),
-    (('🔄 طابور الملفات', '/queue', 'queue'), ('الشركاء والإحالات', '/partners', None), ('💼 محفظتي', '/wallet', 'wallet')),
-    (('💡 طريقة الاستخدام', '/help', 'help'), ('🏠 الرئيسية', '/start', 'home')),
+    (('📄 فحص ملف جديد', '/upload', 'upload'), ('📊 متابعة الفحوص', '/status', 'status')),
+    (('📁 قائمة الفحوص', '/queue', 'queue'), ('🤝 الشركاء', '/partners', None)),
+    (('💼 محفظتي', '/wallet', 'wallet'), ('💡 طريقة الاستخدام', '/help', 'help')),
+    (('🏠 الرئيسية', '/start', 'home'),),
 )
 CUSTOMER_SHORTCUTS = (
-    (('💎 إضافة ملف للفحص', '/upload', 'upload'), ('📊 حالة فحوصاتي', '/status', 'status')),
-    (('📋 ملفاتي للمراجعة', '/drafts', 'drafts'), ('💼 محفظتي', '/wallet', 'wallet'), ('🎫 كود الشحن', '/redeem', 'redeem')),
-    (('💡 طريقة الاستخدام', '/help', 'help'), ('🏠 الرئيسية', '/start', 'home')),
+    (('📄 فحص ملف جديد', '/upload', 'upload'), ('📊 متابعة طلباتي', '/status', 'status')),
+    (('📋 ملفاتي للمراجعة', '/drafts', 'drafts'), ('💼 محفظتي', '/wallet', 'wallet')),
+    (('🎫 شحن بكود رصيد', '/redeem', 'redeem'), ('💡 طريقة الاستخدام', '/help', 'help')),
+    (('🏠 الرئيسية', '/start', 'home'),),
 )
 REPLY_ACTIONS = {text: command for group in (ADMIN_SHORTCUTS, CUSTOMER_SHORTCUTS)
                 for row in group for text, command, _ in row}
@@ -26,7 +28,7 @@ def reply_keyboard(is_admin=False, icons=None):
         buttons = []
         for text, command, icon in row:
             item = {'text': text}
-            if command == '/upload':item['style'] = 'success'
+            if command == '/upload':item['style'] = 'primary'
             if icon and icons.get(icon):item['icon_custom_emoji_id'] = str(icons[icon])
             buttons.append(item)
         rows.append(buttons)
@@ -56,8 +58,8 @@ def inline_rows(rows):
     def flush():
         nonlocal pending
         if pending:result.append(pending);pending = []
-    pieces = (list(original)[index:index+3] for original in rows or []
-              for index in range(0, len(original), 3))
+    pieces = (list(original)[index:index+2] for original in rows or []
+              for index in range(0, len(original), 2))
     for row in pieces:
         if len(row) != 1 or not _navigation(row[0]):
             flush()
@@ -65,7 +67,7 @@ def inline_rows(rows):
             continue
         item = row[0]
         candidate = pending + [item]
-        capacity = 3 if all(len(_label(button)) <= 12 for button in candidate) else 2
+        capacity = 2
         if len(candidate) > capacity:flush()
         pending.append(item)
     flush()
@@ -83,11 +85,7 @@ def normalize_markup(markup):
     result = dict(value)
     if isinstance(value.get('inline_keyboard'), list):
         result['inline_keyboard'] = inline_rows(value['inline_keyboard'])
-    if isinstance(value.get('keyboard'), list) and len(value['keyboard']) > 3:
+    if isinstance(value.get('keyboard'), list):
         buttons = [item for row in value['keyboard'] for item in row]
-        count = len(buttons); start = 0; rows = []
-        for index in range(min(3, count)):
-            size = (count - start + (3-index) - 1) // (3-index)
-            rows.append(buttons[start:start+size]); start += size
-        result['keyboard'] = rows
+        result['keyboard'] = [buttons[index:index+2] for index in range(0,len(buttons),2)]
     return json.dumps(result, ensure_ascii=False) if encoded else result

@@ -160,4 +160,41 @@ class PartnerLifecycleTests(unittest.TestCase):
         self.assertNotIn(31,bot._known_partner_ids)
 
 
+    def test_reopen_partner_review_and_confirm(self):
+        self.bot._partner_lifecycle_callback(f'pl:reopen:{PID}',9,4,{})
+        panel=self.bot._show_panel.call_args.args[1]
+        self.assertIn('مراجعة استئناف وإعادة تفعيل الشراكة',panel.text)
+        self.assertIn(f'pl:rok:{PID}',str(panel.rows))
+
+        self.client.rpc.side_effect=None
+        self.client.rpc.return_value={'partner_id':PID,'telegram_user_id':31,'code':'AZZA','state':'pending','notice_event_id':EVENT}
+        self.bot._grant_partner_role=Mock()
+        self.bot._sync_partner_menus=Mock()
+        self.bot._partner_lifecycle_callback(f'pl:rok:{PID}',9,4,{'id':'cb123'})
+        self.client.rpc.assert_called_with('reactivate_partner',{
+            'p_actor_telegram_id':9,'p_partner_id':PID,'p_reference':'telegram-partner-reopen:cb123'})
+        res_panel=self.bot._show_panel.call_args.args[1]
+        self.assertIn('تمت إعادة الشراكة بنجاح',res_panel.text)
+        self.assertIn(f'cp:terms:{PID}',str(res_panel.rows))
+        self.bot._grant_partner_role.assert_called_with(31)
+
+    def test_reopen_partner_backward_compatibility(self):
+        self.client.rpc.side_effect=None
+        self.client.rpc.return_value={'partner_id':PID,'telegram_user_id':31,'code':'AZZA','state':'pending','notice_event_id':EVENT}
+        self.bot._grant_partner_role=Mock()
+        self.bot._sync_partner_menus=Mock()
+        self.bot._partner_lifecycle_callback(f'pl:reopenconfirm:{PID}:31',9,4,{'id':'cb123'})
+        self.client.rpc.assert_called_with('reactivate_partner',{
+            'p_actor_telegram_id':9,'p_partner_id':PID,'p_reference':'telegram-partner-reopen:cb123'})
+        self.bot._grant_partner_role.assert_called_with(31)
+
+    def test_lifecycle_panel_shows_reopen_button_for_ended_partner(self):
+        event={**self.event,'kind':'ended','partner_id':PID,'recipient_telegram_id':31}
+        panel=lifecycle_panel(event,admin=True)
+        self.assertIn('إعادة تفعيل الشراكة',str(panel.rows))
+        self.assertIn(f'pl:reopen:{PID}',str(panel.rows))
+        self.assertNotIn('support',str(panel.rows))
+        self.assertNotIn('الدعم',str(panel.rows))
+
+
 if __name__=='__main__':unittest.main()

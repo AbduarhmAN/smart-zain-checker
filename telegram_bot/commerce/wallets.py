@@ -72,7 +72,7 @@ class WalletPaymentsMixin:
         if not self._uses_commerce_wallet(user_id):return super()._show_wallet_panel(user_id,message_id)
         try:
             state=self._wallet_state(user_id);customer=state['customer'];partner=state.get('partner',{})
-            text=(f"<b>محفظتك بالجنيه المصري</b>\n\nرقم Telegram: <code>{user_id}</code>\n"
+            text=(f"<b>محفظتك بالجنيه المصري</b>\n\nرقم حساب تيليجرام: <code>{user_id}</code>\n"
                 f"المتاح: <b>{egp(customer['available_minor'])} جنيه</b>\n"
                 f"منه رصيد ترويجي: {egp(customer.get('promotional_available_minor',0))} جنيه\n"
                 f"المحجوز للطلبات: {egp(customer.get('reserved_minor',0))} جنيه\n\n"
@@ -91,7 +91,7 @@ class WalletPaymentsMixin:
             legacy=self._legacy_balance_pending_minor(user_id)
             if legacy:
                 text+='\n\nرصيد سابق محفوظ بانتظار النقل: '+egp(legacy)+' جنيه. يظهر منفصلًا ولا يدخل في الرصيد المتاح أعلاه. طلباتك السابقة محفوظة في سجل الطلبات.'
-            rows=[[views.button('شحن المحفظة','cw:topup:0','success'),views.button('كود رصيد أو عرض','cc:redeem:0')],
+            rows=[[views.button('شحن المحفظة','cw:topup:0','primary'),views.button('كود رصيد أو عرض','cc:redeem:0')],
                 [views.button('طلبات الشحن','cw:list:0'),views.button('سجل المحفظة','oh:ledger:0')],
                 [views.button('عروضي وحدودها','of:list:0'),views.button('طلباتي','oh:list:0')]]
             if state.get('is_partner'):

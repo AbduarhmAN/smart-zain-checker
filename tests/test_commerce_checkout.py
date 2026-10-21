@@ -35,6 +35,7 @@ class CheckoutTests(unittest.TestCase):
             book.active.append(row)
         book.save(self.original); book.close()
         self.bot = TelegramBotRunner.__new__(TelegramBotRunner)
+        self.bot._subscription_status = Mock(return_value='member')
         self.bot.project_root = self.root
         self.bot._ui_lock = threading.RLock()
         self.bot._waiting_user_inputs = {}
@@ -106,6 +107,48 @@ class CheckoutTests(unittest.TestCase):
     def callback(self, action, callback_id='update:1', user=31):
         self.bot._handle_callback({'id':callback_id,'from':{'id':user},
             'message':{'chat':{'id':user},'message_id':4},'data':f'zc:co:{action}:{TOKEN}'})
+
+    def test_new_checkout_requests_compact_storage_and_shows_both_counts(self):
+        self.prepare()
+        self.assertEqual(self.state['source_snapshot']['storage_version'],2)
+        panel=self.bot._show_panel.call_args.args[1].text
+        self.assertIn('عدد أرقام الحسابات: 1',panel)
+        self.assertIn('عدد أرقام الخدمة/المحافظ: 1',panel)
+
+    def test_v2_lost_ack_uses_manifest_reservation_once_then_recovers(self):
+        self.prepare()
+        self.state.update(check_storage_version=2,checks_materialized=False,account_count=1,service_count=1)
+        original=self.rpc
+        def compact_rpc(name,args):
+            if name=='reserve_order_with_rows':
+                self.assertEqual(args['p_rows'],self.bot._sheet_drafts[TOKEN]['commerce_rows'])
+                self.state['checks_materialized']=True
+                return original('reserve_order',args)
+            return original(name,args)
+        self.client.rpc.side_effect=compact_rpc
+        self.lose_reserve=True
+        self.callback('wallet')
+        self.assertEqual(self.bot.queue_service.get_jobs(),[])
+        self.callback('wallet','compact-retry')
+        self.assertEqual(len(self.bot.queue_service.get_jobs()),1)
+        self.assertEqual(sum(c.args[0]=='reserve_order_with_rows' for c in self.client.rpc.call_args_list),1)
+
+    def test_incorrect_server_type_counts_cannot_start_or_fund_order(self):
+        self.prepare()
+        self.state.update(check_storage_version=2,checks_materialized=False,account_count=2,service_count=0)
+        self.callback('wallet')
+        self.assertEqual(self.bot.queue_service.get_jobs(),[])
+        self.assertFalse(any(c.args[0] in {'reserve_order','reserve_order_with_rows'} for c in self.client.rpc.call_args_list))
+
+    def test_compact_draft_reuse_ignores_upload_metadata_but_checks_selection(self):
+        self.prepare()
+        draft=self.bot._sheet_drafts[TOKEN]
+        self.state.update(check_storage_version=2,checks_materialized=False,account_count=1,service_count=1)
+        self.state['source_snapshot']=copy.deepcopy(self.state['source_snapshot'])
+        draft['commerce_source']['original_telegram_file_id']='new-upload-reference'
+        self.bot._checkout_state(draft,31)
+        self.state['source_snapshot']['mode']='service_only'
+        with self.assertRaises(ValueError):self.bot._checkout_state(draft,31)
 
     def test_executable_rows_price_and_explicit_consent_before_spend(self):
         self.prepare()

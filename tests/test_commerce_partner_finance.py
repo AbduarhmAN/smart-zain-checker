@@ -59,6 +59,23 @@ class PartnerFinanceTests(unittest.TestCase):
         self.assertEqual(panel.rows[0][1]['callback_data'],'zc:wa:paypartner:31')
         self.assertFalse(any('url' in item for row in panel.rows for item in row))
 
+    def test_ended_partner_is_hidden_without_changing_the_financial_totals(self):
+        record={'telegram_user_id':31,'state':'active','earned_minor':1500,
+            'available_minor':1000,'reserved_minor':0,'withdrawn_minor':500,'pending_minor':0}
+        ended=dict(record,telegram_user_id=32,state='suspended',ended_at='2026-10-21T00:00:00Z',referral_code='AHMED')
+        self.client.rpc.side_effect=None
+        self.client.rpc.return_value={'gross_service_minor':5000,'partner_commission_minor':1500,
+            'platform_revenue_minor':3500,'today_platform_revenue_minor':3500,
+            'awaiting_settlement_orders':0,'partners_total':2,'partners':[record,ended]}
+        self.bot._telegram_person_name=Mock(side_effect=lambda target:'شريك حالي' if target==31 else 'شريك سابق')
+        self.callback('pf:admin:0',user=9)
+        panel=self.bot._show_panel.call_args.args[1]
+        self.assertIn('50.00',panel.text);self.assertIn('15.00',panel.text);self.assertIn('35.00',panel.text)
+        routes=[item.get('callback_data') for row in panel.rows for item in row]
+        self.assertIn('zc:pf:partner:31',routes);self.assertNotIn('zc:pf:partner:32',routes)
+        self.assertNotIn('AHMED',panel.text);self.assertNotIn('شريك سابق',panel.text)
+        self.client.rpc.assert_called_once_with('admin_earnings_summary',{'p_actor_telegram_id':9,'p_offset':0,'p_limit':4})
+
     def test_partner_details_are_admin_only_and_read_only(self):
         self.callback('pf:partner:31',user=9)
         self.client.rpc.assert_called_once_with('partner_finance',{'p_telegram_user_id':31})

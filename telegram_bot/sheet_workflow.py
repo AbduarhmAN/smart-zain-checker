@@ -27,8 +27,8 @@ def customer_sheet_limit(draft):
     validation = draft['validation']
     if not draft.get('admin') and validation.get('rows',0) > CUSTOMER_SHEET_LIMIT:
         validation['ok'] = False
-        message = (f"هذا الشيت يحتوي على {validation['rows']:,} عميلًا؛ الحد الأقصى {CUSTOMER_SHEET_LIMIT:,}. "
-                   'قلّل عدد العملاء أو قسّمهم إلى شيتات أصغر ثم أرسل الملف مجددًا. لم تُخصم رسوم.')
+        message = (f"هذا الملف يحتوي على {validation['rows']:,} عميلًا؛ الحد الأقصى {CUSTOMER_SHEET_LIMIT:,}. "
+                   'قلّل عدد العملاء أو قسّمهم إلى ملفات أصغر ثم أرسل الملف مجددًا. لم تُخصم رسوم.')
         if message not in validation.setdefault('problems',[]):validation['problems'].insert(0,message)
     return validation
 
@@ -59,7 +59,7 @@ def review_panel(draft, token):
         rows += [[views.button(("✓ " if draft["mode"] == mode else "") + label, f"map:{token}:mode:{mode}")
               for mode, label in MODES.items()],
              [views.button(("✓ " if draft["amount_target"] == target else "") + label, f"map:{token}:target:{target}")
-              for target, label in (("remaining", "مبلغ الشيت"), ("contract", "المبلغ الثاني"), ("smart_dual", "كلاهما"))],
+              for target, label in (("remaining", "مبلغ الملف"), ("contract", "المبلغ الثاني"), ("smart_dual", "كلاهما"))],
              [views.button(("✓ " if is_mawarid else "") + "مخصص شركة الموارد", f"map:{token}:mawarid")],
              [views.button("صف العناوين: " + ("نعم" if draft["mapping"].get("has_headers", True) else "لا"), f"map:{token}:headers")],
               ]
@@ -68,8 +68,8 @@ def review_panel(draft, token):
              [views.button("↻ إعادة التحقق", f"map:{token}:review")]]
     if result["ok"]:
         if draft.get("admin", True):
-            rows.append([views.button("🚀 بدء الفحص فوراً", f"map:{token}:save_and_start", "success")])
-            rows.append([views.button("✓ حفظ الأعمدة" if draft.get("job_id") else "✓ إضافة إلى الطابور فقط", f"map:{token}:save")])
+            rows.append([views.button("بدء الفحص الآن", f"map:{token}:save_and_start", "success")])
+            rows.append([views.button("✓ حفظ الأعمدة" if draft.get("job_id") else "✓ إضافة إلى قائمة الفحوص فقط", f"map:{token}:save")])
         if not draft.get("job_id"):
             rows.append([views.button("💳 الرسوم وطرق الدفع", f"map:{token}:pay")])
     rows.append([views.button("‹ ملفاتي للمراجعة", "drafts:0"), views.button("‹ الرئيسية", "home")])
@@ -98,7 +98,7 @@ def columns_panel(draft, token, field=None, page=0):
         rows.append(paging)
     if field:
         rows.append([views.button("بدون عمود / إلغاء الاختيار", f"map:{token}:set:{field}:-")])
-    rows.append([views.button("‹ مراجعة الشيت", f"map:{token}:review")])
+    rows.append([views.button("‹ مراجعة الملف", f"map:{token}:review")])
     return views.Panel(text, rows)
 
 
@@ -216,6 +216,16 @@ class SheetWorkflowMixin:
         with self._ui_lock:
             drafts = [(token,draft) for token,draft in self._sheet_drafts.items()
                       if draft["chat"] == chat_id and (draft.get('commerce_request_key') or draft["expires"] > time.monotonic())]
+        def created(item):
+            token, draft = item
+            try:
+                stamp = float(draft.get('created_at') or Path(draft['path']).stat().st_mtime)
+            except (OSError, ValueError, TypeError):
+                stamp = 0
+            return stamp
+        # Stable reverse order also puts newly appended legacy drafts first when
+        # their older snapshots lack an explicit creation timestamp.
+        drafts = sorted(reversed(drafts), key=created, reverse=True)
         page = max(0, min(page, max(0,(len(drafts)-1)//8)))
         text = "<b>ملفات تحتاج مراجعة</b>\nاختر ملفًا، راجع بياناته، ثم أضفه إلى الجولة.\n"
         rows = [[views.button(draft["path"].name[:65], f"co:review:{token}" if draft.get('commerce_request_key') else f"map:{token}:review")]
@@ -226,7 +236,7 @@ class SheetWorkflowMixin:
             try:
                 orders=self._history_orders(chat_id)
                 if orders:
-                    text += '\n\nطلبات الدفع المحفوظة تظهر أدناه، حتى بعد إضافتها للطابور:'
+                    text += '\n\nطلبات الدفع المحفوظة تظهر أدناه، حتى بعد إضافتها إلى قائمة الفحوص:'
                     rows.extend([[views.button(self._history_title(record)[:100],f'oh:open:{record["token"]}')] for record in orders[:5]])
                 rows.append([views.button('كل طلباتي ومدفوعاتي','oh:list:0')])
             except (OSError,ValueError,KeyError,TypeError):
@@ -238,7 +248,7 @@ class SheetWorkflowMixin:
         rows += [[views.button("📎 إضافة ملف", "upload", "primary"), views.button("‹ الرئيسية", "home")]]
         auth_set = admin_ids(self)
         if chat_id in auth_set:
-            rows.append([views.button("📁 الطابور", "queue:0")])
+            rows.append([views.button("📁 قائمة الفحوص", "queue:0")])
         return views.Panel(text, rows)
 
     def _load_review_sheet(self, draft, index):
@@ -277,7 +287,7 @@ class SheetWorkflowMixin:
         token = secrets.token_hex(6)
         auth_set = getattr(self, "authorized_ids", {self.authorized_id})
         is_admin_mode = (chat_id in auth_set and getattr(self, "_get_user_mode", lambda c: "customer")(chat_id) == "admin")
-        draft = {"path":Path(path), "chat":chat_id, "expires":time.monotonic()+1800,
+        draft = {"path":Path(path), "chat":chat_id, "expires":time.monotonic()+1800, "created_at":time.time(),
                  "version":file_version(path), "job_id":job.id if job else None,
                  "admin":is_admin_mode}
         if telegram_document is not None:
@@ -309,7 +319,7 @@ class SheetWorkflowMixin:
         with self._ui_lock:
             draft = self._sheet_drafts.get(token)
         if not draft or draft["chat"] != chat_id or (not draft.get('commerce_request_key') and draft["expires"] <= time.monotonic()):
-            self._show_panel(chat_id, views.notice("مراجعة غير متاحة", "أرسل الملف مجددًا أو افتح أعمدة الشيت من الطابور."), message_id)
+            self._show_panel(chat_id, views.notice("مراجعة غير متاحة", "أرسل الملف مجددًا أو افتح أعمدة الملف من قائمة الفحوص."), message_id)
             return
         draft['admin']=chat_id in admin_ids(self) and getattr(self,'_get_user_mode',lambda c:'customer')(chat_id)=='admin'
         if draft.get('commerce_request_key'):
@@ -335,7 +345,7 @@ class SheetWorkflowMixin:
                     rows.append([views.button("‹ السابق", f"map:{token}:sheets:{page-1}")])
                 if (page+1)*8 < len(draft["sheets"]):
                     rows.append([views.button("التالي ›", f"map:{token}:sheets:{page+1}")])
-                rows.append([views.button("‹ مراجعة الشيت", f"map:{token}:review")])
+                rows.append([views.button("‹ مراجعة الملف", f"map:{token}:review")])
                 panel = views.Panel("<b>اختر ورقة العمل</b>", rows)
             elif action == "sheet" and len(parts) == 4 and not draft.get("job_id"):
                 self._load_review_sheet(draft, int(parts[3]))
@@ -412,11 +422,11 @@ class SheetWorkflowMixin:
                     inv = CRYPTO_PAY.create_invoice(
                         amount=usdt_val,
                         asset="USDT",
-                        description=f"فحص شيت: {draft['sheet_name']} ({rows_count} صف) - {egp_val:.2f} ج.م",
+                        description=f"فحص ملف: {draft['sheet_name']} ({rows_count} صف) - {egp_val:.2f} ج.م",
                         payload=token,
                     )
                     if not inv or not inv.get("invoice_id") or not (inv.get("pay_url") or inv.get("bot_invoice_url")):
-                        self._show_panel(chat_id, views.notice("تعذر إنشاء فاتورة الدفع", "لم يؤكد مزود الدفع إنشاء الفاتورة. حاول لاحقًا؛ لم نضف الملف إلى الطابور."), message_id)
+                        self._show_panel(chat_id, views.notice("تعذر إنشاء فاتورة الدفع", "لم يؤكد مزود الدفع إنشاء الفاتورة. حاول لاحقًا؛ لم نضف الملف إلى قائمة الفحوص."), message_id)
                         return
                     draft["invoice"] = inv
                 pay_url = inv.get("pay_url") or inv.get("bot_invoice_url") or ""
@@ -523,24 +533,24 @@ class SheetWorkflowMixin:
 
                     if started_now or self.orchestrator.is_running:
                         panel = views.Panel(
-                            f"<b>🚀 بدأ الفحص فوراً بنجاح!</b>\n<b>{views.safe(draft['sheet_name'])}</b>"
+                            f"<b>بدأ الفحص</b>\n<b>{views.safe(draft['sheet_name'])}</b>"
                             f"\n📊 صفوف البيانات: {views.count(draft['validation']['rows'])}\n"
                             f"⚡ العمال يعملون بالتوازي الآن. ستصلك تحديثات التقدم والنتائج فور الاكتمال.",
                             [[views.button("📊 متابعة حالة الفحص", "status", "primary")],
-                             [views.button("📁 عرض الطابور", "queue:0"), views.button("⏸ إيقاف مؤقت", "pause")],
+                             [views.button("📁 عرض قائمة الفحوص", "queue:0"), views.button("⏸ إيقاف مؤقت", "pause")],
                              views.nav()]
                         )
                     else:
                         panel = views.Panel(
-                            f"<b>✓ حُفظت الأعمدة وأُضيف للطابور</b>\n<b>{views.safe(draft['sheet_name'])}</b>\nالشيت في الطابور وجاهز للبدء.",
+                            f"<b>✓ حُفظت الأعمدة وأُضيف إلى قائمة الفحوص</b>\n<b>{views.safe(draft['sheet_name'])}</b>\nالملف في قائمة الفحوص وجاهز للبدء.",
                             [[views.button("▶ بدء الفحص الآن", "start_queue", "success")],
                              [views.button("📎 إضافة ملف آخر", "upload"), views.button("ملفات تحتاج مراجعة", "drafts:0")],
-                             [views.button("📁 عرض الطابور", "queue:0")], views.nav()]
+                             [views.button("📁 عرض قائمة الفحوص", "queue:0")], views.nav()]
                         )
                 else:
                     panel = review_panel(draft, token)
         except Exception as exc:
             logger.warning('Sheet review action failed: action=%s kind=%s',parts[2] if len(parts)>2 else 'unknown',type(exc).__name__)
-            panel = views.notice("تعذر إكمال المراجعة", "قد يكون الملف أو حالة الشيت تغيرت. افتح مراجعة جديدة من الطابور أو أرسل الملف مجددًا.")
+            panel = views.notice("تعذر إكمال المراجعة", "قد يكون الملف أو حالة الملف تغيرت. افتح مراجعة جديدة من قائمة الفحوص أو أرسل الملف مجددًا.")
         self._persist_sheet_drafts()
         self._show_panel(chat_id, panel, message_id)

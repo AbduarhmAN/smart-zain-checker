@@ -10,16 +10,20 @@ from .bot_workflow import _serial_user
 from .client import CommerceUnavailable
 from .withdrawal_receipts import _utc_stamp
 from .partner_roles import PartnerRoleMixin
+from telegram_bot.presentation import audit_body_html, DIVIDER
 
 logger=logging.getLogger('PartnerLifecycle')
-DELIVERY={'pending':'بانتظار الإرسال','sending':'جارٍ الإرسال','sent':'قبل Telegram الرسالة؛ لا يثبت قراءتها',
-          'rejected':'رفض Telegram الإرسال','uncertain':'وصول غير مؤكد','waiting_config':'بانتظار إعداد قناة التوثيق'}
+DELIVERY={'pending':'بانتظار الإرسال','sending':'جارٍ الإرسال','sent':'قبل تيليجرام الرسالة؛ لا يثبت قراءتها',
+          'rejected':'رفض تيليجرام الإرسال','uncertain':'وصول غير مؤكد','waiting_config':'بانتظار إعداد قناة التوثيق'}
 
 
-def lifecycle_panel(event,*,admin=False):
+def lifecycle_panel(event,*,admin=False,person_name=None):
     title={'added':'إشعار إضافة الشريك','activated':'إشعار تفعيل الشراكة','ended':'إشعار انتهاء الشراكة','reactivated':'إشعار استئناف الشراكة'}.get(event.get('kind',''),'إشعار الشراكة')
-    text='<b>'+title+'</b>\n\n'+views.safe(event['body'],3500)
-    text+='\n\nبصمة نص الإشعار SHA-256: <code>'+views.safe(event['body_sha256'])+'</code>'
+    text='<b>'+title+'</b>\n\n'
+    if person_name and event.get('recipient_telegram_id'):
+        text+='الاسم: <b>'+views.safe(person_name(event['recipient_telegram_id']))+'</b>\nرقم حساب تيليجرام: <code>'+str(event['recipient_telegram_id'])+'</code>\n\n'
+    text+=audit_body_html(event['body'][:3200])
+    text+='\n\nبصمة النص الأصلي SHA-256: <code>'+views.safe(event['body_sha256'])+'</code>'
     if event.get('acknowledged_at'):
         text+='\nرد حساب الشريك بالاطلاع في: '+_utc_stamp(event['acknowledged_at'])
     else:text+='\nلم يُسجل رد الشريك بالاطلاع بعد.'
@@ -29,9 +33,9 @@ def lifecycle_panel(event,*,admin=False):
         text+='\n\n<b>حالة الإرسال</b>'
         for delivery in event.get('deliveries',[]):
             text+='\n'+('الشريك' if delivery['recipient_kind']=='partner' else 'قناة التوثيق')+' · '+DELIVERY.get(delivery['state'],delivery['state'])
-            if delivery.get('telegram_message_id'):text+='\nرقم رسالة Telegram: '+str(delivery['telegram_message_id'])
-            if delivery.get('telegram_date'):text+='\nوقت الرسالة لدى Telegram UTC: '+_utc_stamp(delivery['telegram_date'])
-            if delivery.get('completed_at'):text+='\nوقت تسجيل نتيجة الإرسال UTC: '+_utc_stamp(delivery['completed_at'])
+            if delivery.get('telegram_message_id'):text+='\nرقم رسالة تيليجرام: '+str(delivery['telegram_message_id'])
+            if delivery.get('telegram_date'):text+='\nوقت الرسالة لدى تيليجرام بالتوقيت العالمي: '+_utc_stamp(delivery['telegram_date'])
+            if delivery.get('completed_at'):text+='\nوقت تسجيل نتيجة الإرسال بالتوقيت العالمي: '+_utc_stamp(delivery['completed_at'])
         if event.get('kind')=='ended' and event.get('partner_id'):
             rows.append([views.button('🔄 إعادة تفعيل الشراكة',f"pl:reopen:{event['partner_id']}")])
         rows.extend([[views.button('تحديث حالة التوثيق','pl:view:'+event['id'])],
@@ -66,21 +70,24 @@ class PartnerLifecycleMixin(PartnerRoleMixin):
                         'p_reference':'telegram-partner-notice-ack:'+reference})
                 else:event=self._commerce().rpc('partner_lifecycle_event',{'p_event_id':event_id,'p_actor_telegram_id':actor})
                 if event.get('recipient_telegram_id')!=actor and actor not in admin_ids(self):raise ValueError('Unowned notice')
-                self._show_panel(actor,lifecycle_panel(event,admin=actor in admin_ids(self)),message_id)
+                self._show_panel(actor,lifecycle_panel(event,admin=actor in admin_ids(self),person_name=getattr(self,'_telegram_person_name',None)),message_id)
                 return
             if actor not in admin_ids(self):raise PermissionError('Partner administrator required')
             if action=='ended':
                 offset=max(0,int(value));records=self._commerce().rpc('ended_partners',{'p_actor_telegram_id':actor,'p_offset':offset})
-                rows=[]
+                rows=[];lines=['<b>الشركاء السابقون</b>', 'السجل المالي وتوثيق الشراكة محفوظان.']
                 for record in records:
-                    code_lbl = f" ({record['code']})" if record.get('code') else ""
-                    rows.append([views.button(f"{record['telegram_user_id']}{code_lbl} · {_utc_stamp(record['ended_at'])}",
-                                              'pl:view:'+record['event_id'])])
+                    name=self._telegram_person_name(record['telegram_user_id'])
+                    lines.extend(['',DIVIDER,'<b>'+views.safe(name,70)+'</b>',
+                        'رقم حساب تيليجرام: <code>'+str(record['telegram_user_id'])+'</code>',
+                        'رمز الشريك: <code>'+views.safe(record.get('code'))+'</code>',
+                        'تاريخ انتهاء الشراكة: '+_utc_stamp(record['ended_at'])])
+                    rows.append([views.button(name[:50]+' · عرض السجل','pl:view:'+record['event_id'])])
                 if offset:rows.append([views.button('الأحدث','pl:ended:'+str(max(0,offset-10)))])
                 if len(records)==10:rows.append([views.button('الأقدم','pl:ended:'+str(offset+10))])
                 rows.append([views.button('الشركاء الحاليون','cp:list:0')])
-                self._show_panel(actor,views.Panel('<b>الشركاء السابقون وسجل الإخطار</b>\n\n'+
-                    ('السجلات المالية محفوظة. اختر الإشعار لعرض النص والتوقيت وحالة الإرسال والاطلاع، أو إعادة تفعيل الشراكة.' if records else 'لا توجد شراكات منتهية في هذه الصفحة.'),rows),message_id)
+                if not records:lines.append('لا توجد شراكات منتهية في هذه الصفحة.')
+                self._show_panel(actor,views.Panel('\n'.join(lines),rows),message_id)
                 return
             if action not in {'remove','endconfirm','reopen','reopenconfirm','rok'}:raise ValueError('Unknown lifecycle action')
             if action in {'reopen','reopenconfirm','rok'}:
@@ -152,7 +159,7 @@ class PartnerLifecycleMixin(PartnerRoleMixin):
             self._revoke_partner_role(event['recipient_telegram_id'])
             try:self._reset_customer_menu(event['recipient_telegram_id'])
             except Exception:logger.warning('Customer menu refresh deferred; partnership already ended on server.')
-            self._show_panel(actor,lifecycle_panel(event,admin=True),message_id)
+            self._show_panel(actor,lifecycle_panel(event,admin=True,person_name=getattr(self,'_telegram_person_name',None)),message_id)
         except PermissionError:
             self._commerce_notice(actor,'غير مصرح','إنهاء الشراكة وسجل التوثيق الإداري خاصان بالإدارة.',message_id)
         except (CommerceUnavailable,OSError,ValueError,KeyError,TypeError):
