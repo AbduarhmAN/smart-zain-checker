@@ -388,7 +388,7 @@ def get_sheet_header_columns(sheet, has_headers: bool = True) -> list[dict[str, 
 
 def detect_smart_sheet_columns(sheet: Any, has_headers: bool = True) -> dict[str, Any]:
     """Analyzes Row 1 of an Excel sheet and discovers all critical columns:
-    - رقم الحساب (lookup_col)
+    - رقم الحساب / العقد، أو رقم البحث عند عدم وجود حساب منفصل (lookup_col)
     - رقم الخدمة (service_col)
     - مبلغ العقد (contract_col) -> AW in 2.xlsx
     - متبقي سداد موثق (remaining_col) -> P in 2.xlsx
@@ -435,6 +435,14 @@ def detect_smart_sheet_columns(sheet: Any, has_headers: bool = True) -> dict[str
     live_amount_col: Optional[int] = None
     general_amount_col: Optional[int] = None
     source_row_col: Optional[int] = None
+    lookup_candidates: list[int] = []
+    account_candidates: list[int] = []
+    service_candidates: list[tuple[int, int]] = []
+    cancelled_keywords = tuple(normalize_header_text(word) for word in
+        ("الملغية", "ملغية", "الملغي", "ملغي"))
+    lookup_exclusions = tuple(normalize_header_text(word) for word in
+        ("تاريخ", "سدادات", "متبقي", "مبلغ", "قيمة", "نوع", "صف", "اسم", "name")) + cancelled_keywords
+    excluded_number_cols: set[int] = set()
 
     def _matches_any(text: str, synonyms: tuple[str, ...]) -> bool:
         return any(normalize_header_text(s) in text for s in synonyms)
@@ -446,6 +454,23 @@ def detect_smart_sheet_columns(sheet: Any, has_headers: bool = True) -> dict[str
         norm = normalize_header_text(raw_val)
         if not norm:
             continue
+        if _has_negative_keywords(norm, cancelled_keywords):
+            excluded_number_cols.add(idx)
+        # Keep account and service roles separate. A wallet header is only a
+        # service candidate, never a reason to overwrite a real account column.
+        if not _has_negative_keywords(norm, lookup_exclusions):
+            rank = 0
+            if _matches_any(norm, ("رقم المحفظة", "المحفظة", "محفظة")):
+                rank = 3
+            elif (_matches_any(norm, ("رقم الخدمة", "ارقام الخدمة", "ارقام الخدمات", "الخدمة",
+                                      "رقم الجوال", "الجوال", "رقم الهاتف", "الهاتف", "service", "phone"))
+                    and not _matches_any(norm, ("حساب", "عقد"))):
+                rank = 1 if re.search(r"\b[2-9٢-٩]\b", norm) else 2
+            if rank:
+                service_candidates.append((rank, idx))
+            elif (_matches_any(norm, ("حساب", "عقد", "account", "contract"))
+                  and not _matches_any(norm, ("خدمة", "محفظة", "service", "wallet"))):
+                account_candidates.append(idx)
 
         # 1. اسم العميل
         if (
@@ -467,16 +492,15 @@ def detect_smart_sheet_columns(sheet: Any, has_headers: bool = True) -> dict[str
 
         # 3. رقم الحساب / العقد / الخدمة المزدوج
         elif (
-            not detected["lookup_col"]
-            and not _has_negative_keywords(norm, ("تاريخ", "سدادات", "متبقي", "مبلغ", "قيمة", "نوع", "صف"))
-            and _matches_any(norm, (
+            not _has_negative_keywords(norm, lookup_exclusions)
+            and (_matches_any(norm, (
                 "رقم الحساب ورقم الخدمة", "رقم الحساب ورقم الخدمه", "الحساب / الخدمة", "الحساب الخدمه",
                 "الحساب/الخدمة", "رقم الحساب والخدمة", "رقم الحساب أو الخدمة", "الحساب أو الخدمة",
-                "رقم الحساب", "رقم العقد", "الحساب", "العقد", "رقم الفاتورة", "رقم البحث", "search number", "lookup number", "account", "contract"
-            ))
-            or (not detected["lookup_col"] and norm in {"number", "رقم", "الرقم"})
+                "رقم المحفظة", "المحفظة", "محفظة", "رقم الخدمة", "رقم الحساب", "رقم العقد",
+                "الحساب", "العقد", "رقم الفاتورة", "رقم البحث", "search number", "lookup number", "account", "contract"
+            )) or norm in {"number", "رقم", "الرقم"})
         ):
-            detected["lookup_col"] = idx
+            lookup_candidates.append(idx)
 
         # 4. المبلغ في الشيت / المبلغ المسجل بالشيت (Expected Amount in Results/Errors sheet)
         elif (
@@ -542,10 +566,10 @@ def detect_smart_sheet_columns(sheet: Any, has_headers: bool = True) -> dict[str
         # 10. رقم الخدمة المنفصل
         elif (
             not detected["service_col"]
-            and not _has_negative_keywords(norm, ("تاريخ", "نوع", "مبلغ"))
+            and not _has_negative_keywords(norm, lookup_exclusions)
             and _matches_any(norm, (
                 "رقم الخدمة", "رقم الخدمه", "الخدمة", "الخدمه", "رقم المحفظة", "رقم المحفظه",
-                "المحفظة", "رقم الجوال", "الجوال", "رقم الهاتف", "الهاتف", "service", "phone"
+                "المحفظة", "محفظة", "رقم الجوال", "الجوال", "رقم الهاتف", "الهاتف", "service", "phone"
             ))
         ):
             detected["service_col"] = idx
@@ -571,7 +595,32 @@ def detect_smart_sheet_columns(sheet: Any, has_headers: bool = True) -> dict[str
         )):
             detected["notes_col"] = idx
 
-    # If sheet has a combined lookup column (e.g. 'رقم الحساب ورقم الخدمة' or 'الحساب / الخدمة') and service_col wasn't separate
+    # Read candidate columns until their first readable identifier is found.
+    # Scan past an initially empty sample so sparse columns are not discarded.
+    pending = set(lookup_candidates) | set(account_candidates) | {col for _, col in service_candidates}
+    populated: set[int] = set()
+    if pending:
+        for row in sheet.iter_rows(min_row=2 if has_headers else 1, values_only=True):
+            found = {col for col in pending if col <= len(row)
+                     and any(parse_account_and_service(row[col - 1]))}
+            populated.update(found)
+            pending.difference_update(found)
+            if not pending:
+                break
+    account_col = next((col for col in account_candidates if col in populated), None)
+    service_col = next((col for _, col in sorted(service_candidates, key=lambda item: (-item[0], item[1]))
+                        if col in populated), None)
+    detected["lookup_col"] = account_col or service_col or next(
+        (col for col in lookup_candidates if col in populated), None)
+    detected["service_col"] = service_col
+    if not populated:
+        # Retain the declared roles when all identifier data is missing/invalid,
+        # so validation can report the affected rows rather than a missing map.
+        detected["lookup_col"] = next(iter(account_candidates or lookup_candidates), None)
+        detected["service_col"] = next((col for _, col in sorted(
+            service_candidates, key=lambda item: (-item[0], item[1]))), None)
+
+    # Retain legacy single-column and combined account/service files.
     if detected["lookup_col"] and not detected["service_col"]:
         detected["service_col"] = detected["lookup_col"]
 
@@ -603,13 +652,15 @@ def detect_smart_sheet_columns(sheet: Any, has_headers: bool = True) -> dict[str
     sample = list(islice(sheet.iter_rows(min_row=2 if has_headers else 1, values_only=True), 5))
     candidates = []
     for col in range(1, (sheet.max_column or 0) + 1):
+        if col in excluded_number_cols:
+            continue
         values = [row[col-1] for row in sample if col <= len(row) and row[col-1] is not None and str(row[col-1]).strip()]
         if values and all(any(n.startswith(("1", "2")) for n in parse_account_and_service(v) if n) for v in values):
             candidates.append(col)
     if not detected["lookup_col"] and not detected["service_col"] and len(candidates) == 1:
         detected["lookup_col"] = detected["service_col"] = candidates[0]
     if not detected["amount_col"]:
-        excluded = set(candidates) | {detected["lookup_col"], detected["service_col"]}
+        excluded = set(candidates) | excluded_number_cols | {detected["lookup_col"], detected["service_col"]}
         amounts = []
         for col in range(1, (sheet.max_column or 0) + 1):
             if col in excluded:
