@@ -30,6 +30,7 @@ from telegram_bot.subscription_policy import support_route
 from telegram_bot.maintenance_access import MaintenanceAccessMixin,active as maintenance_active
 from telegram_bot.sheet_workflow import SheetWorkflowMixin
 from telegram_bot import views
+from telegram_bot.operation_progress import update_progress, progress_reply, progress_stage
 from telegram_bot.commerce.bot_workflow import CommerceBotMixin
 from telegram_bot.commerce.checkout import CommerceCheckoutMixin
 from telegram_bot.commerce.cash_codes import CashCreditMixin
@@ -254,7 +255,7 @@ class TelegramBotRunner(MaintenanceAccessMixin, SubscriptionMixin, VodafoneCashM
                 'handler_limit': self._handler_workers, 'reserved_control_handlers': 2,
                 'inbox': self._update_inbox.counts()}
 
-    def _api_call(self, method: str, data: Optional[dict[str, Any]] = None, timeout: int = 25) -> Optional[dict[str, Any]]:
+    def _api_call(self, method: str, data: Optional[dict[str, Any]] = None, timeout: int = 25, *, max_attempts: Optional[int] = None) -> Optional[dict[str, Any]]:
         if data and data.get('parse_mode') == 'HTML' and isinstance(data.get('text'), str):
             from .presentation import rtl_html
             data = {**data, 'text': rtl_html(data['text'])}
@@ -263,8 +264,17 @@ class TelegramBotRunner(MaintenanceAccessMixin, SubscriptionMixin, VodafoneCashM
             data = {**data, 'reply_markup': normalize_markup(data['reply_markup'])}
         safe_retry = method in {'getUpdates', 'getFile', 'getMe', 'setMyCommands','deleteMyCommands',
                                 'editMessageText', 'editMessageReplyMarkup', 'answerCallbackQuery'}
+        # Poll failures return to the poll loop, which owns backoff. Callback
+        # acknowledgements are best effort and must not delay the actual gate.
+        attempts = 1 if method in {'getUpdates', 'answerCallbackQuery'} else 3
+        if max_attempts is not None:
+            if type(max_attempts) is not int or not 1 <= max_attempts <= 3:
+                raise ValueError('Invalid Telegram attempt limit')
+            attempts = min(attempts, max_attempts)
+        if method == 'answerCallbackQuery':
+            timeout = min(timeout, 2)
         url = f"{self.api_url}/{method}"
-        for attempt in range(3):
+        for attempt in range(attempts):
             if self._stop_event.is_set():
                 return None
             result = None
@@ -278,7 +288,7 @@ class TelegramBotRunner(MaintenanceAccessMixin, SubscriptionMixin, VodafoneCashM
                     result = {'ok': False, 'error_code': resp.status_code}
             except Exception as exc:
                 logger.warning('Telegram %s transport failed (%s).', method, type(exc).__name__)
-                if not safe_retry or attempt == 2 or self._stop_event.wait(2 ** attempt):
+                if not safe_retry or attempt == attempts - 1 or self._stop_event.wait(2 ** attempt):
                     return None
                 continue
             if not isinstance(result, dict):
@@ -311,7 +321,7 @@ class TelegramBotRunner(MaintenanceAccessMixin, SubscriptionMixin, VodafoneCashM
             except (ValueError, TypeError):
                 retryable = False
                 delay = 0
-            if not retryable or attempt == 2 or self._stop_event.wait(delay):
+            if not retryable or attempt == attempts - 1 or self._stop_event.wait(delay):
                 return result
         return None
 
@@ -375,7 +385,7 @@ class TelegramBotRunner(MaintenanceAccessMixin, SubscriptionMixin, VodafoneCashM
                     self._last_update_id = 0
                     self._cursor_saved_at = time.time()
                 res = self._api_call("getUpdates", {"offset": self._last_update_id + 1, "timeout": 15,
-                                      "allowed_updates": ['message', 'callback_query','edited_message']}, timeout=35)
+                                      "allowed_updates": ['message', 'callback_query','edited_message']}, timeout=(5, 20))
                 if self._stop_event.is_set():
                     break
                 if not res or not res.get("ok"):
@@ -383,7 +393,15 @@ class TelegramBotRunner(MaintenanceAccessMixin, SubscriptionMixin, VodafoneCashM
                     code = (res or {}).get('error_code')
                     self.last_poll_error = code if type(code) is int else 'transport'
                     self.last_error_at = time.time()
-                    self._stop_event.wait(min(30.0, 2.0 ** min(failures, 5)))
+                    delay = min(30.0, 2.0 ** min(failures, 5))
+                    if code == 429:
+                        try:
+                            retry_after = float((res.get('parameters') or {}).get('retry_after', 0))
+                            if math.isfinite(retry_after) and retry_after > 0:
+                                delay = max(delay, retry_after)
+                        except (ValueError, TypeError, AttributeError):
+                            pass
+                    self._stop_event.wait(delay)
                     continue
                 failures = 0
                 self.last_poll_error = None
@@ -420,6 +438,7 @@ class TelegramBotRunner(MaintenanceAccessMixin, SubscriptionMixin, VodafoneCashM
                 self.last_error_at = time.time()
                 self._stop_event.wait(3.0)
 
+    @update_progress
     def _safe_handle_update(self, update: dict[str, Any], update_id: int) -> None:
         try:
             self._handle_update(update)
@@ -1476,6 +1495,7 @@ class TelegramBotRunner(MaintenanceAccessMixin, SubscriptionMixin, VodafoneCashM
             self._reply(chat_id, '⚠️ بيانات الملف غير صالحة. أعد إرسال ملف XLSX.')
             return
 
+        progress_stage(self, chat_id, '⏳ جارٍ تنزيل الملف وقراءة الأعمدة ومراجعة البيانات…')
         res = self._api_call("getFile", {"file_id": file_id})
         if not res or not res.get("ok"):
             self._reply(chat_id, f"⚠️ تعذر الحصول على ملف <b>{views.safe(file_name)}</b>. أعد إرساله أو ارفعه من لوحة التحكم.")
@@ -1496,6 +1516,7 @@ class TelegramBotRunner(MaintenanceAccessMixin, SubscriptionMixin, VodafoneCashM
                 target_path = target_path.with_name(f"{target_path.stem}_{uuid.uuid4().hex[:8]}.xlsx")
             file_bytes = self._download_file(download_url, max_bytes)
             if file_bytes is None:
+                self._reply(chat_id, '⚠️ تعذر تنزيل الملف الآن. أعد إرسال الملف عندما يستقر الاتصال.')
                 return
             if len(file_bytes) > max_bytes:
                 self._reply(chat_id, '⚠️ الملف يتجاوز حد التنزيل البالغ 20 ميغابايت.')
@@ -1543,7 +1564,8 @@ class TelegramBotRunner(MaintenanceAccessMixin, SubscriptionMixin, VodafoneCashM
             raise ValueError('A finite positive amount is required')
         return amount
 
-    def _reply(self, chat_id: int, text: str) -> None:
+    @progress_reply
+    def _reply(self, chat_id: int, text: str) -> Optional[dict[str, Any]]:
         payload = {
             "chat_id": chat_id,
             "text": text.replace("**", "").replace("`", ""),
@@ -1553,4 +1575,4 @@ class TelegramBotRunner(MaintenanceAccessMixin, SubscriptionMixin, VodafoneCashM
             is_admin_mode = (chat_id in self.current_authorized_ids and self._get_user_mode(chat_id) == "admin")
             from .button_layout import reply_keyboard
             payload["reply_markup"] = reply_keyboard(is_admin_mode, telegram_settings().get("button_icons", {}))
-        self._api_call("sendMessage", payload)
+        return self._api_call("sendMessage", payload)
