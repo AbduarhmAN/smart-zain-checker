@@ -34,6 +34,23 @@ referrals stayed unchanged. Actual re-registration was rejected, and the
 retired referral alias resolved to the canonical partner without a second
 attribution.
 
-The production cutover is pending at this source commit. It requires idle
-checking, validated source hashes, a single-attempt database transaction,
-retained source/cache backups, and successful bot health verification.
+The production cutover completed after idle checking was confirmed. Two runtime
+modules and the private retirement/profile registries were published with
+retained backups, and the database merge committed in one transaction. Healthy
+public bot polling recovered; no deployment notices or paid checks were sent.
+
+The independent completion audit checked 37 foreign-key columns, 43 active
+identity columns and 32 structured JSON columns. No active binding to the
+retired identity remained. Actual current/former partner-list RPCs excluded the
+duplicate, and the canonical partner appeared once. Transferred records include
+one customer attribution, three historical terms versions, four lifecycle events
+and eight preserved notification records. Sent receipts and original message
+bodies/hashes remained intact. Processed Telegram updates remain historical
+evidence, and the duplicate profile cannot be cached again.
+
+Runtime source commit: `c0857d990d634ea36846c00bdeac0763ba016b25` on
+`codex/merge-retired-identities-20261023`. Private evidence, authorization,
+financial fingerprints and detailed receipts are retained under
+`outputs/merge_ahmed_20261023/` and in the protected database retirement audit.
+The sanitized deployment receipt is
+`docs/telegram_commerce/identity_merge_deployment_20261023.json`.

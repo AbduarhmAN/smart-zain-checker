@@ -1,0 +1,47 @@
+{
+  "source_commit": "c0857d990d634ea36846c00bdeac0763ba016b25",
+  "source_branch": "codex/merge-retired-identities-20261023",
+  "runtime_files": 2,
+  "runtime_source_verification": {
+    "telegram_bot/bot.py": {
+      "runtime_sha256": "6c3fcf7ccbd6b647ae2bc48b8bf712ed6fcb0a33dd5b3422176d8d9c6edd252e",
+      "github_normalized_source_sha256": "cb7edb0ce8d2826efedd13945b4423fbb5a41b444d4e8b4272927fffd493341e",
+      "only_line_endings_differ": true
+    },
+    "telegram_bot/identity.py": {
+      "runtime_sha256": "a37661ab478925984105899b79df9a4277952c445f78ae92c0e2ceca82ad9a8c",
+      "github_normalized_source_sha256": "a37661ab478925984105899b79df9a4277952c445f78ae92c0e2ceca82ad9a8c",
+      "only_line_endings_differ": false
+    }
+  },
+  "source_note": "GitHub and live source match after normalizing Windows line endings in bot.py.",
+  "database_migration": "202610230054_commerce_identity_retirement",
+  "migration_sha256": "549a8afdfbefc27176d80d043d61488428eec903abf0c8d26ed5436778ac7978",
+  "deployed": true,
+  "database_merge_committed": true,
+  "linux_tests": 23,
+  "polling_healthy": true,
+  "retired_identity_cannot_register": true,
+  "canonical_identity_allowed": true,
+  "old_profile_removed": true,
+  "financial_records_unchanged": true,
+  "other_referrals_and_runtime_policy_preserved": true,
+  "completion_audit": {
+    "foreign_key_columns": 37,
+    "active_identity_columns": 43,
+    "structured_json_columns": 32,
+    "active_old_bindings": 0,
+    "current_and_former_partner_lists_verified": true,
+    "canonical_partner_appears_once": true
+  },
+  "transferred": {
+    "customers": 1,
+    "terms_versions": 3,
+    "lifecycle_events": 4,
+    "notification_history_records": 8
+  },
+  "historical_delivery_evidence_preserved": true,
+  "messages_sent_by_merge": 0,
+  "files_deleted": 0,
+  "builds_run": 0
+}
