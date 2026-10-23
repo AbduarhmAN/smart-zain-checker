@@ -463,6 +463,7 @@ class TelegramBotRunner(MaintenanceAccessMixin, SubscriptionMixin, VodafoneCashM
             return False
 
     def _handle_update(self, update: dict[str, Any]) -> None:
+        if self._retired_identity_gate(update):return
         self._remember_update_identity(update)
         if self._maintenance_gate(update):return
         if self._support_handle_message(update):return

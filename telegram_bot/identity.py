@@ -16,6 +16,29 @@ _STORES = {}
 _STORES_LOCK = threading.Lock()
 
 
+def retired_telegram_identity(root, target):
+    """Check the local retirement mirror without forwarding authorization."""
+    target = user_id(target)
+    if root is None or target is None:
+        return False
+    path = Path(root)/'.commerce/retired-telegram-identities.json'
+    if not path.is_file():
+        return False
+    try:
+        saved = json.loads(path.read_text(encoding='utf-8'))
+        if saved.get('version') != 1 or not isinstance(saved.get('retired'), dict):
+            raise ValueError('Invalid retired identity registry')
+        record = saved['retired'].get(str(target))
+        if record is None:
+            return False
+        canonical = user_id(record.get('canonical_telegram_user_id')) if isinstance(record, dict) else None
+        if canonical is None or canonical == target:
+            raise ValueError('Invalid canonical identity')
+        return True
+    except (OSError, ValueError, TypeError, AttributeError):
+        raise RuntimeError('Retired identity registry is unavailable') from None
+
+
 def profile_name(first_name, last_name=''):
     parts = [part for part in (first_name, last_name) if isinstance(part, str)]
     text = re.sub(r'[\x00-\x1f\x7f]', ' ', ' '.join(parts))
@@ -24,6 +47,7 @@ def profile_name(first_name, last_name=''):
 
 class ProfileNames:
     def __init__(self, root=None):
+        self.root = root
         self.path = Path(root)/'.commerce/telegram-profiles.json' if root is not None else None
         self.lock = threading.RLock()
         self.records = {}
@@ -41,6 +65,8 @@ class ProfileNames:
     def remember(self, profile):
         target = user_id(profile.get('id')) if isinstance(profile, dict) else None
         if target is None or profile.get('is_bot') is True:
+            return ''
+        if retired_telegram_identity(self.root, target):
             return ''
         name = profile_name(profile.get('first_name'), profile.get('last_name'))
         if not name:
@@ -68,6 +94,8 @@ class ProfileNames:
         target = user_id(target)
         if target is None:
             return 'الاسم غير متاح'
+        if retired_telegram_identity(self.root, target):
+            return 'حساب مدمج'
         with self.lock:
             record = dict(self.records.get(str(target), {}))
             name = profile_name(record.get('first_name'), record.get('last_name'))
@@ -94,6 +122,12 @@ class ProfileNames:
 
 
 class TelegramIdentityMixin:
+    def _retired_identity_gate(self, update):
+        callback = update.get('callback_query') or {}
+        message = callback.get('message') or update.get('message') or update.get('edited_message') or {}
+        actor = callback.get('from') or message.get('from') or {}
+        return retired_telegram_identity(getattr(self, 'project_root', None), actor.get('id'))
+
     def _profile_names(self):
         root = getattr(self, 'project_root', None)
         key = str(Path(root).resolve()) if root is not None else None
